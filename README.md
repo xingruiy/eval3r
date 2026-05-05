@@ -6,6 +6,7 @@
 - A stable on-disk **prediction format** (manifest + geometry + trajectory + cameras).
 - A `PredictionWriter` / `PredictionReader` API for research code.
 - Reliable geometry metrics — Chamfer (4 explicit variants), accuracy, completeness, F-score.
+- Depth metrics — AbsRel, SqRel, RMSE, RMSE log, and delta accuracy (δ < 1.25).
 - An `e3r` CLI for `metric`, `validate`, `inspect`, `render`, and `preset`.
 - Optional headless rendering via `pyrender`.
 
@@ -61,6 +62,7 @@ e3r metric all outputs/scannet/scene0799_00 \
     --align none --samples 200000 --seed 42 \
     --thresholds 0.05 --chamfer-variant l1_mean_bidirectional
 e3r render mesh outputs/.../geometry/pred_mesh.ply --out render.png --headless
+e3r metric depth pred_depth.png --gt /data/scannet/scene0799_00/depth/0.png
 ```
 
 ## Benchmarking a method against a dataset
@@ -110,6 +112,27 @@ adapter side use `--color-subdir`, `--depth-subdir`, `--mesh-filename`, etc.
 
 Be explicit about which one a paper or another codebase reports.
 
+## Depth metrics
+
+```bash
+e3r metric depth pred_depth.png --gt gt_depth.png
+e3r metric depth pred_depth.npy --gt gt_depth.npy --mask valid.npy
+e3r metric depth pred_depth.png --gt gt_depth.png --json
+```
+
+| metric            | description                                |
+|-------------------|--------------------------------------------|
+| `abs_rel`         | mean(\|pred − gt\| / gt)                    |
+| `sq_rel`          | mean((pred − gt)² / gt)                     |
+| `rmse`            | sqrt(mean((pred − gt)²))                    |
+| `rmse_log`        | sqrt(mean((log pred − log gt)²))            |
+| `delta1`          | fraction of pixels where max(ratio, 1/ratio) < 1.25 |
+| `delta2`          | same for threshold 1.25²                   |
+| `delta3`          | same for threshold 1.25³                   |
+
+Pixels where either depth is zero, negative, NaN, or Inf are excluded automatically.
+An optional `--mask` can further restrict valid pixels.
+
 ## Alignment
 
 Many reconstruction methods only predict geometry up to an unknown scale, rotation, and translation. To properly evaluate these methods, `eval3r` requires an explicit `--align` argument to align the prediction to the ground truth before computing metrics. The options are:
@@ -121,6 +144,11 @@ Many reconstruction methods only predict geometry up to an unknown scale, rotati
 --align sim3      # Umeyama scale, R, t
 --align icp       # point-to-point ICP from identity
 ```
+
+## Feedback
+
+eval3r is a research-oriented project. Bug reports, feature requests, and
+general feedback are welcome — please open an issue on GitHub.
 
 ## License
 
