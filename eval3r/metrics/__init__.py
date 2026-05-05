@@ -1,3 +1,12 @@
+from eval3r.metrics.depth import (
+    DepthEvalResult,
+    abs_rel,
+    delta_accuracy,
+    depth_metrics,
+    rmse,
+    rmse_log,
+    sq_rel,
+)
 from eval3r.metrics.geometry import (
     ChamferVariant,
     Evaluator,
@@ -23,6 +32,13 @@ __all__ = [
     "precision_at",
     "recall_at",
     "fscore_at",
+    "DepthEvalResult",
+    "depth_metrics",
+    "abs_rel",
+    "sq_rel",
+    "rmse",
+    "rmse_log",
+    "delta_accuracy",
     "SampleMethod",
     "sample_points",
 ]

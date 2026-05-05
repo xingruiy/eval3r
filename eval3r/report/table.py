@@ -44,6 +44,38 @@ def print_geometry_result(
     (console or Console()).print(render_geometry_table(result))
 
 
+from eval3r.metrics.depth import DepthEvalResult
+
+
+def render_depth_table(result: DepthEvalResult, *, title: str | None = None) -> Table:
+    table = Table(title=title or "eval3r — depth metrics", show_lines=False)
+    table.add_column("metric", style="cyan", no_wrap=True)
+    table.add_column("value", style="white")
+
+    table.add_row("abs_rel", f"{result.abs_rel:.6f}")
+    table.add_row("sq_rel", f"{result.sq_rel:.6f}")
+    table.add_row("rmse", f"{result.rmse:.6f}")
+    table.add_row("rmse_log", f"{result.rmse_log:.6f}")
+    table.add_row("delta1 (< 1.25)", f"{result.delta1:.4f}")
+    table.add_row("delta2 (< 1.25²)", f"{result.delta2:.4f}")
+    table.add_row("delta3 (< 1.25³)", f"{result.delta3:.4f}")
+    table.add_row("valid_pixels", str(result.valid_pixels))
+    table.add_row("total_pixels", str(result.total_pixels))
+    return table
+
+
+def print_depth_result(
+    result: DepthEvalResult,
+    *,
+    as_json: bool = False,
+    console: Console | None = None,
+) -> None:
+    if as_json:
+        print(json.dumps(result.to_dict(), indent=2))
+        return
+    (console or Console()).print(render_depth_table(result))
+
+
 def print_dict(data: dict[str, Any], *, title: str = "summary") -> None:
     table = Table(title=title)
     table.add_column("key", style="cyan", no_wrap=True)
