@@ -15,6 +15,11 @@ from eval3r.datasets.base import (
 )
 from eval3r.datasets.layout import LayoutEntry, format_path, raise_missing
 from eval3r.datasets.scannet import ScanNetAdapter
+from eval3r.datasets.tum_rgbd import TumRGBDAdapter
+from eval3r.datasets.replica import ReplicaAdapter
+from eval3r.datasets.dtu import DTUAdapter
+from eval3r.datasets.eth3d import ETH3DAdapter
+from eval3r.datasets.tanks_temples import TanksTemplesAdapter
 
 _REGISTRY: dict[str, Type[DatasetAdapter]] = {}
 
@@ -40,6 +45,11 @@ def list_datasets() -> list[str]:
 
 # Built-in registrations.
 register_dataset(ScanNetAdapter)
+register_dataset(TumRGBDAdapter)
+register_dataset(ReplicaAdapter)
+register_dataset(DTUAdapter)
+register_dataset(ETH3DAdapter)
+register_dataset(TanksTemplesAdapter)
 
 
 __all__ = [
@@ -47,6 +57,11 @@ __all__ = [
     "DatasetAdapter",
     "AdapterValidationReport",
     "ScanNetAdapter",
+    "TumRGBDAdapter",
+    "ReplicaAdapter",
+    "DTUAdapter",
+    "ETH3DAdapter",
+    "TanksTemplesAdapter",
     "LayoutEntry",
     "format_path",
     "raise_missing",

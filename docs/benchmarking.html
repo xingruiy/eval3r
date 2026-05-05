@@ -39,6 +39,25 @@
         </p>
 
         <section class="section">
+          <h2>Supported Datasets</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Dataset</th><th>GT</th><th>Adapter flag</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>scannet</code></td><td>mesh</td><td>—</td></tr>
+                <tr><td><code>replica</code></td><td>mesh</td><td>—</td></tr>
+                <tr><td><code>dtu</code></td><td>point cloud</td><td>—</td></tr>
+                <tr><td><code>tanks_temples</code></td><td>point cloud</td><td><code>--subset</code></td></tr>
+                <tr><td><code>eth3d</code></td><td>mesh / point cloud</td><td><code>--track</code></td></tr>
+                <tr><td><code>tum_rgbd</code></td><td>— (depth/poses only)</td><td>—</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="section">
           <h2>Dataset Checks</h2>
           <pre><code>e3r datasets list
 e3r datasets show scannet
@@ -49,13 +68,24 @@ e3r datasets validate scannet \
 
         <section class="section">
           <h2>Run a Split</h2>
-          <pre><code>e3r benchmark scannet outputs/scannet \
+          <p>
+            The generic <code>e3r benchmark run &lt;dataset&gt;</code> command works with any
+            registered adapter. Pass adapter overrides with <code>-o key=value</code>.
+          </p>
+          <pre><code>e3r benchmark run scannet outputs/scannet \
   --root /data/scannet \
   --split /data/scannet/splits/scannetv2_test.txt \
-  --thresholds 0.05 \
-  --workers 8 \
-  --out results.json \
-  --csv results.csv</code></pre>
+  --thresholds 0.05 --workers 8 \
+  --out results.json --csv results.csv
+
+e3r benchmark run dtu outputs/dtu \
+  --root /data/dtu
+
+e3r benchmark run eth3d outputs/eth3d \
+  --root /data/eth3d --track dslr
+
+e3r benchmark run tanks_temples outputs/tnt \
+  --root /data/tnt --subset training</code></pre>
         </section>
 
         <section class="section">
@@ -66,7 +96,7 @@ e3r datasets validate scannet \
             <code>&lt;scene&gt;/&lt;scene&gt;_mesh.ply</code>, and
             <code>&lt;scene&gt;/&lt;scene&gt;.ply</code>.
           </p>
-          <pre><code>e3r benchmark scannet outputs/scannet \
+          <pre><code>e3r benchmark run scannet outputs/scannet \
   --root /data/scannet \
   --geometry-pattern "&lt;scene&gt;/out/final.ply"</code></pre>
         </section>

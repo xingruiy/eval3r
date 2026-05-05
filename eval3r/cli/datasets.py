@@ -40,7 +40,12 @@ def validate_cmd(
         help="Path to a split file (one scene id per line). Omit to auto-discover scenes.",
     ),
     scenes: int = typer.Option(1, help="Number of scenes to sample-check."),
-    # ScanNet-style overrides — generic kwargs forwarded to the adapter.
+    # Generic adapter overrides.
+    adapter_opt: list[str] = typer.Option(
+        [], "-o", "--adapter-opt",
+        help="Adapter-specific override in key=value form (repeatable).",
+    ),
+    # Legacy ScanNet-style overrides (mapped to adapter_opt keys).
     color_subdir: str | None = typer.Option(None, "--color-subdir"),
     depth_subdir: str | None = typer.Option(None, "--depth-subdir"),
     pose_subdir: str | None = typer.Option(None, "--pose-subdir"),
@@ -52,7 +57,17 @@ def validate_cmd(
 ) -> None:
     """Sample-check a dataset root matches the adapter's expected layout."""
     cls = get_dataset(name)
-    overrides = {
+    # Build overrides from both generic -o and legacy named options.
+    overrides: dict[str, str] = {}
+    for item in adapter_opt:
+        if "=" not in item:
+            raise typer.BadParameter(
+                f"Adapter opt must be key=value, got: {item!r}"
+            )
+        k, v = item.split("=", 1)
+        overrides[k.strip()] = v.strip()
+    # Legacy named options (mapped to standard adapter kwarg names).
+    overrides.update({
         k: v
         for k, v in {
             "color_subdir": color_subdir,
@@ -65,7 +80,7 @@ def validate_cmd(
             "pose_format": pose_format,
         }.items()
         if v is not None
-    }
+    })
     try:
         ds = cls(root, split=split, validate_on_init=False, **overrides)  # type: ignore[arg-type]
     except Exception as e:

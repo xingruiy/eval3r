@@ -65,26 +65,58 @@ e3r render mesh outputs/.../geometry/pred_mesh.ply --out render.png --headless
 e3r metric depth pred_depth.png --gt /data/scannet/scene0799_00/depth/0.png
 ```
 
+## Supported datasets
+
+`eval3r` ships dataset adapters that describe standard filesystem layouts.
+Adapters own per-dataset assets (mesh, point cloud, depth, color, poses,
+intrinsics) and are discoverable through the registry:
+
+| dataset | GT format | description |
+|---|---|---|
+| `scannet` | mesh | ScanNet v2 — per-scene PLY meshes, RGB-D frames, camera poses |
+| `replica` | mesh | Replica — high-quality indoor scene reconstructions |
+| `dtu` | point cloud | DTU MVS — structured-light point clouds, evaluation subset of 19 scans |
+| `tanks_temples` | point cloud | Tanks & Temples — laser-scan point clouds, training / intermediate / advanced subsets |
+| `eth3d` | mesh / point cloud | ETH3D — high-res (dslr) and low-res (rig) tracks, COLMAP calibration |
+| `tum_rgbd` | — | TUM RGB-D — handheld SLAM sequences (depth, color, poses, no geometry GT) |
+
 ## Benchmarking a method against a dataset
 
 ```bash
-# Inspect the adapter and confirm the dataset tree matches expectations.
+# List all registered adapters and inspect a specific one.
 e3r datasets list
 e3r datasets show scannet
+e3r datasets show dtu
+
+# Check that a dataset root matches the expected layout.
 e3r datasets validate scannet --root /data/scannet \
     --split /data/scannet/splits/scannetv2_test.txt
+e3r datasets validate dtu --root /data/dtu
 
-# Run a method's predictions across the full split.
-e3r benchmark scannet outputs/scannet \
+# Run a method's predictions across a full split (generic command).
+e3r benchmark run scannet outputs/scannet \
     --root /data/scannet \
     --split /data/scannet/splits/scannetv2_test.txt \
     --thresholds 0.05 --workers 8 \
     --out results.json --csv results.csv
+
+# Run against datasets with non-default layout via adapter opts.
+e3r benchmark run eth3d outputs/eth3d \
+    --root /data/eth3d --track dslr
+
+e3r benchmark run tanks_temples outputs/tnt \
+    --root /data/tnt --subset training
+
+# Pass adapter-specific overrides with -o key=value.
+e3r benchmark run tum_rgbd outputs/tum \
+    --root /data/tum -o intrinsics_fx=535.4 -o intrinsics_cx=320.1
 ```
 
 eval3r does not ship dataset splits — pass a path to a text file with one
-scene id per line. Omit `--split` to auto-discover all scenes under
-`<root>/scans/`.
+scene id per line. Omit `--split` to auto-discover scenes. DTU defaults to
+the standard 19-scan evaluation subset; Tanks & Temples accepts `--subset`
+(`training`, `intermediate`, or `advanced`); ETH3D accepts `--track` (`dslr`
+or `rig`).
 
 The benchmark reports two summaries: `summary` (mean / median / std over
 **successful** scenes only) and `summary_all` (over **all** scenes with
@@ -96,8 +128,8 @@ recorded in the result `config` so leaderboard numbers are reproducible.
 The locator looks for `eval3r_prediction.json` first, then falls back to
 `<scene>/mesh.ply`, `<scene>/<scene>_mesh.ply`, `<scene>/<scene>.ply`, etc.
 Custom layouts are supported via `--geometry-pattern "<scene>/out/final.ply"`
-(repeatable, prepended to the defaults). Folder/filename overrides on the
-adapter side use `--color-subdir`, `--depth-subdir`, `--mesh-filename`, etc.
+(repeatable, prepended to the defaults). Adapter overrides use `-o key=value`
+(e.g. `-o depth_scale=5000`, `-o mesh_filename=scan.ply`).
 
 ## Chamfer variants
 
@@ -156,7 +188,8 @@ eval3r is released under the MIT License. See `pyproject.toml` for the
 canonical metadata.
 
 eval3r does **not** redistribute any third-party datasets, splits, or
-ground-truth meshes. Datasets such as ScanNet remain under their original
-licenses; you must obtain them from their respective sources and abide by
-those terms. Adapter code in `eval3r/datasets/` only describes filesystem
-layouts — no dataset content ships in the package.
+ground-truth meshes. Datasets (ScanNet, Replica, DTU, ETH3D, Tanks & Temples,
+TUM RGB-D) remain under their original licenses; you must obtain them from
+their respective sources and abide by those terms. Adapter code in
+`eval3r/datasets/` only describes filesystem layouts — no dataset content
+ships in the package.
