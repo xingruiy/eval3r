@@ -14,3 +14,4 @@ venv/
 *.swp
 .DS_Store
 .CLAUDE
+DESIGN.md

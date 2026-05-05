@@ -8,15 +8,30 @@ from typing import get_args
 
 import typer
 
+import numpy as np
+
 from eval3r.align import AlignMode
 from eval3r.io.geometry import load_mesh, load_point_cloud
+from eval3r.metrics.depth import depth_metrics
 from eval3r.metrics.geometry import ChamferVariant, evaluate_geometry
 from eval3r.metrics.sampling import SampleMethod
 from eval3r.prediction.reader import PredictionReader
-from eval3r.report.table import print_geometry_result
+from eval3r.report.table import print_depth_result, print_geometry_result
 from eval3r.utils.errors import MissingArtifactError
+from eval3r.utils.optional import optional_import
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
+
+
+def _load_depth_image(path: str) -> np.ndarray:
+    p = Path(path)
+    suffix = p.suffix.lower()
+    if suffix == ".npy":
+        return np.load(p).astype(np.float32)
+    if suffix == ".png":
+        imageio = optional_import("imageio.v3", extra="render")
+        return imageio.imread(p).astype(np.float32)
+    raise typer.BadParameter(f"Unsupported depth image format: {suffix}. Use .png or .npy.")
 
 
 def _load_geom(path: str):  # type: ignore[no-untyped-def]
@@ -124,3 +139,20 @@ def fscore_cmd(
         thresholds=[threshold],
     )
     print_geometry_result(result, as_json=json_out)
+
+
+@app.command("depth")
+def depth_cmd(
+    pred: str = typer.Argument(..., help="Predicted depth image (.png or .npy)."),
+    gt: str = typer.Option(..., "--gt", help="Ground-truth depth image (.png or .npy)."),
+    mask: str = typer.Option(None, "--mask", help="Optional boolean mask (.npy)."),
+    json_out: bool = typer.Option(False, "--json", help="Emit JSON instead of a table."),
+) -> None:
+    """Compute AbsRel, SqRel, RMSE, RMSE log, and δ accuracy for depth maps."""
+    pred_depth = _load_depth_image(pred)
+    gt_depth = _load_depth_image(gt)
+    mask_arr = None
+    if mask is not None:
+        mask_arr = np.load(mask).astype(bool)
+    result = depth_metrics(pred_depth, gt_depth, mask_arr)
+    print_depth_result(result, as_json=json_out)
