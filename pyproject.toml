@@ -4,12 +4,12 @@ build-backend = "hatchling.build"
 
 [project]
 name = "eval3r"
-version = "0.1.0"
 description = "Handy toolkit for saving, evaluating, and visualizing 3D reconstruction predictions."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [{ name = "eval3r contributors" }]
+dynamic = ["version"]
 keywords = ["3d", "reconstruction", "evaluation", "chamfer", "f-score"]
 classifiers = [
     "Development Status :: 3 - Alpha",
@@ -19,6 +19,7 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Topic :: Scientific/Engineering",
 ]
+
 dependencies = [
     "numpy>=1.24",
     "scipy>=1.11",
@@ -27,6 +28,11 @@ dependencies = [
     "rich>=13",
     "trimesh>=4",
 ]
+
+[project.urls]
+Homepage = "https://github.com/xingruiy/eval3r"
+Repository = "https://github.com/xingruiy/eval3r"
+Documentation = "https://xingruiy.github.io/eval3r"
 
 [project.optional-dependencies]
 render = ["pyrender>=0.1.45", "pillow", "imageio"]
@@ -39,6 +45,17 @@ e3r = "eval3r.cli.main:app"
 
 [tool.hatch.build.targets.wheel]
 packages = ["eval3r"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/LICENSE",
+    "/README.md",
+    "/pyproject.toml",
+    "/eval3r",
+]
+
+[tool.hatch.version]
+path = "eval3r/_version.py"
 
 [tool.ruff]
 line-length = 100
