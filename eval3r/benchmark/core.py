@@ -12,8 +12,8 @@ from typing import Any, Literal
 import numpy as np
 
 from eval3r.align import AlignMode
-from eval3r.benchmark.aggregate import aggregate
-from eval3r.datasets.base import DatasetAdapter
+from eval3r.benchmark.aggregate import aggregate, aggregate_all
+from eval3r.datasets.base import Asset, DatasetAdapter
 from eval3r.io.geometry import (
     MeshData,
     PointCloudData,
@@ -46,6 +46,10 @@ class BenchmarkConfig:
     bbox_margin: float = 0.10
     fail_on_missing: bool = False
     workers: int = field(default_factory=lambda: min(8, os.cpu_count() or 1))
+    # Defaults applied to ``summary_all`` for scenes whose status != "ok".
+    # Distance metrics get penalised; f-score / precision / recall go to 0.
+    missing_distance_default: float = 1.0
+    missing_fscore_default: float = 0.0
 
 
 SceneStatus = Literal["ok", "missing_pred", "missing_gt", "failed"]
@@ -67,6 +71,11 @@ class BenchmarkResult:
     split: str
     scenes: list[SceneOutcome]
     summary: dict[str, dict[str, float]]
+    """Mean / median / std / n over **successful** scenes only."""
+    summary_all: dict[str, dict[str, float]]
+    """Mean / median / std / n over **all** scenes; missing scenes get the
+    configured defaults (distance → ``missing_distance_default``,
+    f-score / precision / recall → ``missing_fscore_default``)."""
     coverage: dict[str, int]
     config: dict[str, Any]
 
@@ -86,6 +95,7 @@ class BenchmarkResult:
                 for o in self.scenes
             ],
             "summary": self.summary,
+            "summary_all": self.summary_all,
             "coverage": self.coverage,
             "config": self.config,
         }
@@ -124,6 +134,7 @@ def _evaluate_one(
     scene_id: str,
     pred_descriptor: dict[str, Any] | None,
     gt_path: Path | None,
+    gt_asset: Asset,
     config: BenchmarkConfig,
 ) -> SceneOutcome:
     if pred_descriptor is None:
@@ -146,10 +157,13 @@ def _evaluate_one(
             rp["reader"] = PredictionReader(rp["path"], verify_hashes=False)
 
         pred_geom = _load_pred_geometry(rp)
-        gt_geom = load_mesh(gt_path)
+        if gt_asset is Asset.POINT_CLOUD:
+            gt_geom = load_point_cloud(gt_path)
+        else:
+            gt_geom = load_mesh(gt_path)
 
         if config.crop_to_gt_bbox:
-            gv = gt_geom.vertices
+            gv = gt_geom.vertices if isinstance(gt_geom, MeshData) else gt_geom.points
             bbox_min, bbox_max = gv.min(axis=0), gv.max(axis=0)
             if isinstance(pred_geom, MeshData):
                 kept = _crop_to_bbox(pred_geom.vertices, bbox_min, bbox_max, config.bbox_margin)
@@ -221,7 +235,8 @@ def run_benchmark(
 
     # Resolve preds + GT paths upfront; that way workers don't share adapter
     # state across processes.
-    jobs: list[tuple[str, dict[str, Any] | None, Path | None]] = []
+    gt_asset = _gt_asset(dataset)
+    jobs: list[tuple[str, dict[str, Any] | None, Path | None, Asset]] = []
     for sid in scenes:
         rp = loc.resolve(sid)
         if rp is None and cfg.fail_on_missing:
@@ -229,15 +244,15 @@ def run_benchmark(
                 f"No prediction found for scene {sid!r} under {loc.preds_root}"
             )
         try:
-            gt_path = dataset.asset_path(sid, _gt_asset(dataset))
+            gt_path = dataset.asset_path(sid, gt_asset)
         except Exception:
             gt_path = None
-        jobs.append((sid, _pred_descriptor(rp), gt_path))
+        jobs.append((sid, _pred_descriptor(rp), gt_path, gt_asset))
 
     outcomes: list[SceneOutcome] = []
     if cfg.workers <= 1 or len(jobs) <= 1:
         for j in jobs:
-            outcomes.append(_evaluate_one(*j, cfg))
+            outcomes.append(_evaluate_one(*j, cfg))  # type: ignore[arg-type]
             if progress:
                 _log.info("benchmark: %s -> %s", outcomes[-1].scene_id, outcomes[-1].status)
     else:
@@ -264,7 +279,14 @@ def run_benchmark(
         dataset=dataset.name,
         split=split_label,
         scenes=outcomes,
-        summary=aggregate(outcomes),
+        summary=aggregate(outcomes, thresholds=cfg.thresholds),
+        summary_all=aggregate_all(
+            outcomes,
+            n_total=len(scenes),
+            thresholds=cfg.thresholds,
+            distance_default=cfg.missing_distance_default,
+            fscore_default=cfg.missing_fscore_default,
+        ),
         coverage=coverage,
         config={
             "samples": cfg.samples,
@@ -276,6 +298,8 @@ def run_benchmark(
             "crop_to_gt_bbox": cfg.crop_to_gt_bbox,
             "bbox_margin": cfg.bbox_margin,
             "workers": cfg.workers,
+            "missing_distance_default": cfg.missing_distance_default,
+            "missing_fscore_default": cfg.missing_fscore_default,
         },
     )
 

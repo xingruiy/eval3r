@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Benchmarking - eval3r</title>
+    <link rel="stylesheet" href="assets/site.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <nav class="nav" aria-label="Main navigation">
+        <a class="brand" href="index.html"><span class="brand-mark">e3r</span> eval3r</a>
+        <div class="nav-links">
+          <a href="index.html">Overview</a>
+          <a href="getting-started.html">Getting Started</a>
+          <a href="prediction-format.html">Prediction Format</a>
+          <a href="cli.html">CLI</a>
+          <a aria-current="page" href="benchmarking.html">Benchmarking</a>
+        </div>
+      </nav>
+    </header>
+
+    <main class="docs-layout">
+      <aside class="docs-sidebar" aria-label="Documentation navigation">
+        <p class="sidebar-title">Documentation</p>
+        <nav class="sidebar-nav">
+          <a href="index.html">Overview</a>
+          <a href="getting-started.html">Getting Started</a>
+          <a href="prediction-format.html">Prediction Format</a>
+          <a href="cli.html">CLI</a>
+          <a aria-current="page" href="benchmarking.html">Benchmarking</a>
+        </nav>
+      </aside>
+      <article class="docs-content page content">
+        <h1>Benchmarking</h1>
+        <p class="lead">
+          Benchmark a method against a dataset adapter and split while preserving missing-scene
+          handling and metric configuration in the output.
+        </p>
+
+        <section class="section">
+          <h2>Supported Datasets</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Dataset</th><th>GT</th><th>Adapter flag</th></tr>
+              </thead>
+              <tbody>
+                <tr><td><code>scannet</code></td><td>mesh</td><td>—</td></tr>
+                <tr><td><code>replica</code></td><td>mesh</td><td>—</td></tr>
+                <tr><td><code>dtu</code></td><td>point cloud</td><td>—</td></tr>
+                <tr><td><code>tanks_temples</code></td><td>point cloud</td><td><code>--subset</code></td></tr>
+                <tr><td><code>eth3d</code></td><td>mesh / point cloud</td><td><code>--track</code></td></tr>
+                <tr><td><code>tum_rgbd</code></td><td>— (depth/poses only)</td><td>—</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2>Dataset Checks</h2>
+          <pre><code>e3r datasets list
+e3r datasets show scannet
+e3r datasets validate scannet \
+  --root /data/scannet \
+  --split /data/scannet/splits/scannetv2_test.txt</code></pre>
+        </section>
+
+        <section class="section">
+          <h2>Run a Split</h2>
+          <p>
+            The generic <code>e3r benchmark run &lt;dataset&gt;</code> command works with any
+            registered adapter. Pass adapter overrides with <code>-o key=value</code>.
+          </p>
+          <pre><code>e3r benchmark run scannet outputs/scannet \
+  --root /data/scannet \
+  --split /data/scannet/splits/scannetv2_test.txt \
+  --thresholds 0.05 --workers 8 \
+  --out results.json --csv results.csv
+
+e3r benchmark run dtu outputs/dtu \
+  --root /data/dtu
+
+e3r benchmark run eth3d outputs/eth3d \
+  --root /data/eth3d --track dslr
+
+e3r benchmark run tanks_temples outputs/tnt \
+  --root /data/tnt --subset training</code></pre>
+        </section>
+
+        <section class="section">
+          <h2>Prediction Discovery</h2>
+          <p>
+            eval3r looks for <code>eval3r_prediction.json</code> first. It then falls back to common
+            mesh names such as <code>&lt;scene&gt;/mesh.ply</code>,
+            <code>&lt;scene&gt;/&lt;scene&gt;_mesh.ply</code>, and
+            <code>&lt;scene&gt;/&lt;scene&gt;.ply</code>.
+          </p>
+          <pre><code>e3r benchmark run scannet outputs/scannet \
+  --root /data/scannet \
+  --geometry-pattern "&lt;scene&gt;/out/final.ply"</code></pre>
+        </section>
+
+        <section class="section">
+          <h2>Summaries</h2>
+          <p>
+            Benchmark output includes a <code>summary</code> over successful scenes and
+            <code>summary_all</code> over every requested scene. Missing or failed scenes are filled
+            with configured defaults so leaderboard-style numbers remain reproducible.
+          </p>
+        </section>
+      </article>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-inner">eval3r documentation</div>
+    </footer>
+  </body>
+</html>

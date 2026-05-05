@@ -48,6 +48,43 @@ def test_run_benchmark_workers_1(tmp_path: Path) -> None:
     statuses = {o.scene_id: o.status for o in result.scenes}
     assert statuses == {"s1": "ok", "s2": "ok", "s3": "missing_pred"}
     assert result.summary["chamfer"]["n"] == 2
+    # summary_all includes the missing scene with the configured defaults.
+    assert result.summary_all["chamfer"]["n"] == 3
+    assert result.summary_all["f@0.05"]["n"] == 3
+    # Defaults: distance=1.0, fscore=0.0.
+    expected_chamfer_all = (
+        result.summary["chamfer"]["mean"] * 2 + cfg.missing_distance_default
+    ) / 3
+    assert result.summary_all["chamfer"]["mean"] == pytest.approx(expected_chamfer_all)
+    expected_f_all = (result.summary["f@0.05"]["mean"] * 2 + cfg.missing_fscore_default) / 3
+    assert result.summary_all["f@0.05"]["mean"] == pytest.approx(expected_f_all)
+
+
+def test_summary_all_respects_overrides(tmp_path: Path) -> None:
+    ds, _ = _make_dataset(tmp_path)
+    preds = _make_preds_root(tmp_path)
+    cfg = BenchmarkConfig(
+        samples=4096, seed=0, workers=1, thresholds=(0.05,),
+        missing_distance_default=2.5, missing_fscore_default=0.1,
+    )
+    result = run_benchmark(ds, preds, config=cfg, progress=False)
+    expected = (result.summary["chamfer"]["mean"] * 2 + 2.5) / 3
+    assert result.summary_all["chamfer"]["mean"] == pytest.approx(expected)
+    expected_f = (result.summary["f@0.05"]["mean"] * 2 + 0.1) / 3
+    assert result.summary_all["f@0.05"]["mean"] == pytest.approx(expected_f)
+
+
+def test_summary_all_when_zero_succeed(tmp_path: Path) -> None:
+    ds, _ = _make_dataset(tmp_path)
+    # Empty preds root: every scene is missing.
+    cfg = BenchmarkConfig(samples=4096, seed=0, workers=1, thresholds=(0.05,))
+    result = run_benchmark(ds, tmp_path / "no_preds", config=cfg, progress=False)
+    assert result.coverage["n_evaluated"] == 0
+    # summary is empty stats; summary_all reflects pure defaults.
+    assert result.summary["chamfer"]["n"] == 0
+    assert result.summary_all["chamfer"]["n"] == 3
+    assert result.summary_all["chamfer"]["mean"] == pytest.approx(cfg.missing_distance_default)
+    assert result.summary_all["f@0.05"]["mean"] == pytest.approx(cfg.missing_fscore_default)
 
 
 def test_run_benchmark_workers_2_matches_workers_1(tmp_path: Path) -> None:
