@@ -1,3 +1,8 @@
+from eval3r.prediction.discovery import (
+    PredictionLocator,
+    ResolvedPrediction,
+    find_predictions,
+)
 from eval3r.prediction.manifest import (
     MANIFEST_FILENAME,
     CoordinateSystem,
@@ -19,4 +24,7 @@ __all__ = [
     "PredictionReader",
     "ValidationReport",
     "validate_prediction",
+    "PredictionLocator",
+    "ResolvedPrediction",
+    "find_predictions",
 ]

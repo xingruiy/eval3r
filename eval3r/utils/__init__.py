@@ -8,6 +8,7 @@ from eval3r.utils.errors import (
     MissingArtifactError,
     MissingOptionalDependencyError,
     NaNGeometryError,
+    NotSupportedError,
 )
 from eval3r.utils.logging import get_logger
 from eval3r.utils.optional import optional_import
@@ -21,6 +22,7 @@ __all__ = [
     "ManifestError",
     "AlignmentError",
     "MissingOptionalDependencyError",
+    "NotSupportedError",
     "EvalAssumptionWarning",
     "get_logger",
     "optional_import",

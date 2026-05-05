@@ -65,6 +65,33 @@ e3r metric all outputs/scannet/scene0799_00 \
 e3r render mesh outputs/.../geometry/pred_mesh.ply --out render.png --headless
 ```
 
+## Benchmarking a method against a dataset
+
+```bash
+# Inspect the adapter and confirm the dataset tree matches expectations.
+e3r datasets list
+e3r datasets show scannet
+e3r datasets validate scannet --root /data/scannet \
+    --split /data/scannet/splits/scannetv2_test.txt
+
+# Run a method's predictions across the full split.
+e3r benchmark scannet outputs/scannet \
+    --root /data/scannet \
+    --split /data/scannet/splits/scannetv2_test.txt \
+    --thresholds 0.05 --workers 8 \
+    --out results.json --csv results.csv
+```
+
+eval3r does not ship dataset splits — pass a path to a text file with one
+scene id per line. Omit `--split` to auto-discover all scenes under
+`<root>/scans/`.
+
+The locator looks for `eval3r_prediction.json` first, then falls back to
+`<scene>/mesh.ply`, `<scene>/<scene>_mesh.ply`, `<scene>/<scene>.ply`, etc.
+Custom layouts are supported via `--geometry-pattern "<scene>/out/final.ply"`
+(repeatable, prepended to the defaults). Folder/filename overrides on the
+adapter side use `--color-subdir`, `--depth-subdir`, `--mesh-filename`, etc.
+
 ## Chamfer variants
 
 `eval3r.metrics.chamfer_distance` accepts an explicit `variant`:

@@ -1,7 +1,20 @@
 """eval3r — toolkit for saving, evaluating, and visualizing 3D reconstruction predictions."""
 
 from eval3r._version import __version__
+from eval3r.benchmark import (
+    BenchmarkConfig,
+    BenchmarkResult,
+    SceneOutcome,
+    run_benchmark,
+)
+from eval3r.datasets import (
+    DatasetAdapter,
+    ScanNetAdapter,
+    get_dataset,
+    list_datasets,
+)
 from eval3r.metrics.geometry import Evaluator, evaluate_geometry
+from eval3r.prediction.discovery import PredictionLocator
 from eval3r.prediction.reader import PredictionReader
 from eval3r.prediction.writer import PredictionWriter
 
@@ -9,6 +22,15 @@ __all__ = [
     "__version__",
     "PredictionWriter",
     "PredictionReader",
+    "PredictionLocator",
     "Evaluator",
     "evaluate_geometry",
+    "DatasetAdapter",
+    "ScanNetAdapter",
+    "get_dataset",
+    "list_datasets",
+    "BenchmarkConfig",
+    "BenchmarkResult",
+    "SceneOutcome",
+    "run_benchmark",
 ]

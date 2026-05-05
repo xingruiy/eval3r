@@ -35,5 +35,9 @@ class MissingOptionalDependencyError(Eval3rError, ImportError):
     """A feature was requested whose optional dependency is not installed."""
 
 
+class NotSupportedError(Eval3rError, NotImplementedError):
+    """A dataset adapter does not provide the requested asset."""
+
+
 class EvalAssumptionWarning(UserWarning):
     """An evaluation assumption (unit, convention, etc.) was left unspecified."""
