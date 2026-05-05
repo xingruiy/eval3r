@@ -69,7 +69,7 @@ def validate_cmd(
     try:
         ds = cls(root, split=split, validate_on_init=False, **overrides)  # type: ignore[arg-type]
     except Exception as e:
-        typer.echo(f"[red]construction failed:[/] {e}", err=True)
+        typer.secho(f"construction failed: {e}", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=2)
 
     report = ds.validate(scenes=scenes)

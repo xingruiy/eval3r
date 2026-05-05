@@ -1,8 +1,7 @@
-# eval3r
+# Eval3r: 3D reconstruction evaluation, made explicit
+## Overview
 
-Handy toolkit for saving, evaluating, and visualizing 3D reconstruction predictions.
-
-`eval3r` v0.1 focuses on a small, explicit core:
+`eval3r` focuses on a small, explicit core:
 
 - A stable on-disk **prediction format** (manifest + geometry + trajectory + cameras).
 - A `PredictionWriter` / `PredictionReader` API for research code.
@@ -10,12 +9,11 @@ Handy toolkit for saving, evaluating, and visualizing 3D reconstruction predicti
 - An `e3r` CLI for `metric`, `validate`, `inspect`, `render`, and `preset`.
 - Optional headless rendering via `pyrender`.
 
-The goals are reproducibility and explicit assumptions: no silent alignment,
-no silent unit conversion, no hidden default for pose conventions.
+The goals are reproducibility and explicit assumptions: no silent alignment, no silent unit conversion, no hidden default for pose conventions.
 
 ## Install
 
-Base install (NumPy / SciPy / Pydantic / Typer / Rich / trimesh):
+Base install:
 
 ```bash
 pip install -e .
@@ -113,6 +111,8 @@ adapter side use `--color-subdir`, `--depth-subdir`, `--mesh-filename`, etc.
 Be explicit about which one a paper or another codebase reports.
 
 ## Alignment
+
+Many reconstruction methods only predict geometry up to an unknown scale, rotation, and translation. To properly evaluate these methods, `eval3r` requires an explicit `--align` argument to align the prediction to the ground truth before computing metrics. The options are:
 
 ```bash
 --align none      # default — never silently align
