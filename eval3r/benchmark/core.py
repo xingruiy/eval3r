@@ -12,7 +12,7 @@ from typing import Any, Literal
 import numpy as np
 
 from eval3r.align import AlignMode
-from eval3r.benchmark.aggregate import aggregate
+from eval3r.benchmark.aggregate import aggregate, aggregate_all
 from eval3r.datasets.base import DatasetAdapter
 from eval3r.io.geometry import (
     MeshData,
@@ -46,6 +46,10 @@ class BenchmarkConfig:
     bbox_margin: float = 0.10
     fail_on_missing: bool = False
     workers: int = field(default_factory=lambda: min(8, os.cpu_count() or 1))
+    # Defaults applied to ``summary_all`` for scenes whose status != "ok".
+    # Distance metrics get penalised; f-score / precision / recall go to 0.
+    missing_distance_default: float = 1.0
+    missing_fscore_default: float = 0.0
 
 
 SceneStatus = Literal["ok", "missing_pred", "missing_gt", "failed"]
@@ -67,6 +71,11 @@ class BenchmarkResult:
     split: str
     scenes: list[SceneOutcome]
     summary: dict[str, dict[str, float]]
+    """Mean / median / std / n over **successful** scenes only."""
+    summary_all: dict[str, dict[str, float]]
+    """Mean / median / std / n over **all** scenes; missing scenes get the
+    configured defaults (distance → ``missing_distance_default``,
+    f-score / precision / recall → ``missing_fscore_default``)."""
     coverage: dict[str, int]
     config: dict[str, Any]
 
@@ -86,6 +95,7 @@ class BenchmarkResult:
                 for o in self.scenes
             ],
             "summary": self.summary,
+            "summary_all": self.summary_all,
             "coverage": self.coverage,
             "config": self.config,
         }
@@ -264,7 +274,14 @@ def run_benchmark(
         dataset=dataset.name,
         split=split_label,
         scenes=outcomes,
-        summary=aggregate(outcomes),
+        summary=aggregate(outcomes, thresholds=cfg.thresholds),
+        summary_all=aggregate_all(
+            outcomes,
+            n_total=len(scenes),
+            thresholds=cfg.thresholds,
+            distance_default=cfg.missing_distance_default,
+            fscore_default=cfg.missing_fscore_default,
+        ),
         coverage=coverage,
         config={
             "samples": cfg.samples,
@@ -276,6 +293,8 @@ def run_benchmark(
             "crop_to_gt_bbox": cfg.crop_to_gt_bbox,
             "bbox_margin": cfg.bbox_margin,
             "workers": cfg.workers,
+            "missing_distance_default": cfg.missing_distance_default,
+            "missing_fscore_default": cfg.missing_fscore_default,
         },
     )
 

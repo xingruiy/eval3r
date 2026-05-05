@@ -86,6 +86,13 @@ eval3r does not ship dataset splits — pass a path to a text file with one
 scene id per line. Omit `--split` to auto-discover all scenes under
 `<root>/scans/`.
 
+The benchmark reports two summaries: `summary` (mean / median / std over
+**successful** scenes only) and `summary_all` (over **all** scenes with
+missing or failed scenes filled in by the configured defaults — distance
+metrics → `--missing-distance-default`, default `1.0` m; F-score / precision
+/ recall → `--missing-fscore-default`, default `0.0`). The defaults are
+recorded in the result `config` so leaderboard numbers are reproducible.
+
 The locator looks for `eval3r_prediction.json` first, then falls back to
 `<scene>/mesh.ply`, `<scene>/<scene>_mesh.ply`, `<scene>/<scene>.ply`, etc.
 Custom layouts are supported via `--geometry-pattern "<scene>/out/final.ply"`
@@ -115,3 +122,13 @@ Be explicit about which one a paper or another codebase reports.
 --align icp       # point-to-point ICP from identity
 ```
 
+## License
+
+eval3r is released under the MIT License. See `pyproject.toml` for the
+canonical metadata.
+
+eval3r does **not** redistribute any third-party datasets, splits, or
+ground-truth meshes. Datasets such as ScanNet remain under their original
+licenses; you must obtain them from their respective sources and abide by
+those terms. Adapter code in `eval3r/datasets/` only describes filesystem
+layouts — no dataset content ships in the package.

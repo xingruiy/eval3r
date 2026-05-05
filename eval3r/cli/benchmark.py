@@ -20,14 +20,16 @@ from eval3r.prediction.discovery import PredictionLocator
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 
 
-def _summary_table(result_dict: dict) -> Table:
-    table = Table(title=f"benchmark {result_dict['dataset']} ({result_dict['split']})")
+def _summary_table(
+    result_dict: dict, *, summary_key: str, title: str
+) -> Table:
+    table = Table(title=title)
     table.add_column("metric", style="cyan")
     table.add_column("mean", style="white")
     table.add_column("median", style="white")
     table.add_column("std", style="white")
     table.add_column("n", style="white")
-    for metric, stats in result_dict["summary"].items():
+    for metric, stats in result_dict[summary_key].items():
         table.add_row(
             metric,
             f"{stats['mean']:.6f}",
@@ -64,6 +66,16 @@ def scannet_cmd(
     crop: bool = typer.Option(False, "--crop/--no-crop", help="Crop pred to GT bbox."),
     crop_margin: float = typer.Option(0.10, help="Bbox crop margin in metres."),
     workers: int | None = typer.Option(None, help="Process workers; default min(8, ncpu)."),
+    missing_distance_default: float = typer.Option(
+        1.0,
+        "--missing-distance-default",
+        help="Penalty in metres applied to chamfer/accuracy/completeness for missing or failed scenes (used in summary_all).",
+    ),
+    missing_fscore_default: float = typer.Option(
+        0.0,
+        "--missing-fscore-default",
+        help="Default applied to f-score / precision / recall for missing or failed scenes (used in summary_all).",
+    ),
     geometry_pattern: list[str] = typer.Option(
         [], "--geometry-pattern",
         help="Custom prediction filename patterns (repeatable, prepended to defaults).",
@@ -108,6 +120,8 @@ def scannet_cmd(
         bbox_margin=crop_margin,
         fail_on_missing=fail_on_missing,
         workers=workers if workers is not None else min(8, os.cpu_count() or 1),
+        missing_distance_default=missing_distance_default,
+        missing_fscore_default=missing_fscore_default,
     )
     locator = PredictionLocator(
         preds_root=Path(preds_root),
@@ -125,7 +139,27 @@ def scannet_cmd(
     else:
         console = Console()
         console.print(_coverage_table(payload))
-        console.print(_summary_table(payload))
+        console.print(
+            _summary_table(
+                payload,
+                summary_key="summary",
+                title=f"summary — available scenes ({payload['dataset']} / {payload['split']})",
+            )
+        )
+        cov = payload["coverage"]
+        n_missing = cov["n_total"] - cov["n_evaluated"]
+        if n_missing > 0:
+            console.print(
+                _summary_table(
+                    payload,
+                    summary_key="summary_all",
+                    title=(
+                        f"summary — all {cov['n_total']} scenes "
+                        f"(missing → distance={cfg.missing_distance_default}, "
+                        f"fscore={cfg.missing_fscore_default})"
+                    ),
+                )
+            )
 
 
 def _write_csv(path: Path, payload: dict) -> None:
