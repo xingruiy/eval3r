@@ -142,3 +142,71 @@ def load_trajectory_kitti(path: PathLike, convention: str = "unspecified") -> Tr
     poses = np.tile(np.eye(4), (arr.shape[0], 1, 1))
     poses[:, :3, :] = arr.reshape(-1, 3, 4)
     return Trajectory(poses=poses, timestamps=None, convention=convention)
+
+
+def load_trajectory_auto(path: PathLike, convention: str = "unspecified") -> Trajectory:
+    """Load trajectory from a text file, auto-detecting the format.
+
+    Supported formats (one pose per line, whitespace-separated):
+
+      - 8 fields:  timestamp tx ty tz qx qy qz qw (TUM)
+      - 13 fields: timestamp + flattened 3x4 matrix (row-major)
+      - 17 fields: timestamp + flattened 4x4 matrix (row-major)
+
+    The leading timestamp is used to match corresponding frames between
+    trajectories of differing lengths during alignment.
+    """
+    p = Path(path)
+    if not p.exists():
+        raise FileNotFoundError(f"Trajectory file not found: {p}")
+
+    lines = []
+    for line in p.read_text().splitlines():
+        s = line.strip()
+        if not s or s.startswith("#"):
+            continue
+        lines.append(s)
+    if not lines:
+        raise ValueError(f"{p} contains no trajectory entries")
+
+    first_row = [float(x) for x in lines[0].split()]
+    cols = len(first_row)
+
+    if cols == 8:
+        return load_trajectory_tum(p, convention=convention)
+
+    if cols == 13:
+        return _load_trajectory_flat(p, convention, 13)
+
+    if cols == 17:
+        return _load_trajectory_flat(p, convention, 17)
+
+    raise ValueError(
+        f"Cannot determine pose format from {p}: {cols} columns per row. "
+        f"Expected 8 (TUM), 13 (timestamp + 3x4), or 17 (timestamp + 4x4)."
+    )
+
+
+def _load_trajectory_flat(path: Path, convention: str, cols: int) -> Trajectory:
+    """Load a trajectory from timestamp-prefixed flat-matrix rows.
+
+    *cols* is 13 (3x4 → padded to 4x4) or 17 (4x4).
+    """
+    rows = []
+    for line in path.read_text().splitlines():
+        s = line.strip()
+        if not s or s.startswith("#"):
+            continue
+        rows.append([float(x) for x in s.split()])
+    arr = np.asarray(rows, dtype=np.float64)
+    if arr.shape[0] == 0:
+        raise ValueError(f"{path} contains no trajectory entries")
+    timestamps = arr[:, 0].copy()
+    vals = arr[:, 1:]
+    if cols == 13:
+        flat = vals.reshape(-1, 3, 4)
+        poses = np.tile(np.eye(4), (flat.shape[0], 1, 1))
+        poses[:, :3, :] = flat
+    else:
+        poses = vals.reshape(-1, 4, 4)
+    return Trajectory(poses=poses, timestamps=timestamps, convention=convention)

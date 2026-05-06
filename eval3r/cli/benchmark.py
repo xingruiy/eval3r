@@ -80,6 +80,10 @@ def _build_config(
     missing_distance_default: float,
     missing_fscore_default: float,
     debug_plot: bool,
+    pred_pose_dir: str | None,
+    pred_pose_file: str,
+    pred_pose_convention: str,
+    verbose: bool,
 ) -> BenchmarkConfig:
     """Merge CLI options with preset defaults into a BenchmarkConfig."""
     align_value = align or preset["align"]
@@ -101,6 +105,10 @@ def _build_config(
         missing_distance_default=missing_distance_default,
         missing_fscore_default=missing_fscore_default,
         debug_plot=debug_plot,
+        pred_pose_dir=pred_pose_dir,
+        pred_pose_file=pred_pose_file,
+        pred_pose_convention=pred_pose_convention,
+        verbose=verbose,
     )
 
 
@@ -116,7 +124,7 @@ def run_cmd(
     ),
     samples: int | None = typer.Option(None, help="Samples per scene; default from preset."),
     seed: int | None = typer.Option(None, help="Sampling seed; default from preset."),
-    align: str | None = typer.Option(None, help="Alignment mode."),
+    align: str | None = typer.Option(None, help="Alignment mode: " + " | ".join(get_args(AlignMode))),
     thresholds: list[float] | None = typer.Option(None, "--thresholds"),
     chamfer_variant: str | None = typer.Option(None, "--chamfer-variant"),
     crop: bool = typer.Option(False, "--crop/--no-crop", help="Crop pred to GT bbox."),
@@ -150,6 +158,25 @@ def run_cmd(
     out: str | None = typer.Option(None, "--out", help="Write full result JSON to this path."),
     csv: str | None = typer.Option(None, "--csv", help="Write per-scene CSV to this path."),
     json_out: bool = typer.Option(False, "--json", help="Emit JSON to stdout (no table)."),
+    pred_pose_dir: str | None = typer.Option(
+        None,
+        "--pred-pose-dir",
+        help="Directory containing per-scene pose files for non-manifest predictions.",
+    ),
+    pred_pose_file: str = typer.Option(
+        "{scene_id}.txt",
+        "--pred-pose-file",
+        help="Pose filename pattern (supports {scene_id}) within --pred-pose-dir.",
+    ),
+    pred_pose_convention: str = typer.Option(
+        "unspecified",
+        "--pred-pose-convention",
+        help="Pose convention for external poses (T_wc or T_cw).",
+    ),
+    verbose: bool = typer.Option(
+        False, "--verbose", "-v",
+        help="Show error details for failed scenes.",
+    ),
 ) -> None:
     """Run a geometry benchmark against a registered dataset."""
     cls = get_dataset(dataset)
@@ -173,6 +200,10 @@ def run_cmd(
         missing_distance_default=missing_distance_default,
         missing_fscore_default=missing_fscore_default,
         debug_plot=debug_plot,
+        pred_pose_dir=pred_pose_dir,
+        pred_pose_file=pred_pose_file,
+        pred_pose_convention=pred_pose_convention,
+        verbose=verbose,
     )
 
     ds = cls(root, split=split, validate_on_init=False, **adapter_kwargs)  # type: ignore[arg-type]
@@ -237,7 +268,7 @@ def scannet_cmd(
     ),
     samples: int | None = typer.Option(None, help="Samples per scene; default from preset."),
     seed: int | None = typer.Option(None, help="Sampling seed; default from preset."),
-    align: str | None = typer.Option(None, help="Alignment mode."),
+    align: str | None = typer.Option(None, help="Alignment mode: " + " | ".join(get_args(AlignMode))),
     thresholds: list[float] | None = typer.Option(None, "--thresholds"),
     chamfer_variant: str | None = typer.Option(None, "--chamfer-variant"),
     crop: bool = typer.Option(False, "--crop/--no-crop", help="Crop pred to GT bbox."),
@@ -269,6 +300,25 @@ def scannet_cmd(
     out: str | None = typer.Option(None, "--out", help="Write full result JSON to this path."),
     csv: str | None = typer.Option(None, "--csv", help="Write per-scene CSV to this path."),
     json_out: bool = typer.Option(False, "--json", help="Emit JSON to stdout (no table)."),
+    pred_pose_dir: str | None = typer.Option(
+        None,
+        "--pred-pose-dir",
+        help="Directory containing per-scene pose files for non-manifest predictions.",
+    ),
+    pred_pose_file: str = typer.Option(
+        "{scene_id}.txt",
+        "--pred-pose-file",
+        help="Pose filename pattern (supports {scene_id}) within --pred-pose-dir.",
+    ),
+    pred_pose_convention: str = typer.Option(
+        "unspecified",
+        "--pred-pose-convention",
+        help="Pose convention for external poses (T_wc or T_cw).",
+    ),
+    verbose: bool = typer.Option(
+        False, "--verbose", "-v",
+        help="Show error details for failed scenes.",
+    ),
 ) -> None:
     """Run the ScanNet benchmark (backward-compatible alias for `e3r benchmark run scannet`)."""
     adapter_opts = []
@@ -300,6 +350,10 @@ def scannet_cmd(
         out=out,
         csv=csv,
         json_out=json_out,
+        pred_pose_dir=pred_pose_dir,
+        pred_pose_file=pred_pose_file,
+        pred_pose_convention=pred_pose_convention,
+        verbose=verbose,
     )
 
 
