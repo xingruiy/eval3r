@@ -79,6 +79,7 @@ def _build_config(
     fail_on_missing: bool,
     missing_distance_default: float,
     missing_fscore_default: float,
+    debug_plot: bool,
 ) -> BenchmarkConfig:
     """Merge CLI options with preset defaults into a BenchmarkConfig."""
     align_value = align or preset["align"]
@@ -99,6 +100,7 @@ def _build_config(
         workers=workers if workers is not None else min(8, os.cpu_count() or 1),
         missing_distance_default=missing_distance_default,
         missing_fscore_default=missing_fscore_default,
+        debug_plot=debug_plot,
     )
 
 
@@ -140,6 +142,11 @@ def run_cmd(
              "e.g. -o depth_scale=5000 -o mesh_filename=mesh.ply",
     ),
     fail_on_missing: bool = typer.Option(False, "--fail-on-missing"),
+    debug_plot: bool = typer.Option(
+        False,
+        "--debug-plot",
+        help="Export a 3D scatter plot of aligned point clouds per scene.",
+    ),
     out: str | None = typer.Option(None, "--out", help="Write full result JSON to this path."),
     csv: str | None = typer.Option(None, "--csv", help="Write per-scene CSV to this path."),
     json_out: bool = typer.Option(False, "--json", help="Emit JSON to stdout (no table)."),
@@ -165,6 +172,7 @@ def run_cmd(
         fail_on_missing=fail_on_missing,
         missing_distance_default=missing_distance_default,
         missing_fscore_default=missing_fscore_default,
+        debug_plot=debug_plot,
     )
 
     ds = cls(root, split=split, validate_on_init=False, **adapter_kwargs)  # type: ignore[arg-type]
@@ -253,6 +261,11 @@ def scannet_cmd(
     depth_subdir: str | None = typer.Option(None, "--depth-subdir"),
     mesh_filename: str | None = typer.Option(None, "--mesh-filename"),
     fail_on_missing: bool = typer.Option(False, "--fail-on-missing"),
+    debug_plot: bool = typer.Option(
+        False,
+        "--debug-plot",
+        help="Export a 3D scatter plot of aligned point clouds per scene.",
+    ),
     out: str | None = typer.Option(None, "--out", help="Write full result JSON to this path."),
     csv: str | None = typer.Option(None, "--csv", help="Write per-scene CSV to this path."),
     json_out: bool = typer.Option(False, "--json", help="Emit JSON to stdout (no table)."),
@@ -283,6 +296,7 @@ def scannet_cmd(
         geometry_pattern=geometry_pattern,
         adapter_opt=adapter_opts,
         fail_on_missing=fail_on_missing,
+        debug_plot=debug_plot,
         out=out,
         csv=csv,
         json_out=json_out,
