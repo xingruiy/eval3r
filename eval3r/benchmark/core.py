@@ -44,6 +44,7 @@ class BenchmarkConfig:
     chamfer_variant: ChamferVariant = "l1_mean_bidirectional"
     crop_to_gt_bbox: bool = False
     bbox_margin: float = 0.10
+    debug_plot: bool = False
     fail_on_missing: bool = False
     workers: int = field(default_factory=lambda: min(8, os.cpu_count() or 1))
     # Defaults applied to ``summary_all`` for scenes whose status != "ok".
@@ -177,6 +178,11 @@ def _evaluate_one(
                     )
                 )
 
+        debug_plot_path: str | None = None
+        if config.debug_plot:
+            os.makedirs("debug_plots", exist_ok=True)
+            debug_plot_path = f"debug_plots/{scene_id}.png"
+
         result = evaluate_geometry(
             pred_geom,
             gt_geom,
@@ -186,6 +192,7 @@ def _evaluate_one(
             align_mode=config.align,
             thresholds=config.thresholds,
             chamfer_variant=config.chamfer_variant,
+            debug_plot_path=debug_plot_path,
         )
         return SceneOutcome(
             scene_id=scene_id,

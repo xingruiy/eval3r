@@ -65,6 +65,9 @@ def all_cmd(
         help="Chamfer variant: " + " | ".join(get_args(ChamferVariant)),
     ),
     json_out: bool = typer.Option(False, "--json", help="Emit JSON instead of a table."),
+    debug_plot: bool = typer.Option(
+        False, "--debug-plot", help="Export a 3D scatter plot of aligned point clouds."
+    ),
 ) -> None:
     """Compute chamfer, accuracy, completeness, and F-score for a prediction vs. GT."""
     pred_geom = _load_geom(pred)
@@ -85,6 +88,7 @@ def all_cmd(
         align_mode=align,  # type: ignore[arg-type]
         thresholds=thresholds,
         chamfer_variant=chamfer_variant,  # type: ignore[arg-type]
+        debug_plot_path="debug_plot.png" if debug_plot else None,
     )
     print_geometry_result(result, as_json=json_out)
 
@@ -98,6 +102,9 @@ def chamfer_cmd(
     align: str = typer.Option("none"),
     chamfer_variant: str = typer.Option("l1_mean_bidirectional"),
     json_out: bool = typer.Option(False, "--json"),
+    debug_plot: bool = typer.Option(
+        False, "--debug-plot", help="Export a 3D scatter plot of aligned point clouds."
+    ),
 ) -> None:
     """Just chamfer distance, with thresholds=[]."""
     pred_geom = _load_geom(pred)
@@ -110,6 +117,7 @@ def chamfer_cmd(
         align_mode=align,  # type: ignore[arg-type]
         thresholds=[],
         chamfer_variant=chamfer_variant,  # type: ignore[arg-type]
+        debug_plot_path="debug_plot.png" if debug_plot else None,
     )
     if json_out:
         print(json.dumps({"chamfer": result.chamfer, "variant": result.chamfer_variant}, indent=2))
@@ -126,6 +134,9 @@ def fscore_cmd(
     seed: int = typer.Option(42),
     align: str = typer.Option("none"),
     json_out: bool = typer.Option(False, "--json"),
+    debug_plot: bool = typer.Option(
+        False, "--debug-plot", help="Export a 3D scatter plot of aligned point clouds."
+    ),
 ) -> None:
     """F-score / precision / recall at a single threshold."""
     pred_geom = _load_geom(pred)
@@ -137,6 +148,7 @@ def fscore_cmd(
         seed=seed,
         align_mode=align,  # type: ignore[arg-type]
         thresholds=[threshold],
+        debug_plot_path="debug_plot.png" if debug_plot else None,
     )
     print_geometry_result(result, as_json=json_out)
 
