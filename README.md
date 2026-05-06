@@ -14,7 +14,7 @@ Eval3r focuses on a small, explicit core:
 
 - A stable on-disk **prediction format** (manifest + geometry + trajectory + cameras).
 - A `PredictionWriter` / `PredictionReader` API for research code.
-- Reliable geometry metrics — Chamfer (4 explicit variants), accuracy, completeness, F-score.
+- Geometry metrics — Chamfer (4 explicit variants), accuracy, completeness, F-score.
 - Depth metrics — *AbsRel*, *SqRel*, *RMSE*, *RMSE log*, and *delta accuracy (δ < 1.25)*.
 - An `e3r` CLI for `metric`, `validate`, `inspect`, `render`, and `preset`.
 - Optional headless rendering via `pyrender`.
@@ -137,21 +137,12 @@ e3r benchmark run tum_rgbd outputs/tum \
     --root /data/tum -o intrinsics_fx=535.4 -o intrinsics_cx=320.1
 ```
 
-> [!NOTE]
-> eval3r does not ship dataset splits — pass a path to a text file with one scene id per line. Omit `--split` to auto-discover scenes. 
+The benchmark reports two summaries: 
 
-The benchmark reports two summaries: `summary` (mean / median / std over
-**successful** scenes only) and `summary_all` (over **all** scenes with
-missing or failed scenes filled in by the configured defaults — distance
-metrics → `--missing-distance-default`, default `1.0` m; F-score / precision
-/ recall → `--missing-fscore-default`, default `0.0`). The defaults are
-recorded in the result `config` so leaderboard numbers are reproducible.
+- `summary`: mean / median / std over **successful** scenes only
+- `summary_all`:  mean / median / std over **all** scenes with missing or failed scenes filled in by the configured defaults
 
-The locator looks for `eval3r_prediction.json` first, then falls back to
-`<scene>/mesh.ply`, `<scene>/<scene>_mesh.ply`, `<scene>/<scene>.ply`, etc.
-Custom layouts are supported via `--geometry-pattern "<scene>/out/final.ply"`
-(repeatable, prepended to the defaults). Adapter overrides use `-o key=value`
-(e.g. `-o depth_scale=5000`, `-o mesh_filename=scan.ply`).
+Any failure in evaluation will be displayed and logged.
 
 ## Chamfer variants
 
@@ -203,13 +194,8 @@ Many reconstruction methods only predict geometry up to an unknown scale, rotati
 
 ## License
 
-eval3r is released under the MIT License. See `pyproject.toml` for the
-canonical metadata.
+Eval3r is released under the MIT License. See `pyproject.toml` for the canonical metadata.
 
-eval3r does **not** redistribute any third-party datasets, splits, or
-ground-truth meshes. Datasets (ScanNet, Replica, DTU, ETH3D, Tanks & Temples,
-TUM RGB-D) remain under their original licenses; you must obtain them from
-their respective sources and abide by those terms. Adapter code in
-`eval3r/datasets/` only describes filesystem layouts — no dataset content
-ships in the package.
+## Disclaimer
 
+Eval3r does **not** redistribute any third-party datasets. Datasets (ScanNet, Replica, DTU, ETH3D, Tanks & Temples, TUM RGB-D) remain under their original licenses; you must obtain them from their respective sources and abide by those terms. Adapter code in `eval3r/datasets/` only describes filesystem layouts — no dataset contents.
