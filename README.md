@@ -1,12 +1,21 @@
 # Eval3r: 3D reconstruction evaluation, made explicit
+
+[![PyPI version](https://img.shields.io/pypi/v/eval3r.svg)](https://pypi.org/project/eval3r/)
+[![Python versions](https://img.shields.io/pypi/pyversions/eval3r.svg)](https://pypi.org/project/eval3r/)
+[![Documentation Status](https://readthedocs.org/projects/eval3r/badge/?version=latest)](https://eval3r.readthedocs.io/en/latest/?badge=latest)
+[![CI](https://github.com/xingruiy/eval3r/actions/workflows/publish.yml/badge.svg)](https://github.com/xingruiy/eval3r/actions/workflows/publish.yml)
+
+> [!NOTE]
+> Eval3r is a research-oriented project and is under active development, we strive to make it more useful for the research community. Please don't hesitate to open an issue or submit a pull request with feedback, suggestions, or improvements.
+
 ## Overview
 
-`eval3r` focuses on a small, explicit core:
+Eval3r focuses on a small, explicit core:
 
 - A stable on-disk **prediction format** (manifest + geometry + trajectory + cameras).
 - A `PredictionWriter` / `PredictionReader` API for research code.
 - Reliable geometry metrics — Chamfer (4 explicit variants), accuracy, completeness, F-score.
-- Depth metrics — AbsRel, SqRel, RMSE, RMSE log, and delta accuracy (δ < 1.25).
+- Depth metrics — *AbsRel*, *SqRel*, *RMSE*, *RMSE log*, and *delta accuracy (δ < 1.25)*.
 - An `e3r` CLI for `metric`, `validate`, `inspect`, `render`, and `preset`.
 - Optional headless rendering via `pyrender`.
 
@@ -27,7 +36,33 @@ pip install eval3r[render]   # pyrender + pillow + imageio
 pip install eval3r[dev]      # pytest + ruff + mypy + pre-commit
 ```
 
-## Quick start — saving a prediction
+## Quick start
+### CLI
+Validate a prediction directory against its manifest.
+```bash
+e3r validate outputs/scannet/scene0799_00
+```
+Print a summary of a prediction directory.
+```bash
+e3r inspect  outputs/scannet/scene0799_00
+```
+Compute geometry metrics.
+```bash
+e3r metric all outputs/scannet/scene0799_00 \
+    --gt /data/scannet/scene0799_00/gt_mesh.ply \
+    --align none --samples 200000 --seed 42 \
+    --thresholds 0.05 --chamfer-variant l1_mean_bidirectional
+```
+Render a mesh or point cloud.
+```bash
+e3r render mesh outputs/.../geometry/pred_mesh.ply --out render.png --headless
+
+```
+Compute depth metrics.
+```bash
+e3r metric depth pred_depth.png --gt /data/scannet/scene0799_00/depth/0.png
+```
+### saving a prediction
 
 ```python
 import numpy as np
@@ -52,19 +87,6 @@ The writer warns if `unit`, `coordinate_system`, or `pose_convention` is left
 unspecified — the manifest will record `"unspecified"` so downstream evaluation
 can flag the ambiguity instead of guessing.
 
-## Quick start — CLI
-
-```bash
-e3r validate outputs/scannet/scene0799_00
-e3r inspect  outputs/scannet/scene0799_00
-e3r metric all outputs/scannet/scene0799_00 \
-    --gt /data/scannet/scene0799_00/gt_mesh.ply \
-    --align none --samples 200000 --seed 42 \
-    --thresholds 0.05 --chamfer-variant l1_mean_bidirectional
-e3r render mesh outputs/.../geometry/pred_mesh.ply --out render.png --headless
-e3r metric depth pred_depth.png --gt /data/scannet/scene0799_00/depth/0.png
-```
-
 ## Supported datasets
 
 `eval3r` ships dataset adapters that describe standard filesystem layouts.
@@ -82,41 +104,41 @@ intrinsics) and are discoverable through the registry:
 
 ## Benchmarking a method against a dataset
 
+List all registered adapters and inspect a specific one.
 ```bash
-# List all registered adapters and inspect a specific one.
 e3r datasets list
 e3r datasets show scannet
 e3r datasets show dtu
-
-# Check that a dataset root matches the expected layout.
+```
+Check that a dataset root matches the expected layout.
+```bash
 e3r datasets validate scannet --root /data/scannet \
     --split /data/scannet/splits/scannetv2_test.txt
 e3r datasets validate dtu --root /data/dtu
-
-# Run a method's predictions across a full split (generic command).
+```
+Run a method's predictions across a full split (generic command).
+```bash
 e3r benchmark run scannet outputs/scannet \
     --root /data/scannet \
     --split /data/scannet/splits/scannetv2_test.txt \
     --thresholds 0.05 --workers 8 \
     --out results.json --csv results.csv
-
-# Run against datasets with non-default layout via adapter opts.
+```
+Run against datasets with non-default layout via adapter opts.
+```bash
 e3r benchmark run eth3d outputs/eth3d \
     --root /data/eth3d --track dslr
-
 e3r benchmark run tanks_temples outputs/tnt \
     --root /data/tnt --subset training
-
-# Pass adapter-specific overrides with -o key=value.
+```
+Pass adapter-specific overrides with -o key=value.
+```bash
 e3r benchmark run tum_rgbd outputs/tum \
     --root /data/tum -o intrinsics_fx=535.4 -o intrinsics_cx=320.1
 ```
 
-eval3r does not ship dataset splits — pass a path to a text file with one
-scene id per line. Omit `--split` to auto-discover scenes. DTU defaults to
-the standard 19-scan evaluation subset; Tanks & Temples accepts `--subset`
-(`training`, `intermediate`, or `advanced`); ETH3D accepts `--track` (`dslr`
-or `rig`).
+> [!NOTE]
+> eval3r does not ship dataset splits — pass a path to a text file with one scene id per line. Omit `--split` to auto-discover scenes. 
 
 The benchmark reports two summaries: `summary` (mean / median / std over
 **successful** scenes only) and `summary_all` (over **all** scenes with
@@ -169,18 +191,15 @@ An optional `--mask` can further restrict valid pixels.
 
 Many reconstruction methods only predict geometry up to an unknown scale, rotation, and translation. To properly evaluate these methods, `eval3r` requires an explicit `--align` argument to align the prediction to the ground truth before computing metrics. The options are:
 
-```bash
---align none      # default — never silently align
---align scale     # isotropic scale only
---align se3       # Umeyama R, t (or ICP without correspondences)
---align sim3      # Umeyama scale, R, t
---align icp       # point-to-point ICP from identity
-```
-
-## Feedback
-
-eval3r is a research-oriented project. Bug reports, feature requests, and
-general feedback are welcome — please open an issue on GitHub.
+| align method      | description                                   |
+|-------------------|-----------------------------------------------|
+| `none`            | default — never silently align                |
+| `scale`           | isotropic scale only                          |
+| `se3`             | Umeyama R, t (or ICP without correspondences) |
+| `sim3`            | Umeyama scale, R, t                           |
+| `icp`             | point-to-point ICP from identity              |
+| `traj_sim3`       | trajectory-based alignment with Sim3          |
+| `traj_se3`        | trajectory-based alignment with SE3           |
 
 ## License
 
@@ -193,3 +212,4 @@ TUM RGB-D) remain under their original licenses; you must obtain them from
 their respective sources and abide by those terms. Adapter code in
 `eval3r/datasets/` only describes filesystem layouts — no dataset content
 ships in the package.
+
