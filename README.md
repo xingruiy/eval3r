@@ -14,10 +14,10 @@ Eval3r focuses on a small, explicit core:
 
 - A stable on-disk **prediction format** (manifest + geometry + trajectory + cameras).
 - A `PredictionWriter` / `PredictionReader` API for research code.
-- Reliable geometry metrics — Chamfer (4 explicit variants), accuracy, completeness, F-score, with optional alignment and occlusion masks.
-- Depth metrics — AbsRel, SqRel, RMSE, RMSE log, and delta accuracy (δ < 1.25).
-- Headless rendering via `pyrender` for visualizing meshes/point clouds.
-- An `e3r` CLI for `metric`, `benchmark`, `inspect`, `render`.
+- Reliable geometry metrics — Chamfer (4 explicit variants), accuracy, completeness, F-score.
+- Depth metrics — *AbsRel*, *SqRel*, *RMSE*, *RMSE log*, and *delta accuracy (δ < 1.25)*.
+- An `e3r` CLI for `metric`, `validate`, `inspect`, `render`, and `preset`.
+- Optional headless rendering via `pyrender`.
 
 The goals are reproducibility and explicit assumptions: no silent alignment, no silent unit conversion, no hidden default for pose conventions.
 
