@@ -12,7 +12,7 @@ from eval3r.align import AlignMode, align
 from eval3r.io.geometry import MeshData, PointCloudData
 from eval3r.metrics.sampling import SampleMethod, sample_points
 from eval3r.utils.errors import EmptyGeometryError
-from eval3r.utils.typing import Points
+from eval3r.utils.typing import Points, Poses
 
 ChamferVariant = Literal[
     "l1_mean_bidirectional",
@@ -126,16 +126,31 @@ def evaluate_geometry(
     thresholds: list[float] | tuple[float, ...] = (0.05,),
     chamfer_variant: ChamferVariant = "l1_mean_bidirectional",
     debug_plot_path: str | None = None,
+    pred_poses: Poses | None = None,
+    gt_poses: Poses | None = None,
+    pred_convention: str = "unspecified",
+    gt_convention: str = "unspecified",
+    pred_timestamps: np.ndarray | None = None,
+    gt_timestamps: np.ndarray | None = None,
 ) -> GeometryEvalResult:
     """Sample → align → compute chamfer / accuracy / completeness / F-score.
 
     When *debug_plot_path* is set, a 3D scatter plot of the aligned
     point clouds is saved to that path.
+
+    Trajectory-based alignment (``traj_se3`` / ``traj_sim3``) requires
+    *pred_poses* and *gt_poses* as ``(T, 4, 4)`` arrays with their
+    respective conventions.
     """
     pred_pts = sample_points(pred, samples, method=sample_method, seed=seed)
     gt_pts = sample_points(gt, samples, method=sample_method, seed=seed + 1)
 
-    al = align(pred_pts, gt_pts, mode=align_mode)
+    al = align(
+        pred_pts, gt_pts, mode=align_mode,
+        pred_poses=pred_poses, gt_poses=gt_poses,
+        pred_convention=pred_convention, gt_convention=gt_convention,
+        pred_timestamps=pred_timestamps, gt_timestamps=gt_timestamps,
+    )
     pred_aligned = al.transform(pred_pts) if align_mode != "none" else pred_pts
 
     if debug_plot_path is not None:

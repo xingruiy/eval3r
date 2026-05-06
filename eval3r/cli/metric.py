@@ -12,6 +12,7 @@ import numpy as np
 
 from eval3r.align import AlignMode
 from eval3r.io.geometry import load_mesh, load_point_cloud
+from eval3r.io.trajectory import Trajectory, load_trajectory_auto
 from eval3r.metrics.depth import depth_metrics
 from eval3r.metrics.geometry import ChamferVariant, evaluate_geometry
 from eval3r.metrics.sampling import SampleMethod
@@ -51,6 +52,41 @@ def _load_geom(path: str):  # type: ignore[no-untyped-def]
         return load_point_cloud(p)
 
 
+def _load_poses(path: str, convention: str) -> Trajectory:
+    """Load trajectory from text file, auto-detecting the format."""
+    p = Path(path)
+    suffix = p.suffix.lower()
+    if suffix != ".txt":
+        raise typer.BadParameter(
+            f"Unsupported trajectory file extension: {suffix}. Use .txt."
+        )
+    try:
+        return load_trajectory_auto(p, convention=convention)
+    except ValueError as e:
+        raise typer.BadParameter(str(e))
+
+
+def _load_pred_poses(
+    pred_path: str, pred_poses_arg: str | None, convention: str,
+) -> Trajectory | None:
+    """Load prediction poses from manifest or explicit file.
+
+    When *pred_path* is a directory containing a manifest, try to load
+    poses from the manifest first.  Otherwise fall back to the explicit
+    ``--pred-poses`` file argument.
+    """
+    p = Path(pred_path)
+    if p.is_dir():
+        try:
+            reader = PredictionReader(p)
+            return reader.poses
+        except MissingArtifactError:
+            pass
+    if pred_poses_arg is not None:
+        return load_trajectory_auto(Path(pred_poses_arg), convention=convention)
+    return None
+
+
 @app.command("all")
 def all_cmd(
     pred: str = typer.Argument(..., help="Prediction directory or geometry file."),
@@ -58,7 +94,7 @@ def all_cmd(
     samples: int = typer.Option(200_000, help="Number of samples for metric evaluation."),
     seed: int = typer.Option(42, help="RNG seed for sampling."),
     sample_method: str = typer.Option("area", help="area | vertex | uniform"),
-    align: str = typer.Option("none", help="Alignment mode: none | scale | se3 | sim3 | icp"),
+    align: str = typer.Option("none", help="Alignment mode: " + " | ".join(get_args(AlignMode))),
     thresholds: list[float] = typer.Option([0.05], "--thresholds", help="F-score thresholds."),
     chamfer_variant: str = typer.Option(
         "l1_mean_bidirectional",
@@ -67,6 +103,18 @@ def all_cmd(
     json_out: bool = typer.Option(False, "--json", help="Emit JSON instead of a table."),
     debug_plot: bool = typer.Option(
         False, "--debug-plot", help="Export a 3D scatter plot of aligned point clouds."
+    ),
+    pred_poses: str | None = typer.Option(
+        None, "--pred-poses", help="Prediction trajectory file (.txt) for traj_* alignment."
+    ),
+    gt_poses: str | None = typer.Option(
+        None, "--gt-poses", help="GT trajectory file (.txt) for traj_* alignment."
+    ),
+    pred_pose_convention: str = typer.Option(
+        "unspecified", "--pred-pose-convention", help="Pose convention: T_wc | T_cw."
+    ),
+    gt_pose_convention: str = typer.Option(
+        "unspecified", "--gt-pose-convention", help="Pose convention: T_wc | T_cw."
     ),
 ) -> None:
     """Compute chamfer, accuracy, completeness, and F-score for a prediction vs. GT."""
@@ -79,6 +127,22 @@ def all_cmd(
     if chamfer_variant not in get_args(ChamferVariant):
         raise typer.BadParameter(f"--chamfer-variant must be one of {get_args(ChamferVariant)}")
 
+    pred_traj = _load_pred_poses(pred, pred_poses, pred_pose_convention)
+    gt_traj = _load_poses(gt_poses, gt_pose_convention) if gt_poses else None
+
+    if isinstance(align, str) and align.startswith("traj_"):
+        if pred_traj is None:
+            raise typer.BadParameter(
+                "Trajectory alignment requires prediction poses. "
+                "If the prediction directory contains a manifest with "
+                "trajectory data it is used automatically; otherwise "
+                "provide --pred-poses."
+            )
+        if gt_traj is None:
+            raise typer.BadParameter(
+                "Trajectory alignment requires GT poses. Provide --gt-poses."
+            )
+
     result = evaluate_geometry(
         pred_geom,
         gt_geom,
@@ -89,6 +153,12 @@ def all_cmd(
         thresholds=thresholds,
         chamfer_variant=chamfer_variant,  # type: ignore[arg-type]
         debug_plot_path="debug_plot.png" if debug_plot else None,
+        pred_poses=pred_traj.poses if pred_traj else None,
+        gt_poses=gt_traj.poses if gt_traj else None,
+        pred_convention=pred_traj.convention if pred_traj else pred_pose_convention,
+        gt_convention=gt_traj.convention if gt_traj else gt_pose_convention,
+        pred_timestamps=pred_traj.timestamps if pred_traj else None,
+        gt_timestamps=gt_traj.timestamps if gt_traj else None,
     )
     print_geometry_result(result, as_json=json_out)
 
@@ -105,10 +175,38 @@ def chamfer_cmd(
     debug_plot: bool = typer.Option(
         False, "--debug-plot", help="Export a 3D scatter plot of aligned point clouds."
     ),
+    pred_poses: str | None = typer.Option(
+        None, "--pred-poses", help="Prediction trajectory file (.txt) for traj_* alignment."
+    ),
+    gt_poses: str | None = typer.Option(
+        None, "--gt-poses", help="GT trajectory file (.txt) for traj_* alignment."
+    ),
+    pred_pose_convention: str = typer.Option(
+        "unspecified", "--pred-pose-convention", help="Pose convention: T_wc | T_cw."
+    ),
+    gt_pose_convention: str = typer.Option(
+        "unspecified", "--gt-pose-convention", help="Pose convention: T_wc | T_cw."
+    ),
 ) -> None:
     """Just chamfer distance, with thresholds=[]."""
     pred_geom = _load_geom(pred)
     gt_geom = _load_geom(gt)
+    pred_traj = _load_pred_poses(pred, pred_poses, pred_pose_convention)
+    gt_traj = _load_poses(gt_poses, gt_pose_convention) if gt_poses else None
+
+    if isinstance(align, str) and align.startswith("traj_"):
+        if pred_traj is None:
+            raise typer.BadParameter(
+                "Trajectory alignment requires prediction poses. "
+                "If the prediction directory contains a manifest with "
+                "trajectory data it is used automatically; otherwise "
+                "provide --pred-poses."
+            )
+        if gt_traj is None:
+            raise typer.BadParameter(
+                "Trajectory alignment requires GT poses. Provide --gt-poses."
+            )
+
     result = evaluate_geometry(
         pred_geom,
         gt_geom,
@@ -118,6 +216,12 @@ def chamfer_cmd(
         thresholds=[],
         chamfer_variant=chamfer_variant,  # type: ignore[arg-type]
         debug_plot_path="debug_plot.png" if debug_plot else None,
+        pred_poses=pred_traj.poses if pred_traj else None,
+        gt_poses=gt_traj.poses if gt_traj else None,
+        pred_convention=pred_traj.convention if pred_traj else pred_pose_convention,
+        gt_convention=gt_traj.convention if gt_traj else gt_pose_convention,
+        pred_timestamps=pred_traj.timestamps if pred_traj else None,
+        gt_timestamps=gt_traj.timestamps if gt_traj else None,
     )
     if json_out:
         print(json.dumps({"chamfer": result.chamfer, "variant": result.chamfer_variant}, indent=2))
@@ -137,10 +241,38 @@ def fscore_cmd(
     debug_plot: bool = typer.Option(
         False, "--debug-plot", help="Export a 3D scatter plot of aligned point clouds."
     ),
+    pred_poses: str | None = typer.Option(
+        None, "--pred-poses", help="Prediction trajectory file (.txt) for traj_* alignment."
+    ),
+    gt_poses: str | None = typer.Option(
+        None, "--gt-poses", help="GT trajectory file (.txt) for traj_* alignment."
+    ),
+    pred_pose_convention: str = typer.Option(
+        "unspecified", "--pred-pose-convention", help="Pose convention: T_wc | T_cw."
+    ),
+    gt_pose_convention: str = typer.Option(
+        "unspecified", "--gt-pose-convention", help="Pose convention: T_wc | T_cw."
+    ),
 ) -> None:
     """F-score / precision / recall at a single threshold."""
     pred_geom = _load_geom(pred)
     gt_geom = _load_geom(gt)
+    pred_traj = _load_pred_poses(pred, pred_poses, pred_pose_convention)
+    gt_traj = _load_poses(gt_poses, gt_pose_convention) if gt_poses else None
+
+    if isinstance(align, str) and align.startswith("traj_"):
+        if pred_traj is None:
+            raise typer.BadParameter(
+                "Trajectory alignment requires prediction poses. "
+                "If the prediction directory contains a manifest with "
+                "trajectory data it is used automatically; otherwise "
+                "provide --pred-poses."
+            )
+        if gt_traj is None:
+            raise typer.BadParameter(
+                "Trajectory alignment requires GT poses. Provide --gt-poses."
+            )
+
     result = evaluate_geometry(
         pred_geom,
         gt_geom,
@@ -149,6 +281,12 @@ def fscore_cmd(
         align_mode=align,  # type: ignore[arg-type]
         thresholds=[threshold],
         debug_plot_path="debug_plot.png" if debug_plot else None,
+        pred_poses=pred_traj.poses if pred_traj else None,
+        gt_poses=gt_traj.poses if gt_traj else None,
+        pred_convention=pred_traj.convention if pred_traj else pred_pose_convention,
+        gt_convention=gt_traj.convention if gt_traj else gt_pose_convention,
+        pred_timestamps=pred_traj.timestamps if pred_traj else None,
+        gt_timestamps=gt_traj.timestamps if gt_traj else None,
     )
     print_geometry_result(result, as_json=json_out)
 

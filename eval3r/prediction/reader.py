@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from eval3r.io.geometry import MeshData, PointCloudData, load_mesh, load_point_cloud
-from eval3r.io.trajectory import Trajectory, load_trajectory_tum
+from eval3r.io.trajectory import Trajectory, load_trajectory_auto
 from eval3r.prediction._hash import sha256_file
 from eval3r.prediction.manifest import MANIFEST_FILENAME, Artifact, Manifest
 from eval3r.utils.errors import (
@@ -50,8 +50,14 @@ class PredictionReader:
 
     @cached_property
     def poses(self) -> Trajectory:
-        art = self._require(self.manifest.trajectory.tum, "trajectory.tum")
-        return load_trajectory_tum(self._resolve(art), convention=self.manifest.pose_convention.value)
+        art = self.manifest.trajectory.tum or self.manifest.trajectory.kitti
+        if art is None:
+            raise MissingArtifactError(
+                f"Prediction at {self.root} has no trajectory (tum or kitti) in its manifest."
+            )
+        return load_trajectory_auto(
+            self._resolve(art), convention=self.manifest.pose_convention.value
+        )
 
     @cached_property
     def intrinsics(self) -> dict[str, Any]:
