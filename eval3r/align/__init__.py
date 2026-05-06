@@ -38,8 +38,14 @@ def align(
         )
     if mode == "icp":
         return icp(source, target)
-    if mode in ("se3", "sim3"):
-        return icp(source, target, estimate_scale=(mode == "sim3"))
+    if mode == "se3":
+        return icp(source, target, estimate_scale=False)
+    if mode == "sim3":
+        # Rigid ICP first to lock correspondences, then refine with scale.
+        # Single-pass ICP-with-scale collapses to wrong local minima when
+        # source and target differ in scale by more than a small factor.
+        rigid = icp(source, target, estimate_scale=False)
+        return icp(source, target, estimate_scale=True, init=rigid)
     if mode == "scale":
         # crude isotropic-scale-only fit: ratio of bbox extents.
         src = np.asarray(source, dtype=np.float64)
