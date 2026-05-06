@@ -32,7 +32,7 @@ dependencies = [
 [project.urls]
 Homepage = "https://github.com/xingruiy/eval3r"
 Repository = "https://github.com/xingruiy/eval3r"
-Documentation = "https://xingruiy.github.io/eval3r"
+Documentation = "https://eval3r.readthedocs.io/"
 
 [project.optional-dependencies]
 render = ["pyrender>=0.1.45", "pillow", "imageio", "matplotlib>=3.7"]

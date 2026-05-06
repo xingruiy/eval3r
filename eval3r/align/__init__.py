@@ -9,9 +9,9 @@ import numpy as np
 from eval3r.align.icp import icp
 from eval3r.align.similarity import AlignResult, umeyama
 from eval3r.utils.errors import AlignmentError
-from eval3r.utils.typing import Points
+from eval3r.utils.typing import Points, Poses
 
-AlignMode = Literal["none", "scale", "se3", "sim3", "icp"]
+AlignMode = Literal["none", "scale", "se3", "sim3", "icp", "traj_se3", "traj_sim3"]
 
 
 def align(
@@ -20,15 +20,41 @@ def align(
     *,
     mode: AlignMode = "none",
     correspondences: bool = False,
+    pred_poses: Poses | None = None,
+    gt_poses: Poses | None = None,
+    pred_convention: str = "unspecified",
+    gt_convention: str = "unspecified",
+    pred_timestamps: np.ndarray | None = None,
+    gt_timestamps: np.ndarray | None = None,
 ) -> AlignResult:
     """Estimate an alignment that maps ``source`` onto ``target``.
 
     With ``correspondences=True`` the two arrays are assumed to be
     point-to-point matched (Umeyama). Otherwise ICP is used after the
     closed-form initialisation in ``mode``.
+
+    Use ``mode=\"traj_sim3\"`` or ``mode=\"traj_se3\"`` to align using
+    camera trajectories. In this case *pred_poses* and *gt_poses* are
+    required, each of shape ``(T, 4, 4)``, with their respective
+    *pred_convention* / *gt_convention* (``\"T_wc\"`` or ``\"T_cw\"``).
     """
     if mode == "none":
         return AlignResult(scale=1.0, rotation=np.eye(3), translation=np.zeros(3), mode="none")
+    if mode in ("traj_se3", "traj_sim3"):
+        if pred_poses is None or gt_poses is None:
+            raise AlignmentError(
+                f"align mode '{mode}' requires pred_poses and gt_poses "
+                f"(both (T, 4, 4) arrays)."
+            )
+        from eval3r.align.trajectory import align_trajectory
+
+        return align_trajectory(
+            pred_poses, gt_poses, mode,  # type: ignore[arg-type]
+            pred_convention=pred_convention,
+            gt_convention=gt_convention,
+            pred_timestamps=pred_timestamps,
+            gt_timestamps=gt_timestamps,
+        )
     if correspondences:
         if mode in ("scale", "se3", "sim3"):
             return umeyama(source, target, mode=mode)

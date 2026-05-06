@@ -51,6 +51,11 @@ class BenchmarkConfig:
     # Distance metrics get penalised; f-score / precision / recall go to 0.
     missing_distance_default: float = 1.0
     missing_fscore_default: float = 0.0
+    # External pose directory for non-manifest predictions.
+    pred_pose_dir: str | None = None
+    pred_pose_file: str = "{scene_id}.txt"
+    pred_pose_convention: str = "unspecified"
+    verbose: bool = False
 
 
 SceneStatus = Literal["ok", "missing_pred", "missing_gt", "failed"]
@@ -136,7 +141,10 @@ def _evaluate_one(
     pred_descriptor: dict[str, Any] | None,
     gt_path: Path | None,
     gt_asset: Asset,
-    config: BenchmarkConfig,
+    gt_poses: np.ndarray | None = None,
+    gt_pose_convention: str = "unspecified",
+    gt_timestamps: np.ndarray | None = None,
+    config: BenchmarkConfig | None = None,
 ) -> SceneOutcome:
     if pred_descriptor is None:
         return SceneOutcome(scene_id=scene_id, status="missing_pred")
@@ -168,14 +176,51 @@ def _evaluate_one(
             bbox_min, bbox_max = gv.min(axis=0), gv.max(axis=0)
             if isinstance(pred_geom, MeshData):
                 kept = _crop_to_bbox(pred_geom.vertices, bbox_min, bbox_max, config.bbox_margin)
-                # Cropping a mesh in vertex-space breaks face indices, so fall
-                # back to a point cloud after cropping.
                 pred_geom = PointCloudData(points=kept)
             else:
                 pred_geom = PointCloudData(
                     points=_crop_to_bbox(
                         pred_geom.points, bbox_min, bbox_max, config.bbox_margin
                     )
+                )
+
+        # Trajectory-based alignment: load pred poses from manifest or
+        # from an explicit external pose directory.
+        pred_poses: np.ndarray | None = None
+        pred_pose_convention = "unspecified"
+        pred_timestamps: np.ndarray | None = None
+        if isinstance(config.align, str) and config.align.startswith("traj_"):
+            if rp["kind"] == "manifest" and rp["reader"] is not None:
+                try:
+                    traj = rp["reader"].poses
+                    pred_poses = traj.poses
+                    pred_pose_convention = traj.convention
+                    pred_timestamps = traj.timestamps
+                except MissingArtifactError:
+                    pass
+            elif config.pred_pose_dir is not None:
+                from eval3r.io.trajectory import load_trajectory_auto
+
+                pose_path = Path(config.pred_pose_dir) / config.pred_pose_file.format(
+                    scene_id=scene_id
+                )
+                if not pose_path.exists():
+                    raise MissingArtifactError(
+                        f"Pose file not found at {pose_path} for scene {scene_id!r}. "
+                        f"Check --pred-pose-dir and --pred-pose-file."
+                    )
+                traj = load_trajectory_auto(
+                    pose_path, convention=config.pred_pose_convention
+                )
+                pred_poses = traj.poses
+                pred_pose_convention = traj.convention
+                pred_timestamps = traj.timestamps
+            else:
+                raise MissingArtifactError(
+                    f"Trajectory alignment ({config.align}) requires poses, "
+                    f"but prediction for scene {scene_id!r} is a raw file "
+                    f"(no manifest). Provide --pred-pose-dir so poses can "
+                    f"be located."
                 )
 
         debug_plot_path: str | None = None
@@ -193,6 +238,12 @@ def _evaluate_one(
             thresholds=config.thresholds,
             chamfer_variant=config.chamfer_variant,
             debug_plot_path=debug_plot_path,
+            pred_poses=pred_poses,
+            gt_poses=gt_poses,
+            pred_convention=pred_pose_convention,
+            gt_convention=gt_pose_convention,
+            pred_timestamps=pred_timestamps,
+            gt_timestamps=gt_timestamps,
         )
         return SceneOutcome(
             scene_id=scene_id,
@@ -242,8 +293,9 @@ def run_benchmark(
 
     # Resolve preds + GT paths upfront; that way workers don't share adapter
     # state across processes.
+    want_traj = isinstance(cfg.align, str) and cfg.align.startswith("traj_")
     gt_asset = _gt_asset(dataset)
-    jobs: list[tuple[str, dict[str, Any] | None, Path | None, Asset]] = []
+    jobs: list[tuple[str, dict[str, Any] | None, Path | None, Asset, np.ndarray | None, str, np.ndarray | None]] = []
     for sid in scenes:
         rp = loc.resolve(sid)
         if rp is None and cfg.fail_on_missing:
@@ -254,25 +306,50 @@ def run_benchmark(
             gt_path = dataset.asset_path(sid, gt_asset)
         except Exception:
             gt_path = None
-        jobs.append((sid, _pred_descriptor(rp), gt_path, gt_asset))
+        gt_poses_arr: np.ndarray | None = None
+        gt_pose_conv = "unspecified"
+        gt_ts_arr: np.ndarray | None = None
+        if want_traj and gt_path is not None:
+            try:
+                traj = dataset.load_poses(sid)
+                gt_poses_arr = traj.poses
+                gt_pose_conv = traj.convention
+                gt_ts_arr = traj.timestamps
+            except Exception:
+                pass
+        jobs.append((sid, _pred_descriptor(rp), gt_path, gt_asset, gt_poses_arr, gt_pose_conv, gt_ts_arr))
 
     outcomes: list[SceneOutcome] = []
     if cfg.workers <= 1 or len(jobs) <= 1:
         for j in jobs:
             outcomes.append(_evaluate_one(*j, cfg))  # type: ignore[arg-type]
             if progress:
-                _log.info("benchmark: %s -> %s", outcomes[-1].scene_id, outcomes[-1].status)
+                o = outcomes[-1]
+                _log.info("benchmark: %s -> %s", o.scene_id, o.status)
+                if cfg.verbose:
+                    if o.status == "failed" and o.error:
+                        for line in o.error.rstrip().split("\n"):
+                            _log.info("benchmark:   %s", line)
+                    elif o.status == "missing_pred":
+                        _log.info("benchmark:   prediction not found")
+                    elif o.status == "missing_gt":
+                        _log.info("benchmark:   %s", o.gt_path)
     else:
         with ProcessPoolExecutor(max_workers=cfg.workers) as ex:
             futures = {ex.submit(_evaluate_one, *j, cfg): j[0] for j in jobs}
             for fut in as_completed(futures):
                 outcomes.append(fut.result())
                 if progress:
-                    _log.info(
-                        "benchmark: %s -> %s",
-                        outcomes[-1].scene_id,
-                        outcomes[-1].status,
-                    )
+                    o = outcomes[-1]
+                    _log.info("benchmark: %s -> %s", o.scene_id, o.status)
+                    if cfg.verbose:
+                        if o.status == "failed" and o.error:
+                            for line in o.error.rstrip().split("\n"):
+                                _log.info("benchmark:   %s", line)
+                        elif o.status == "missing_pred":
+                            _log.info("benchmark:   prediction not found")
+                        elif o.status == "missing_gt":
+                            _log.info("benchmark:   %s", o.gt_path)
         outcomes.sort(key=lambda o: scenes.index(o.scene_id))
 
     coverage = {
@@ -307,6 +384,10 @@ def run_benchmark(
             "workers": cfg.workers,
             "missing_distance_default": cfg.missing_distance_default,
             "missing_fscore_default": cfg.missing_fscore_default,
+            "pred_pose_dir": cfg.pred_pose_dir,
+            "pred_pose_file": cfg.pred_pose_file,
+            "pred_pose_convention": cfg.pred_pose_convention,
+            "verbose": cfg.verbose,
         },
     )
 
