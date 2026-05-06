@@ -6,7 +6,7 @@
 - A stable on-disk **prediction format** (manifest + geometry + trajectory + cameras).
 - A `PredictionWriter` / `PredictionReader` API for research code.
 - Reliable geometry metrics — Chamfer (4 explicit variants), accuracy, completeness, F-score.
-- Depth metrics — AbsRel, SqRel, RMSE, RMSE log, and delta accuracy (δ < 1.25).
+- Depth metrics — *AbsRel*, *SqRel*, *RMSE*, *RMSE log*, and *delta accuracy (δ < 1.25)*.
 - An `e3r` CLI for `metric`, `validate`, `inspect`, `render`, and `preset`.
 - Optional headless rendering via `pyrender`.
 
