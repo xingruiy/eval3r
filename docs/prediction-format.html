@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Prediction Format - eval3r</title>
+    <link rel="stylesheet" href="assets/site.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <nav class="nav" aria-label="Main navigation">
+        <a class="brand" href="index.html"><span class="brand-mark">e3r</span> eval3r</a>
+        <div class="nav-links">
+          <a href="index.html">Overview</a>
+          <a href="getting-started.html">Getting Started</a>
+          <a aria-current="page" href="prediction-format.html">Prediction Format</a>
+          <a href="cli.html">CLI</a>
+          <a href="benchmarking.html">Benchmarking</a>
+        </div>
+      </nav>
+    </header>
+
+    <main class="docs-layout">
+      <aside class="docs-sidebar" aria-label="Documentation navigation">
+        <p class="sidebar-title">Documentation</p>
+        <nav class="sidebar-nav">
+          <a href="index.html">Overview</a>
+          <a href="getting-started.html">Getting Started</a>
+          <a aria-current="page" href="prediction-format.html">Prediction Format</a>
+          <a href="cli.html">CLI</a>
+          <a href="benchmarking.html">Benchmarking</a>
+        </nav>
+      </aside>
+      <article class="docs-content page content">
+        <h1>Prediction Format</h1>
+        <p class="lead">
+          A prediction directory is a small filesystem contract centered on
+          <code>eval3r_prediction.json</code>.
+        </p>
+
+        <section class="section">
+          <h2>Directory Layout</h2>
+          <pre><code>scene0799_00/
+  eval3r_prediction.json
+  geometry/
+    pred_points.ply
+    pred_mesh.ply
+  trajectory/
+    pred_trajectory_tum.txt
+    pred_trajectory_kitti.txt
+  cameras/
+    intrinsics.json
+  aux/
+    custom_arrays.npy</code></pre>
+        </section>
+
+        <section class="section">
+          <h2>Manifest Fields</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Field</th>
+                  <th>Purpose</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>scene_id</code>, <code>dataset</code>, <code>method</code></td>
+                  <td>Identify the prediction and the method that produced it.</td>
+                </tr>
+                <tr>
+                  <td><code>unit</code></td>
+                  <td>One of <code>m</code>, <code>cm</code>, <code>mm</code>, or <code>unspecified</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>coordinate_system</code></td>
+                  <td>One of <code>colmap</code>, <code>opengl</code>, <code>opencv</code>, or <code>unspecified</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>pose_convention</code></td>
+                  <td>One of <code>T_wc</code>, <code>T_cw</code>, or <code>unspecified</code>.</td>
+                </tr>
+                <tr>
+                  <td><code>geometry</code>, <code>trajectory</code>, <code>cameras</code></td>
+                  <td>Artifact paths, formats, hashes, counts, and optional extra metadata.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="section">
+          <h2>Artifact Integrity</h2>
+          <p>
+            Files referenced from the manifest include relative paths and SHA-256 hashes. This makes
+            it possible to detect stale, missing, or modified prediction artifacts during validation.
+          </p>
+        </section>
+      </article>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-inner">eval3r documentation</div>
+    </footer>
+  </body>
+</html>

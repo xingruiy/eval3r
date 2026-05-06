@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from eval3r.benchmark.aggregate import aggregate
+from eval3r.benchmark.aggregate import aggregate, aggregate_all
 from eval3r.benchmark.core import (
     BenchmarkConfig,
     BenchmarkResult,
@@ -18,4 +18,5 @@ __all__ = [
     "SceneStatus",
     "run_benchmark",
     "aggregate",
+    "aggregate_all",
 ]

@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>CLI - eval3r</title>
+    <link rel="stylesheet" href="assets/site.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <nav class="nav" aria-label="Main navigation">
+        <a class="brand" href="index.html"><span class="brand-mark">e3r</span> eval3r</a>
+        <div class="nav-links">
+          <a href="index.html">Overview</a>
+          <a href="getting-started.html">Getting Started</a>
+          <a href="prediction-format.html">Prediction Format</a>
+          <a aria-current="page" href="cli.html">CLI</a>
+          <a href="benchmarking.html">Benchmarking</a>
+        </div>
+      </nav>
+    </header>
+
+    <main class="docs-layout">
+      <aside class="docs-sidebar" aria-label="Documentation navigation">
+        <p class="sidebar-title">Documentation</p>
+        <nav class="sidebar-nav">
+          <a href="index.html">Overview</a>
+          <a href="getting-started.html">Getting Started</a>
+          <a href="prediction-format.html">Prediction Format</a>
+          <a aria-current="page" href="cli.html">CLI</a>
+          <a href="benchmarking.html">Benchmarking</a>
+        </nav>
+      </aside>
+      <article class="docs-content page content">
+        <h1>CLI</h1>
+        <p class="lead">
+          The <code>e3r</code> command validates predictions, computes metrics, renders artifacts,
+          and runs dataset benchmarks.
+        </p>
+
+        <section class="section">
+          <h2>Common Commands</h2>
+          <pre><code>e3r validate outputs/scannet/scene0799_00
+e3r inspect outputs/scannet/scene0799_00
+e3r version</code></pre>
+        </section>
+
+        <section class="section">
+          <h2>Geometry Metrics</h2>
+          <pre><code>e3r metric all outputs/scannet/scene0799_00 \
+  --gt /data/scannet/scene0799_00/gt_mesh.ply \
+  --align none \
+  --samples 200000 \
+  --seed 42 \
+  --thresholds 0.05 \
+  --chamfer-variant l1_mean_bidirectional</code></pre>
+        </section>
+
+        <section class="section">
+          <h2>Rendering</h2>
+          <pre><code>e3r render mesh outputs/scannet/scene0799_00/geometry/pred_mesh.ply \
+  --out render.png \
+  --headless</code></pre>
+        </section>
+
+        <section class="section">
+          <h2>Alignment Modes</h2>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Mode</th>
+                  <th>Behavior</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr><td><code>none</code></td><td>No alignment. This is the default.</td></tr>
+                <tr><td><code>scale</code></td><td>Isotropic scale only.</td></tr>
+                <tr><td><code>se3</code></td><td>Rigid rotation and translation.</td></tr>
+                <tr><td><code>sim3</code></td><td>Scale, rotation, and translation.</td></tr>
+                <tr><td><code>icp</code></td><td>Point-to-point ICP initialized from identity.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </article>
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-inner">eval3r documentation</div>
+    </footer>
+  </body>
+</html>

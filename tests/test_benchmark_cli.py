@@ -48,6 +48,7 @@ def test_benchmark_scannet_json_out(tmp_path: Path) -> None:
     assert payload["dataset"] == "scannet"
     assert payload["coverage"]["n_evaluated"] == 2
     assert payload["summary"]["chamfer"]["n"] == 2
+    assert payload["summary_all"]["chamfer"]["n"] == 2  # all scenes present
 
 
 def test_datasets_list_and_validate(tmp_path: Path) -> None:
