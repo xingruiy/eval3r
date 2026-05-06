@@ -17,14 +17,14 @@ The goals are reproducibility and explicit assumptions: no silent alignment, no 
 Base install:
 
 ```bash
-pip install -e .
+pip install eval3r
 ```
 
 Optional extras:
 
 ```bash
-pip install -e '.[render]'   # pyrender + pillow + imageio
-pip install -e '.[dev]'      # pytest + ruff + mypy + pre-commit
+pip install eval3r[render]   # pyrender + pillow + imageio
+pip install eval3r[dev]      # pytest + ruff + mypy + pre-commit
 ```
 
 ## Quick start — saving a prediction
