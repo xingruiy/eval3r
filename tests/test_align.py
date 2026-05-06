@@ -51,3 +51,20 @@ def test_align_none() -> None:
     assert res.scale == 1.0
     assert np.allclose(res.rotation, np.eye(3))
     assert np.allclose(res.translation, 0)
+
+
+def test_align_sim3_avoids_scale_collapse(rng) -> None:
+    # Single-pass ICP with scale enabled collapses (returns scale ~0.83) when
+    # the source needs a rotation it cannot find from the centroid-translation
+    # init. Rigid ICP can find the rotation; the sim3 second pass then keeps
+    # scale near 1.0 instead of shrinking source to fit the NN cluster.
+    g = np.linspace(-1, 1, 12)
+    x, y, z = np.meshgrid(g, g, g, indexing="ij")
+    src = np.stack([x.ravel(), y.ravel(), z.ravel()], axis=1) + np.array([0.3, 0.1, 0.0])
+
+    R = _random_rotation(rng)
+    t = rng.normal(size=3) * 0.5
+    tgt = src @ R.T + t
+
+    res = align(src, tgt, mode="sim3")
+    assert res.scale == pytest.approx(1.0, abs=0.05)

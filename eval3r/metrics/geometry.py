@@ -125,13 +125,23 @@ def evaluate_geometry(
     align_mode: AlignMode = "none",
     thresholds: list[float] | tuple[float, ...] = (0.05,),
     chamfer_variant: ChamferVariant = "l1_mean_bidirectional",
+    debug_plot_path: str | None = None,
 ) -> GeometryEvalResult:
-    """Sample → align → compute chamfer / accuracy / completeness / F-score."""
+    """Sample → align → compute chamfer / accuracy / completeness / F-score.
+
+    When *debug_plot_path* is set, a 3D scatter plot of the aligned
+    point clouds is saved to that path.
+    """
     pred_pts = sample_points(pred, samples, method=sample_method, seed=seed)
     gt_pts = sample_points(gt, samples, method=sample_method, seed=seed + 1)
 
     al = align(pred_pts, gt_pts, mode=align_mode)
     pred_aligned = al.transform(pred_pts) if align_mode != "none" else pred_pts
+
+    if debug_plot_path is not None:
+        from eval3r.utils.debug_plot import save_debug_plot
+
+        save_debug_plot(pred_pts, gt_pts, pred_aligned, debug_plot_path, align_mode, al.scale)
 
     cd = chamfer_distance(pred_aligned, gt_pts, variant=chamfer_variant)
     acc = accuracy(pred_aligned, gt_pts)
