@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import warnings
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -68,15 +67,18 @@ def filter_visible_points(
     points: Points,
     mask: OcclusionMask,
 ) -> tuple[Points, int, int]:
-    """Filter predicted points to only those in visible (non-occluded) voxels.
+    """Filter a point set to only those in visible (non-occluded) voxels.
 
     Trilinearly interpolates the occlusion grid at each point's grid-space
     location.  Points outside the grid bounds are treated as occluded.
 
     Returns:
-        ``(visible_points, n_visible, n_total)``.  If every point is
-        occluded the original points are returned unchanged (matching
-        TransformerFusion's fallback), with a warning emitted.
+        ``(visible_points, n_visible, n_total)``.
+
+    Raises:
+        ValueError: If every point is occluded (including out-of-bounds),
+            which usually indicates a bad occlusion transform, coordinate
+            frame mismatch, or unit-scale mismatch.
     """
     n_total = len(points)
 
@@ -99,10 +101,11 @@ def filter_visible_points(
     n_visible = int(is_visible.sum())
 
     if n_visible == 0:
-        warnings.warn(
-            "All predicted points are occluded; keeping all points to avoid "
-            "penalising the sample unfairly."
+        raise ValueError(
+            "All points in the evaluated set were marked occluded by the occlusion mask "
+            "(including out-of-bounds treated as occluded). This usually "
+            "indicates an invalid T_mask_scene, a coordinate frame mismatch, "
+            "or a unit-scale mismatch."
         )
-        return points, n_total, n_total
 
     return points[is_visible], n_visible, n_total

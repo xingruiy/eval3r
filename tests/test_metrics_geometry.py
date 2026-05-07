@@ -159,13 +159,13 @@ def test_occlusion_mask_visible_center() -> None:
     assert n_tot == 1
 
 
-def test_occlusion_mask_all_occluded_fallback() -> None:
-    """When every point is occluded the original points are returned."""
+def test_occlusion_mask_all_occluded_raises() -> None:
+    """When every point is occluded an explicit error is raised."""
     grid = np.ones((3, 3, 3), dtype=np.float64)
     mask = OcclusionMask(grid=grid, T_mask_scene=np.eye(4))
     pts = np.array([[0.0, 0.0, 0.0]])
-    vis, n_vis, n_tot = filter_visible_points(pts, mask)
-    assert n_vis == n_tot  # fallback keeps all
+    with pytest.raises(ValueError, match="All points in the evaluated set were marked occluded"):
+        filter_visible_points(pts, mask)
 
 
 def test_occlusion_mask_mixed() -> None:
@@ -186,8 +186,8 @@ def test_occlusion_mask_out_of_bounds() -> None:
     grid[1, 1, 1] = 0.0
     mask = OcclusionMask(grid=grid, T_mask_scene=np.eye(4))
     pts = np.array([[10.0, 10.0, 10.0]])
-    vis, n_vis, n_tot = filter_visible_points(pts, mask)
-    assert n_vis == n_tot  # OOB → occluded → fallback
+    with pytest.raises(ValueError, match="including out-of-bounds treated as occluded"):
+        filter_visible_points(pts, mask)
 
 
 def test_occlusion_mask_with_transform() -> None:
