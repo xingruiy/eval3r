@@ -46,4 +46,9 @@ def icp(
         if abs(prev_rmse - rmse) < tol:
             break
         prev_rmse = rmse
-    return AlignResult(scale=s, rotation=R, translation=t, mode="icp")
+    return AlignResult(
+        scale=s,
+        rotation=R,
+        translation=t,
+        mode="sim3" if estimate_scale else "se3",
+    )
