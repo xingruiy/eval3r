@@ -19,6 +19,11 @@ from eval3r.metrics.geometry import (
     precision_at,
     recall_at,
 )
+from eval3r.metrics.occlusion import (
+    OcclusionMask,
+    filter_visible_points,
+    load_occlusion_mask,
+)
 from eval3r.metrics.sampling import SampleMethod, sample_points
 
 __all__ = [
@@ -39,6 +44,9 @@ __all__ = [
     "rmse",
     "rmse_log",
     "delta_accuracy",
+    "OcclusionMask",
+    "load_occlusion_mask",
+    "filter_visible_points",
     "SampleMethod",
     "sample_points",
 ]

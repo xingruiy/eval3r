@@ -53,7 +53,9 @@ def sample_points(
 ) -> Points:
     """Return ``n`` deterministic samples from ``geom``.
 
-    For point clouds (or raw arrays), 'area' is treated as 'uniform' with replacement.
+    For point clouds (or raw arrays), 'area' is treated as 'uniform'.
+    When ``n`` is at least the number of available points/vertices, return all
+    original points/vertices exactly once.
     """
     rng = np.random.default_rng(seed)
 
@@ -61,7 +63,9 @@ def sample_points(
         if method == "area":
             return sample_mesh_area_weighted(geom, n, seed=seed)
         if method == "vertex":
-            idx = rng.choice(len(geom.vertices), size=n, replace=True)
+            if n >= len(geom.vertices):
+                return geom.vertices.astype(np.float64)
+            idx = rng.choice(len(geom.vertices), size=n, replace=False)
             return geom.vertices[idx].astype(np.float64)
         if method == "uniform":
             return sample_mesh_area_weighted(geom, n, seed=seed)
@@ -74,5 +78,7 @@ def sample_points(
         points = np.asarray(geom, dtype=np.float64)
     if len(points) == 0:
         raise EmptyGeometryError("Cannot sample from an empty point set")
-    idx = rng.choice(len(points), size=n, replace=True)
+    if n >= len(points):
+        return points.astype(np.float64)
+    idx = rng.choice(len(points), size=n, replace=False)
     return points[idx].astype(np.float64)

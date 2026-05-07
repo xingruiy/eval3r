@@ -82,3 +82,33 @@ def test_datasets_validate_fails_on_renamed_color(tmp_path: Path) -> None:
     )
     # Default color_subdir=color is wrong → validation should report error.
     assert val_result.exit_code == 1, val_result.stdout
+
+
+def test_benchmark_json_marks_missing_scene_mask(tmp_path: Path) -> None:
+    ds_root, split, preds = _setup(tmp_path)
+    out = tmp_path / "result_mask.json"
+    mask_root = tmp_path / "masks"
+    (mask_root / "s1").mkdir(parents=True)
+    np.save(mask_root / "s1" / "occlusion_mask.npy", np.zeros((1, 1, 1), dtype=np.uint8))
+    np.savetxt(mask_root / "s1" / "T_mask_scene.txt", np.eye(4))
+
+    result = runner.invoke(
+        app,
+        [
+            "benchmark", "scannet", str(preds),
+            "--root", str(ds_root),
+            "--split", str(split),
+            "--samples", "2048",
+            "--seed", "0",
+            "--workers", "1",
+            "--thresholds", "0.05",
+            "--mask-dir", str(mask_root),
+            "--out", str(out),
+            "--json",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(out.read_text())
+    by_scene = {s["scene_id"]: s for s in payload["scenes"]}
+    assert by_scene["s1"]["mask_missing"] is False
+    assert by_scene["s2"]["mask_missing"] is True

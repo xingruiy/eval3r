@@ -27,6 +27,7 @@ dependencies = [
     "typer>=0.12",
     "rich>=13",
     "trimesh>=4",
+    "imageio",
 ]
 
 [project.urls]
@@ -35,7 +36,7 @@ Repository = "https://github.com/xingruiy/eval3r"
 Documentation = "https://eval3r.readthedocs.io/"
 
 [project.optional-dependencies]
-render = ["pyrender>=0.1.45", "pillow", "imageio", "matplotlib>=3.7"]
+render = ["pyrender>=0.1.45", "pillow", "matplotlib>=3.7"]
 traj = ["evo"]
 torch = ["torch"]
 dev = ["pytest>=7", "ruff>=0.5", "mypy>=1.10", "pre-commit"]

@@ -133,3 +133,17 @@ def test_extra_geometry_pattern(tmp_path: Path) -> None:
         progress=False,
     )
     assert result.coverage["n_evaluated"] == 3
+
+
+def test_invalid_mask_mode_raises(tmp_path: Path) -> None:
+    class _DummyDataset:
+        name = "dummy"
+
+        def list_scenes(self, split=None):
+            return []
+
+    cfg = BenchmarkConfig(workers=1, mask_dir=str(tmp_path / "masks"))
+    cfg.mask_mode = "typo"  # type: ignore[assignment]
+
+    with pytest.raises(ValueError, match="Invalid mask_mode"):
+        run_benchmark(_DummyDataset(), tmp_path / "preds", config=cfg, progress=False)
