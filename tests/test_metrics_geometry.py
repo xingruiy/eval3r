@@ -132,14 +132,41 @@ def test_sampling_without_replacement_when_possible() -> None:
     assert np.unique(sampled, axis=0).shape[0] == 10
 
 
-def test_sampling_with_replacement_when_needed() -> None:
+def test_sampling_returns_all_points_when_n_exceeds_total() -> None:
     from eval3r.metrics.sampling import sample_points
 
     pts = np.arange(15, dtype=np.float64).reshape(5, 3)
     sampled = sample_points(pts, 12, method="uniform", seed=42)
 
-    assert sampled.shape == (12, 3)
-    assert np.unique(sampled, axis=0).shape[0] <= 5
+    assert sampled.shape == (5, 3)
+    assert np.array_equal(sampled, pts)
+
+
+def test_mesh_vertex_sampling_without_replacement_when_possible() -> None:
+    from eval3r.io.geometry import MeshData
+    from eval3r.metrics.sampling import sample_points
+
+    vertices = np.arange(30, dtype=np.float64).reshape(10, 3)
+    faces = np.array([[0, 1, 2]], dtype=np.int64)
+    mesh = MeshData(vertices=vertices, faces=faces)
+
+    sampled = sample_points(mesh, 10, method="vertex", seed=42)
+
+    assert np.unique(sampled, axis=0).shape[0] == 10
+
+
+def test_mesh_vertex_sampling_returns_all_vertices_when_n_exceeds_total() -> None:
+    from eval3r.io.geometry import MeshData
+    from eval3r.metrics.sampling import sample_points
+
+    vertices = np.arange(15, dtype=np.float64).reshape(5, 3)
+    faces = np.array([[0, 1, 2]], dtype=np.int64)
+    mesh = MeshData(vertices=vertices, faces=faces)
+
+    sampled = sample_points(mesh, 12, method="vertex", seed=42)
+
+    assert sampled.shape == (5, 3)
+    assert np.array_equal(sampled, vertices)
 
 
 # ---------------------------------------------------------------------------
