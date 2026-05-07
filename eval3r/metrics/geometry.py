@@ -187,38 +187,29 @@ def evaluate_geometry(
 
         gt_eval, _, _ = filter_visible_points(gt_pts, gt_mask)
 
-    if pred_mask is not None or gt_mask is not None:
-        d_pg = _nn_dists(pred_aligned, gt_eval)
-        d_gp = _nn_dists(gt_eval, pred_aligned)
+    d_pg = _nn_dists(pred_aligned, gt_eval)
+    d_gp = _nn_dists(gt_eval, pred_aligned)
 
-        acc = float(d_pg.mean())
-        comp = float(d_gp.mean())
+    acc = float(d_pg.mean())
+    comp = float(d_gp.mean())
 
-        if chamfer_variant == "l1_mean_bidirectional":
-            cd = float(0.5 * (d_pg.mean() + d_gp.mean()))
-        elif chamfer_variant == "l1_sum_bidirectional":
-            cd = float(d_pg.mean() + d_gp.mean())
-        elif chamfer_variant == "l2_squared":
-            cd = float((d_pg**2).mean() + (d_gp**2).mean())
-        elif chamfer_variant == "l2_unsquared":
-            cd = float(d_pg.mean() + d_gp.mean())
-        else:
-            raise ValueError(f"Unknown chamfer variant: {chamfer_variant!r}")
-
-        fdict: dict[float, dict[str, float]] = {}
-        for thr in thresholds:
-            p = float((d_pg < thr).mean())
-            r = float((d_gp < thr).mean())
-            f = 2 * p * r / (p + r) if (p + r) > 0 else 0.0
-            fdict[float(thr)] = {"f": f, "precision": p, "recall": r}
+    if chamfer_variant == "l1_mean_bidirectional":
+        cd = float(0.5 * (d_pg.mean() + d_gp.mean()))
+    elif chamfer_variant == "l1_sum_bidirectional":
+        cd = float(d_pg.mean() + d_gp.mean())
+    elif chamfer_variant == "l2_squared":
+        cd = float((d_pg**2).mean() + (d_gp**2).mean())
+    elif chamfer_variant == "l2_unsquared":
+        cd = float(d_pg.mean() + d_gp.mean())
     else:
-        cd = chamfer_distance(pred_aligned, gt_eval, variant=chamfer_variant)
-        acc = accuracy(pred_aligned, gt_eval)
-        comp = completeness(pred_aligned, gt_eval)
-        fdict = {}
-        for thr in thresholds:
-            f, p, r = fscore_at(pred_aligned, gt_eval, threshold=float(thr))
-            fdict[float(thr)] = {"f": f, "precision": p, "recall": r}
+        raise ValueError(f"Unknown chamfer variant: {chamfer_variant!r}")
+
+    fdict: dict[float, dict[str, float]] = {}
+    for thr in thresholds:
+        p = float((d_pg < thr).mean())
+        r = float((d_gp < thr).mean())
+        f = 2 * p * r / (p + r) if (p + r) > 0 else 0.0
+        fdict[float(thr)] = {"f": f, "precision": p, "recall": r}
 
     return GeometryEvalResult(
         chamfer=cd,

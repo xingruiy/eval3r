@@ -123,14 +123,19 @@ def depth_metrics(
     """Compute all standard depth metrics at once."""
     m = _valid_mask(pred, gt, mask)
     n_valid = int(np.sum(m))
+    pred_v = pred[m]
+    gt_v = gt[m]
+    diff = pred_v - gt_v
+    ratio = np.maximum(pred_v / gt_v, gt_v / pred_v)
+
     return DepthEvalResult(
-        abs_rel=abs_rel(pred, gt, mask),
-        sq_rel=sq_rel(pred, gt, mask),
-        rmse=rmse(pred, gt, mask),
-        rmse_log=rmse_log(pred, gt, mask),
-        delta1=delta_accuracy(pred, gt, 1.25, mask),
-        delta2=delta_accuracy(pred, gt, 1.25**2, mask),
-        delta3=delta_accuracy(pred, gt, 1.25**3, mask),
+        abs_rel=float(np.mean(np.abs(diff) / gt_v)),
+        sq_rel=float(np.mean((diff**2) / gt_v)),
+        rmse=float(np.sqrt(np.mean(diff**2))),
+        rmse_log=float(np.sqrt(np.mean((np.log(pred_v) - np.log(gt_v)) ** 2))),
+        delta1=float(np.mean(ratio < 1.25)),
+        delta2=float(np.mean(ratio < 1.25**2)),
+        delta3=float(np.mean(ratio < 1.25**3)),
         valid_pixels=n_valid,
         total_pixels=int(pred.size),
     )
