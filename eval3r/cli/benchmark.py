@@ -153,6 +153,7 @@ def run_cmd(
     pred_filename: list[str] = typer.Option(
         [],
         "--pred-filename",
+        "--geometry-pattern",
         help=(
             "Custom prediction filename patterns (repeatable, prepended to defaults). "
             "Use {scene_id} in the pattern, e.g. '{scene_id}/mesh.ply' or "

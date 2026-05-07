@@ -96,20 +96,17 @@ def _resolve_gt(
         return GTResolution(geom=_load_geom(gt))
     if not p.exists():
         raise typer.BadParameter(f"--gt path does not exist: {gt}")
+
+    # Backward-compatible behavior: a directory can still be a prediction
+    # artifact folder (loaded through PredictionReader).
     if dataset is None or scene_id is None:
-        missing = [
-            flag
-            for flag, val in (("--dataset", dataset), ("--scene-id", scene_id))
-            if val is None
-        ]
-        raise typer.BadParameter(
-            "--gt is a folder; the following options are required: "
-            f"{', '.join(missing)}."
-        )
+        return GTResolution(geom=_load_geom(gt))
+
     try:
         adapter_cls = get_dataset(dataset)
-    except KeyError as exc:
-        raise typer.BadParameter(str(exc))
+    except KeyError:
+        # Preserve legacy directory handling when dataset name is unknown.
+        return GTResolution(geom=_load_geom(gt))
     adapter = adapter_cls(root=str(p), validate_on_init=False)
     scenes = adapter.list_scenes()
     if scene_id not in scenes:
