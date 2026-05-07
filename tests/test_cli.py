@@ -129,11 +129,12 @@ def test_metric_all_explicit_mask_requires_both_paths(tmp_path, gaussian_cloud) 
     np.save(mask_path, np.zeros((3, 3, 3), dtype=np.float64))
 
     result = runner.invoke(
-        app, ["metric", "all", pred, "--gt", str(gt_path), "--mask", str(mask_path)]
+        app,
+        ["metric", "all", pred, "--gt", str(gt_path), "--mask", str(mask_path)],
+        env={"NO_COLOR": "1", "TERM": "dumb"},
     )
     assert result.exit_code != 0
-    cli_output = result.stdout + getattr(result, "stderr", "")
-    assert "both --mask and --t-mask-scene" in cli_output
+    assert "both --mask and --t-mask-scene" in result.output
 
 
 def test_metric_all_explicit_mask_paths_are_used(tmp_path, gaussian_cloud) -> None:
