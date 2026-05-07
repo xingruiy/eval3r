@@ -24,14 +24,14 @@ from eval3r.utils.optional import optional_import
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 
 
-def _load_depth_image(path: str) -> np.ndarray:
+def _load_depth_image(path: str, scale: float = 1.0) -> np.ndarray:
     p = Path(path)
     suffix = p.suffix.lower()
     if suffix == ".npy":
-        return np.load(p).astype(np.float32)
+        return np.load(p).astype(np.float32) * np.float32(scale)
     if suffix == ".png":
         imageio = optional_import("imageio.v3", extra="render")
-        return imageio.imread(p).astype(np.float32)
+        return imageio.imread(p).astype(np.float32) * np.float32(scale)
     raise typer.BadParameter(f"Unsupported depth image format: {suffix}. Use .png or .npy.")
 
 
@@ -381,11 +381,17 @@ def depth_cmd(
     pred: str = typer.Argument(..., help="Predicted depth image (.png or .npy)."),
     gt: str = typer.Option(..., "--gt", help="Ground-truth depth image (.png or .npy)."),
     mask: str = typer.Option(None, "--mask", help="Optional boolean mask (.npy)."),
+    pred_scale: float = typer.Option(
+        1.0, "--pred-scale", help="Scale factor applied to predicted depth values."
+    ),
+    gt_scale: float = typer.Option(
+        1.0, "--gt-scale", help="Scale factor applied to ground-truth depth values."
+    ),
     json_out: bool = typer.Option(False, "--json", help="Emit JSON instead of a table."),
 ) -> None:
     """Compute AbsRel, SqRel, RMSE, RMSE log, and δ accuracy for depth maps."""
-    pred_depth = _load_depth_image(pred)
-    gt_depth = _load_depth_image(gt)
+    pred_depth = _load_depth_image(pred, scale=pred_scale)
+    gt_depth = _load_depth_image(gt, scale=gt_scale)
     mask_arr = None
     if mask is not None:
         mask_arr = np.load(mask).astype(bool)

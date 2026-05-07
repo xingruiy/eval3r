@@ -21,6 +21,14 @@ def _valid_mask(
     mask: NDArray[np.bool_] | None = None,
 ) -> NDArray[np.bool_]:
     """Boolean mask of pixels where both pred and gt are > 0 and finite."""
+    if pred.shape != gt.shape:
+        raise ValueError(
+            f"pred and gt must have the same shape, got {pred.shape} and {gt.shape}"
+        )
+    if mask is not None and mask.shape != pred.shape:
+        raise ValueError(
+            f"mask must have the same shape as pred/gt, got {mask.shape} and {pred.shape}"
+        )
     m = np.isfinite(pred) & (pred > 0) & np.isfinite(gt) & (gt > 0)
     if mask is not None:
         m = m & mask
