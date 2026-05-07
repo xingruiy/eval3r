@@ -121,6 +121,51 @@ def test_metric_depth_png_scales(tmp_path) -> None:
     assert scaled_payload["rmse"] == pytest.approx(unscaled_payload["rmse"] * 0.001)
 
 
+
+
+def test_metric_depth_png_default_scale_warns(tmp_path) -> None:
+    imageio = pytest.importorskip("imageio.v3")
+    pred_path = tmp_path / "pred.png"
+    gt_path = tmp_path / "gt.png"
+    imageio.imwrite(pred_path, np.full((4, 4), 2000, dtype=np.uint16))
+    imageio.imwrite(gt_path, np.full((4, 4), 2500, dtype=np.uint16))
+
+    result = runner.invoke(
+        app, ["metric", "depth", str(pred_path), "--gt", str(gt_path), "--json"]
+    )
+
+    assert result.exit_code == 0, result.stdout
+    assert "WARNING: PNG depth loaded with scale=1.0" in result.stderr
+    assert "--pred-scale 0.001" in result.stderr
+    assert "--gt-scale 0.001" in result.stderr
+
+
+def test_metric_depth_png_non_default_scale_no_warning(tmp_path) -> None:
+    imageio = pytest.importorskip("imageio.v3")
+    pred_path = tmp_path / "pred.png"
+    gt_path = tmp_path / "gt.png"
+    imageio.imwrite(pred_path, np.full((4, 4), 2000, dtype=np.uint16))
+    imageio.imwrite(gt_path, np.full((4, 4), 2500, dtype=np.uint16))
+
+    result = runner.invoke(
+        app,
+        [
+            "metric",
+            "depth",
+            str(pred_path),
+            "--gt",
+            str(gt_path),
+            "--pred-scale",
+            "0.001",
+            "--gt-scale",
+            "0.001",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.stdout
+    assert "WARNING: PNG depth loaded with scale=1.0" not in result.stderr
+
 def test_metric_all_explicit_mask_requires_both_paths(tmp_path, gaussian_cloud) -> None:
     pred = _write_pred(tmp_path, gaussian_cloud)
     gt_path = tmp_path / "gt.ply"
