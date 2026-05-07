@@ -265,6 +265,7 @@ def test_metric_all_gt_folder_requires_dataset(tmp_path) -> None:
     result = runner.invoke(
         app,
         ["metric", "all", pred, "--gt", str(tmp_path / "ds"), "--samples", "256"],
+        env={"NO_COLOR": "1", "TERM": "dumb"},
     )
     assert result.exit_code != 0
     assert "--dataset" in result.output and "--scene-id" in result.output
@@ -283,6 +284,7 @@ def test_metric_all_gt_folder_requires_scene_id(tmp_path) -> None:
             "--dataset", "scannet",
             "--samples", "256",
         ],
+        env={"NO_COLOR": "1", "TERM": "dumb"},
     )
     assert result.exit_code != 0
     assert "--scene-id" in result.output
@@ -326,6 +328,7 @@ def test_metric_all_gt_folder_invalid_scene_id(tmp_path) -> None:
             "--scene-id", "nope",
             "--samples", "256",
         ],
+        env={"NO_COLOR": "1", "TERM": "dumb"},
     )
     assert result.exit_code != 0
     assert "nope" in result.output
@@ -365,6 +368,7 @@ def test_metric_all_unknown_dataset_raises(tmp_path, gaussian_cloud) -> None:
             "--gt", str(gt_path),
             "--dataset", "no_such_dataset",
         ],
+        env={"NO_COLOR": "1", "TERM": "dumb"},
     )
     assert result.exit_code != 0
     assert "no_such_dataset" in result.output
