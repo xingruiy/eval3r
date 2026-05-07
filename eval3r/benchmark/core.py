@@ -73,6 +73,7 @@ class SceneOutcome:
     error: str | None = None
     pred_path: Path | None = None
     gt_path: Path | None = None
+    mask_missing: bool = False
 
 
 @dataclass
@@ -100,6 +101,7 @@ class BenchmarkResult:
                     "pred_path": str(o.pred_path) if o.pred_path else None,
                     "gt_path": str(o.gt_path) if o.gt_path else None,
                     "error": o.error,
+                    "mask_missing": o.mask_missing,
                     "result": o.result.to_dict() if o.result else None,
                 }
                 for o in self.scenes
@@ -233,6 +235,7 @@ def _evaluate_one(
             debug_plot_path = f"debug_plots/{scene_id}.png"
 
         pred_mask = None
+        mask_missing = False
         if config.mask_dir is not None:
             from eval3r.metrics.occlusion import load_occlusion_mask
 
@@ -240,6 +243,8 @@ def _evaluate_one(
             w2g_path = Path(config.mask_dir) / scene_id / config.world2grid_name
             if mask_path.exists() and w2g_path.exists():
                 pred_mask = load_occlusion_mask(mask_path, w2g_path)
+            else:
+                mask_missing = True
 
         result = evaluate_geometry(
             pred_geom,
@@ -265,6 +270,7 @@ def _evaluate_one(
             result=result,
             pred_path=rp["path"],
             gt_path=gt_path,
+            mask_missing=mask_missing,
         )
     except Exception:
         return SceneOutcome(
