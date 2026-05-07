@@ -401,6 +401,7 @@ def _write_csv(path: Path, payload: dict) -> None:
     fieldnames = [
         "scene_id",
         "status",
+        "mask_missing",
         "chamfer",
         "accuracy",
         "completeness",
@@ -420,7 +421,11 @@ def _write_csv(path: Path, payload: dict) -> None:
     fieldnames.extend(sorted(extra_keys))
 
     for s in payload["scenes"]:
-        row = {"scene_id": s["scene_id"], "status": s["status"]}
+        row = {
+            "scene_id": s["scene_id"],
+            "status": s["status"],
+            "mask_missing": s.get("mask_missing", False),
+        }
         if s["result"]:
             row["chamfer"] = s["result"]["chamfer"]
             row["accuracy"] = s["result"]["accuracy"]
