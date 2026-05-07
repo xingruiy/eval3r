@@ -14,7 +14,7 @@ from eval3r.align import AlignMode
 from eval3r.io.geometry import load_mesh, load_point_cloud
 from eval3r.io.trajectory import Trajectory, load_trajectory_auto
 from eval3r.metrics.depth import depth_metrics
-from eval3r.metrics.geometry import ChamferVariant, evaluate_geometry
+from eval3r.metrics.geometry import ChamferVariant, MaskMode, evaluate_geometry
 from eval3r.metrics.sampling import SampleMethod
 from eval3r.prediction.reader import PredictionReader
 from eval3r.report.table import print_depth_result, print_geometry_result
@@ -70,7 +70,7 @@ def _load_pred_mask(
     pred_path: str,
     mask_dir: str | None,
     mask_name: str,
-    world2grid_name: str,
+    t_mask_scene_name: str,
 ) -> object | None:  # OcclusionMask | None
     """Load occlusion mask if *mask_dir* is provided."""
     if mask_dir is None:
@@ -79,12 +79,22 @@ def _load_pred_mask(
 
     scene_id = Path(pred_path).stem
     mask_path = Path(mask_dir) / scene_id / mask_name
-    w2g_path = Path(mask_dir) / scene_id / world2grid_name
+    w2g_path = Path(mask_dir) / scene_id / t_mask_scene_name
     if not mask_path.exists():
         return None
     if not w2g_path.exists():
         return None
     return load_occlusion_mask(mask_path, w2g_path)
+
+
+def _resolve_masks(mask: object | None, mask_mode: str) -> tuple[object | None, object | None]:
+    if mask_mode == "pred":
+        return mask, None
+    if mask_mode == "gt":
+        return None, mask
+    if mask_mode == "both":
+        return mask, mask
+    raise typer.BadParameter(f"--mask-mode must be one of {get_args(MaskMode)}")
 
 
 def _load_pred_poses(
@@ -145,10 +155,11 @@ def all_cmd(
         "occlusion_mask.npy", "--mask-name",
         help="Filename of the occlusion mask .npy within each scene subdir.",
     ),
-    world2grid_name: str = typer.Option(
-        "world2grid.txt", "--world2grid-name",
-        help="Filename of the world2grid .txt within each scene subdir.",
+    t_mask_scene_name: str = typer.Option(
+        "T_mask_scene.txt", "--t-mask-scene-name",
+        help="Filename of the T_mask_scene .txt within each scene subdir.",
     ),
+    mask_mode: str = typer.Option("pred", "--mask-mode", help="pred | gt | both"),
 ) -> None:
     """Compute chamfer, accuracy, completeness, and F-score for a prediction vs. GT."""
     pred_geom = _load_geom(pred)
@@ -176,7 +187,8 @@ def all_cmd(
                 "Trajectory alignment requires GT poses. Provide --gt-poses."
             )
 
-    pred_mask = _load_pred_mask(pred, mask_dir, mask_name, world2grid_name)
+    mask = _load_pred_mask(pred, mask_dir, mask_name, t_mask_scene_name)
+    pred_mask, gt_mask = _resolve_masks(mask, mask_mode)
 
     result = evaluate_geometry(
         pred_geom,
@@ -195,6 +207,7 @@ def all_cmd(
         pred_timestamps=pred_traj.timestamps if pred_traj else None,
         gt_timestamps=gt_traj.timestamps if gt_traj else None,
         pred_mask=pred_mask,
+        gt_mask=gt_mask,
     )
     print_geometry_result(result, as_json=json_out)
 
@@ -231,10 +244,11 @@ def chamfer_cmd(
         "occlusion_mask.npy", "--mask-name",
         help="Filename of the occlusion mask .npy within each scene subdir.",
     ),
-    world2grid_name: str = typer.Option(
-        "world2grid.txt", "--world2grid-name",
-        help="Filename of the world2grid .txt within each scene subdir.",
+    t_mask_scene_name: str = typer.Option(
+        "T_mask_scene.txt", "--t-mask-scene-name",
+        help="Filename of the T_mask_scene .txt within each scene subdir.",
     ),
+    mask_mode: str = typer.Option("pred", "--mask-mode", help="pred | gt | both"),
 ) -> None:
     """Just chamfer distance, with thresholds=[]."""
     pred_geom = _load_geom(pred)
@@ -255,7 +269,8 @@ def chamfer_cmd(
                 "Trajectory alignment requires GT poses. Provide --gt-poses."
             )
 
-    pred_mask = _load_pred_mask(pred, mask_dir, mask_name, world2grid_name)
+    mask = _load_pred_mask(pred, mask_dir, mask_name, t_mask_scene_name)
+    pred_mask, gt_mask = _resolve_masks(mask, mask_mode)
 
     result = evaluate_geometry(
         pred_geom,
@@ -273,6 +288,7 @@ def chamfer_cmd(
         pred_timestamps=pred_traj.timestamps if pred_traj else None,
         gt_timestamps=gt_traj.timestamps if gt_traj else None,
         pred_mask=pred_mask,
+        gt_mask=gt_mask,
     )
     if json_out:
         print(json.dumps({"chamfer": result.chamfer, "variant": result.chamfer_variant}, indent=2))
@@ -312,10 +328,11 @@ def fscore_cmd(
         "occlusion_mask.npy", "--mask-name",
         help="Filename of the occlusion mask .npy within each scene subdir.",
     ),
-    world2grid_name: str = typer.Option(
-        "world2grid.txt", "--world2grid-name",
-        help="Filename of the world2grid .txt within each scene subdir.",
+    t_mask_scene_name: str = typer.Option(
+        "T_mask_scene.txt", "--t-mask-scene-name",
+        help="Filename of the T_mask_scene .txt within each scene subdir.",
     ),
+    mask_mode: str = typer.Option("pred", "--mask-mode", help="pred | gt | both"),
 ) -> None:
     """F-score / precision / recall at a single threshold."""
     pred_geom = _load_geom(pred)
@@ -336,7 +353,8 @@ def fscore_cmd(
                 "Trajectory alignment requires GT poses. Provide --gt-poses."
             )
 
-    pred_mask = _load_pred_mask(pred, mask_dir, mask_name, world2grid_name)
+    mask = _load_pred_mask(pred, mask_dir, mask_name, t_mask_scene_name)
+    pred_mask, gt_mask = _resolve_masks(mask, mask_mode)
 
     result = evaluate_geometry(
         pred_geom,
@@ -353,6 +371,7 @@ def fscore_cmd(
         pred_timestamps=pred_traj.timestamps if pred_traj else None,
         gt_timestamps=gt_traj.timestamps if gt_traj else None,
         pred_mask=pred_mask,
+        gt_mask=gt_mask,
     )
     print_geometry_result(result, as_json=json_out)
 

@@ -132,7 +132,7 @@ def test_occlusion_mask_visible_center() -> None:
     """Point at the centre voxel (only visible one) is kept."""
     grid = np.ones((3, 3, 3), dtype=np.float64)
     grid[1, 1, 1] = 0.0
-    mask = OcclusionMask(grid=grid, world2grid=np.eye(4))
+    mask = OcclusionMask(grid=grid, T_mask_scene=np.eye(4))
     pts = np.array([[1.0, 1.0, 1.0]])
     vis, n_vis, n_tot = filter_visible_points(pts, mask)
     assert n_vis == 1
@@ -143,7 +143,7 @@ def test_occlusion_mask_visible_center() -> None:
 def test_occlusion_mask_all_occluded_fallback() -> None:
     """When every point is occluded the original points are returned."""
     grid = np.ones((3, 3, 3), dtype=np.float64)
-    mask = OcclusionMask(grid=grid, world2grid=np.eye(4))
+    mask = OcclusionMask(grid=grid, T_mask_scene=np.eye(4))
     pts = np.array([[0.0, 0.0, 0.0]])
     vis, n_vis, n_tot = filter_visible_points(pts, mask)
     assert n_vis == n_tot  # fallback keeps all
@@ -153,7 +153,7 @@ def test_occlusion_mask_mixed() -> None:
     """Mixed visible/occluded points are correctly filtered."""
     grid = np.ones((3, 3, 3), dtype=np.float64)
     grid[1, 1, 1] = 0.0
-    mask = OcclusionMask(grid=grid, world2grid=np.eye(4))
+    mask = OcclusionMask(grid=grid, T_mask_scene=np.eye(4))
     pts = np.array([[1.0, 1.0, 1.0], [0.0, 0.0, 0.0]])
     vis, n_vis, n_tot = filter_visible_points(pts, mask)
     assert n_vis == 1
@@ -165,14 +165,14 @@ def test_occlusion_mask_out_of_bounds() -> None:
     """Points outside the grid are treated as occluded."""
     grid = np.ones((3, 3, 3), dtype=np.float64)
     grid[1, 1, 1] = 0.0
-    mask = OcclusionMask(grid=grid, world2grid=np.eye(4))
+    mask = OcclusionMask(grid=grid, T_mask_scene=np.eye(4))
     pts = np.array([[10.0, 10.0, 10.0]])
     vis, n_vis, n_tot = filter_visible_points(pts, mask)
     assert n_vis == n_tot  # OOB → occluded → fallback
 
 
 def test_occlusion_mask_with_transform() -> None:
-    """Non-trivial world2grid transform maps world coords correctly."""
+    """Non-trivial T_mask_scene transform maps world coords correctly."""
     grid = np.ones((5, 5, 5), dtype=np.float64)
     grid[2, 2, 2] = 0.0  # visible at voxel index [2,2,2]
     # world [2.5, 2.5, 2.5] → 0.4*2.5 + 1.0 = 2.0
@@ -182,7 +182,7 @@ def test_occlusion_mask_with_transform() -> None:
         [0.0, 0.0, 0.4, 1.0],
         [0.0, 0.0, 0.0, 1.0],
     ])
-    mask = OcclusionMask(grid=grid, world2grid=w2g)
+    mask = OcclusionMask(grid=grid, T_mask_scene=w2g)
     pts = np.array([[2.5, 2.5, 2.5]])
     vis, n_vis, _ = filter_visible_points(pts, mask)
     assert n_vis == 1
@@ -199,7 +199,7 @@ def test_occlusion_mask_load_roundtrip(tmp_path) -> None:
     np.savetxt(w2g_path, w2g)
     loaded = load_occlusion_mask(mask_path, w2g_path)
     assert np.allclose(loaded.grid, grid)
-    assert np.allclose(loaded.world2grid, w2g)
+    assert np.allclose(loaded.T_mask_scene, w2g)
 
 
 def test_occlusion_mask_no_mask_backward_compat() -> None:
@@ -236,7 +236,7 @@ def test_occlusion_mask_improves_accuracy() -> None:
     grid[gx**2 + gy**2 + gz**2 < 4.0] = 0.0
     w2g = np.eye(4)
     w2g[:3, 3] = (dim - 1) / 2  # world 0 → grid centre
-    mask = OcclusionMask(grid=grid, world2grid=w2g)
+    mask = OcclusionMask(grid=grid, T_mask_scene=w2g)
 
     result_masked = evaluate_geometry(
         pred_with_outliers, gt_pts, samples=3000, seed=42, thresholds=[0.05],
@@ -263,7 +263,7 @@ def test_occlusion_mask_chamfer_l1_mean() -> None:
     grid[4:6, 4:6, 4:6] = 0.0  # small visible cube near origin
     w2g = np.eye(4)
     w2g[:3, 3] = 4.5  # center
-    mask = OcclusionMask(grid=grid, world2grid=w2g)
+    mask = OcclusionMask(grid=grid, T_mask_scene=w2g)
 
     result = evaluate_geometry(
         pts, pred, samples=1000, seed=0, thresholds=[0.05],
@@ -282,7 +282,7 @@ def test_occlusion_mask_chamfer_l2_squared() -> None:
     grid[4:6, 4:6, 4:6] = 0.0
     w2g = np.eye(4)
     w2g[:3, 3] = 4.5
-    mask = OcclusionMask(grid=grid, world2grid=w2g)
+    mask = OcclusionMask(grid=grid, T_mask_scene=w2g)
 
     result = evaluate_geometry(
         pts, pred, samples=1000, seed=0, thresholds=[0.05],

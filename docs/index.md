@@ -63,3 +63,4 @@ e3r metric depth pred_depth.png --gt /data/scannet/scene0799_00/depth/0.png
 
 - [Metric Computation](metric.md)
 - [Trajectory Pose File Formats](trajectory.md)
+- [Applying Occlusion Masks](apply_masks.md)
