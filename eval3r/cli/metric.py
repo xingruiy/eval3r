@@ -112,6 +112,20 @@ def _load_pred_poses(
     return None
 
 
+
+def _validate_metric_options(
+    *,
+    align: str,
+    sample_method: str | None = None,
+    chamfer_variant: str | None = None,
+) -> None:
+    if align not in get_args(AlignMode):
+        raise typer.BadParameter(f"--align must be one of {get_args(AlignMode)}")
+    if sample_method is not None and sample_method not in get_args(SampleMethod):
+        raise typer.BadParameter(f"--sample-method must be one of {get_args(SampleMethod)}")
+    if chamfer_variant is not None and chamfer_variant not in get_args(ChamferVariant):
+        raise typer.BadParameter(f"--chamfer-variant must be one of {get_args(ChamferVariant)}")
+
 @app.command("all")
 def all_cmd(
     pred: str = typer.Argument(..., help="Prediction directory or geometry file."),
@@ -152,12 +166,9 @@ def all_cmd(
     """Compute chamfer, accuracy, completeness, and F-score for a prediction vs. GT."""
     pred_geom = _load_geom(pred)
     gt_geom = _load_geom(gt)
-    if align not in get_args(AlignMode):
-        raise typer.BadParameter(f"--align must be one of {get_args(AlignMode)}")
-    if sample_method not in get_args(SampleMethod):
-        raise typer.BadParameter(f"--sample-method must be one of {get_args(SampleMethod)}")
-    if chamfer_variant not in get_args(ChamferVariant):
-        raise typer.BadParameter(f"--chamfer-variant must be one of {get_args(ChamferVariant)}")
+    _validate_metric_options(
+        align=align, sample_method=sample_method, chamfer_variant=chamfer_variant
+    )
 
     pred_traj = _load_pred_poses(pred, pred_poses, pred_pose_convention)
     gt_traj = _load_poses(gt_poses, gt_pose_convention) if gt_poses else None
@@ -235,6 +246,7 @@ def chamfer_cmd(
     """Just chamfer distance, with thresholds=[]."""
     pred_geom = _load_geom(pred)
     gt_geom = _load_geom(gt)
+    _validate_metric_options(align=align, chamfer_variant=chamfer_variant)
     pred_traj = _load_pred_poses(pred, pred_poses, pred_pose_convention)
     gt_traj = _load_poses(gt_poses, gt_pose_convention) if gt_poses else None
 
@@ -313,6 +325,7 @@ def fscore_cmd(
     """F-score / precision / recall at a single threshold."""
     pred_geom = _load_geom(pred)
     gt_geom = _load_geom(gt)
+    _validate_metric_options(align=align)
     pred_traj = _load_pred_poses(pred, pred_poses, pred_pose_convention)
     gt_traj = _load_poses(gt_poses, gt_pose_convention) if gt_poses else None
 

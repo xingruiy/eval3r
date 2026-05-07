@@ -161,3 +161,42 @@ def test_metric_all_explicit_mask_paths_are_used(tmp_path, gaussian_cloud) -> No
     assert result.exit_code == 0, result.stdout
     payload = json.loads(result.stdout)
     assert payload["masked"] is True
+
+
+def test_metric_chamfer_validates_align_option(tmp_path, gaussian_cloud) -> None:
+    pred = _write_pred(tmp_path, gaussian_cloud)
+    gt_path = tmp_path / "gt.ply"
+    save_point_cloud_ply(gt_path, gaussian_cloud)
+
+    result = runner.invoke(
+        app,
+        ["metric", "chamfer", pred, "--gt", str(gt_path), "--align", "bad_align"],
+    )
+    assert result.exit_code != 0
+    assert "--align must be one of" in result.output
+
+
+def test_metric_chamfer_validates_chamfer_variant_option(tmp_path, gaussian_cloud) -> None:
+    pred = _write_pred(tmp_path, gaussian_cloud)
+    gt_path = tmp_path / "gt.ply"
+    save_point_cloud_ply(gt_path, gaussian_cloud)
+
+    result = runner.invoke(
+        app,
+        ["metric", "chamfer", pred, "--gt", str(gt_path), "--chamfer-variant", "bad_variant"],
+    )
+    assert result.exit_code != 0
+    assert "--chamfer-variant must be one of" in result.output
+
+
+def test_metric_fscore_validates_align_option(tmp_path, gaussian_cloud) -> None:
+    pred = _write_pred(tmp_path, gaussian_cloud)
+    gt_path = tmp_path / "gt.ply"
+    save_point_cloud_ply(gt_path, gaussian_cloud)
+
+    result = runner.invoke(
+        app,
+        ["metric", "fscore", pred, "--gt", str(gt_path), "--align", "bad_align"],
+    )
+    assert result.exit_code != 0
+    assert "--align must be one of" in result.output
