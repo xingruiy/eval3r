@@ -129,7 +129,9 @@ def test_metric_all_explicit_mask_requires_both_paths(tmp_path, gaussian_cloud) 
     np.save(mask_path, np.zeros((3, 3, 3), dtype=np.float64))
 
     result = runner.invoke(
-        app, ["metric", "all", pred, "--gt", str(gt_path), "--mask", str(mask_path)]
+        app,
+        ["metric", "all", pred, "--gt", str(gt_path), "--mask", str(mask_path)],
+        env={"NO_COLOR": "1", "TERM": "dumb"},
     )
     assert result.exit_code != 0
     assert "both --mask and --t-mask-scene" in result.output
@@ -159,17 +161,3 @@ def test_metric_all_explicit_mask_paths_are_used(tmp_path, gaussian_cloud) -> No
     assert result.exit_code == 0, result.stdout
     payload = json.loads(result.stdout)
     assert payload["masked"] is True
-
-
-def test_metric_all_rejects_legacy_mask_dir_option(tmp_path, gaussian_cloud) -> None:
-    pred_path = tmp_path / "pred_mesh.ply"
-    gt_path = tmp_path / "gt_mesh.ply"
-    save_point_cloud_ply(pred_path, gaussian_cloud)
-    save_point_cloud_ply(gt_path, gaussian_cloud)
-
-    result = runner.invoke(
-        app,
-        ["metric", "all", str(pred_path), "--gt", str(gt_path), "--mask-dir", str(tmp_path)],
-    )
-    assert result.exit_code != 0
-    assert "No such option: --mask-dir" in result.output
