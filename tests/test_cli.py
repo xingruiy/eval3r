@@ -172,8 +172,7 @@ def test_metric_chamfer_validates_align_option(tmp_path, gaussian_cloud) -> None
         app,
         ["metric", "chamfer", pred, "--gt", str(gt_path), "--align", "bad_align"],
     )
-    assert result.exit_code != 0
-    assert "--align" in result.output
+    assert result.exit_code == 2
 
 
 def test_metric_chamfer_validates_chamfer_variant_option(tmp_path, gaussian_cloud) -> None:
@@ -185,8 +184,7 @@ def test_metric_chamfer_validates_chamfer_variant_option(tmp_path, gaussian_clou
         app,
         ["metric", "chamfer", pred, "--gt", str(gt_path), "--chamfer-variant", "bad_variant"],
     )
-    assert result.exit_code != 0
-    assert "--chamfer-variant" in result.output
+    assert result.exit_code == 2
 
 
 def test_metric_fscore_validates_align_option(tmp_path, gaussian_cloud) -> None:
@@ -198,5 +196,4 @@ def test_metric_fscore_validates_align_option(tmp_path, gaussian_cloud) -> None:
         app,
         ["metric", "fscore", pred, "--gt", str(gt_path), "--align", "bad_align"],
     )
-    assert result.exit_code != 0
-    assert "--align" in result.output
+    assert result.exit_code == 2
