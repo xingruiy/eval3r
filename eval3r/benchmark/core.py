@@ -7,7 +7,7 @@ import traceback
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, get_args
 
 import numpy as np
 
@@ -23,6 +23,7 @@ from eval3r.io.geometry import (
 from eval3r.metrics.geometry import (
     ChamferVariant,
     GeometryEvalResult,
+    MaskMode,
     evaluate_geometry,
 )
 from eval3r.metrics.sampling import SampleMethod
@@ -56,6 +57,11 @@ class BenchmarkConfig:
     pred_pose_file: str = "{scene_id}.txt"
     pred_pose_convention: str = "unspecified"
     verbose: bool = False
+    # Occlusion mask for filtering predicted points in unobserved regions.
+    mask_dir: str | None = None
+    mask_name: str = "occlusion_mask.npy"
+    t_mask_scene_name: str = "T_mask_scene.txt"
+    mask_mode: MaskMode = "pred"
 
 
 SceneStatus = Literal["ok", "missing_pred", "missing_gt", "failed"]
@@ -69,6 +75,7 @@ class SceneOutcome:
     error: str | None = None
     pred_path: Path | None = None
     gt_path: Path | None = None
+    mask_missing: bool = False
 
 
 @dataclass
@@ -96,6 +103,7 @@ class BenchmarkResult:
                     "pred_path": str(o.pred_path) if o.pred_path else None,
                     "gt_path": str(o.gt_path) if o.gt_path else None,
                     "error": o.error,
+                    "mask_missing": o.mask_missing,
                     "result": o.result.to_dict() if o.result else None,
                 }
                 for o in self.scenes
@@ -228,6 +236,30 @@ def _evaluate_one(
             os.makedirs("debug_plots", exist_ok=True)
             debug_plot_path = f"debug_plots/{scene_id}.png"
 
+        pred_mask = None
+        gt_mask = None
+        mask_missing = False
+        if config.mask_dir is not None:
+            from eval3r.metrics.occlusion import load_occlusion_mask
+
+            mask_path = Path(config.mask_dir) / scene_id / config.mask_name
+            w2g_path = Path(config.mask_dir) / scene_id / config.t_mask_scene_name
+            if mask_path.exists() and w2g_path.exists():
+                mask_obj = load_occlusion_mask(mask_path, w2g_path)
+                if config.mask_mode == "pred":
+                    pred_mask = mask_obj
+                elif config.mask_mode == "gt":
+                    gt_mask = mask_obj
+                elif config.mask_mode == "both":
+                    pred_mask = mask_obj
+                    gt_mask = mask_obj
+                else:
+                    raise ValueError(
+                        f"Invalid mask_mode {config.mask_mode!r}; expected one of {get_args(MaskMode)}"
+                    )
+            else:
+                mask_missing = True
+
         result = evaluate_geometry(
             pred_geom,
             gt_geom,
@@ -244,6 +276,8 @@ def _evaluate_one(
             gt_convention=gt_pose_convention,
             pred_timestamps=pred_timestamps,
             gt_timestamps=gt_timestamps,
+            pred_mask=pred_mask,
+            gt_mask=gt_mask,
         )
         return SceneOutcome(
             scene_id=scene_id,
@@ -251,6 +285,7 @@ def _evaluate_one(
             result=result,
             pred_path=rp["path"],
             gt_path=gt_path,
+            mask_missing=mask_missing,
         )
     except Exception:
         return SceneOutcome(
@@ -283,6 +318,10 @@ def run_benchmark(
     progress: bool = True,
 ) -> BenchmarkResult:
     cfg = config or BenchmarkConfig()
+    if cfg.mask_mode not in get_args(MaskMode):
+        raise ValueError(
+            f"Invalid mask_mode {cfg.mask_mode!r}; expected one of {get_args(MaskMode)}"
+        )
     loc = locator or PredictionLocator(preds_root=Path(preds_root))
     scenes = dataset.list_scenes(split)
     if split is not None:
@@ -388,6 +427,10 @@ def run_benchmark(
             "pred_pose_file": cfg.pred_pose_file,
             "pred_pose_convention": cfg.pred_pose_convention,
             "verbose": cfg.verbose,
+            "mask_dir": cfg.mask_dir,
+            "mask_name": cfg.mask_name,
+            "t_mask_scene_name": cfg.t_mask_scene_name,
+            "mask_mode": cfg.mask_mode,
         },
     )
 

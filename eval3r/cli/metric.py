@@ -14,7 +14,7 @@ from eval3r.align import AlignMode
 from eval3r.io.geometry import load_mesh, load_point_cloud
 from eval3r.io.trajectory import Trajectory, load_trajectory_auto
 from eval3r.metrics.depth import depth_metrics
-from eval3r.metrics.geometry import ChamferVariant, evaluate_geometry
+from eval3r.metrics.geometry import ChamferVariant, MaskMode, evaluate_geometry
 from eval3r.metrics.sampling import SampleMethod
 from eval3r.prediction.reader import PredictionReader
 from eval3r.report.table import print_depth_result, print_geometry_result
@@ -24,14 +24,14 @@ from eval3r.utils.optional import optional_import
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 
 
-def _load_depth_image(path: str) -> np.ndarray:
+def _load_depth_image(path: str, scale: float = 1.0) -> np.ndarray:
     p = Path(path)
     suffix = p.suffix.lower()
     if suffix == ".npy":
-        return np.load(p).astype(np.float32)
+        return np.load(p).astype(np.float32) * np.float32(scale)
     if suffix == ".png":
         imageio = optional_import("imageio.v3", extra="render")
-        return imageio.imread(p).astype(np.float32)
+        return imageio.imread(p).astype(np.float32) * np.float32(scale)
     raise typer.BadParameter(f"Unsupported depth image format: {suffix}. Use .png or .npy.")
 
 
@@ -66,6 +66,31 @@ def _load_poses(path: str, convention: str) -> Trajectory:
         raise typer.BadParameter(str(e))
 
 
+def _load_pred_mask(
+    mask_path: str | None = None,
+    t_mask_scene_path: str | None = None,
+) -> object | None:  # OcclusionMask | None
+    """Load occlusion mask from explicit file paths."""
+    if (mask_path is None) != (t_mask_scene_path is None):
+        raise typer.BadParameter(
+            "Masking requires both --mask and --t-mask-scene, or neither."
+        )
+    if mask_path is not None and t_mask_scene_path is not None:
+        from eval3r.metrics.occlusion import load_occlusion_mask
+        return load_occlusion_mask(mask_path, t_mask_scene_path)
+    return None
+
+
+def _resolve_masks(mask: object | None, mask_mode: str) -> tuple[object | None, object | None]:
+    if mask_mode == "pred":
+        return mask, None
+    if mask_mode == "gt":
+        return None, mask
+    if mask_mode == "both":
+        return mask, mask
+    raise typer.BadParameter(f"--mask-mode must be one of {get_args(MaskMode)}")
+
+
 def _load_pred_poses(
     pred_path: str, pred_poses_arg: str | None, convention: str,
 ) -> Trajectory | None:
@@ -86,6 +111,20 @@ def _load_pred_poses(
         return load_trajectory_auto(Path(pred_poses_arg), convention=convention)
     return None
 
+
+
+def _validate_metric_options(
+    *,
+    align: str,
+    sample_method: str | None = None,
+    chamfer_variant: str | None = None,
+) -> None:
+    if align not in get_args(AlignMode):
+        raise typer.BadParameter(f"--align must be one of {get_args(AlignMode)}")
+    if sample_method is not None and sample_method not in get_args(SampleMethod):
+        raise typer.BadParameter(f"--sample-method must be one of {get_args(SampleMethod)}")
+    if chamfer_variant is not None and chamfer_variant not in get_args(ChamferVariant):
+        raise typer.BadParameter(f"--chamfer-variant must be one of {get_args(ChamferVariant)}")
 
 @app.command("all")
 def all_cmd(
@@ -116,16 +155,20 @@ def all_cmd(
     gt_pose_convention: str = typer.Option(
         "unspecified", "--gt-pose-convention", help="Pose convention: T_wc | T_cw."
     ),
+    mask_path: str | None = typer.Option(
+        None, "--mask", help="Explicit path to occlusion mask .npy for this scene.",
+    ),
+    t_mask_scene_path: str | None = typer.Option(
+        None, "--t-mask-scene", help="Explicit path to T_mask_scene .txt for this scene.",
+    ),
+    mask_mode: str = typer.Option("pred", "--mask-mode", help="pred | gt | both"),
 ) -> None:
     """Compute chamfer, accuracy, completeness, and F-score for a prediction vs. GT."""
     pred_geom = _load_geom(pred)
     gt_geom = _load_geom(gt)
-    if align not in get_args(AlignMode):
-        raise typer.BadParameter(f"--align must be one of {get_args(AlignMode)}")
-    if sample_method not in get_args(SampleMethod):
-        raise typer.BadParameter(f"--sample-method must be one of {get_args(SampleMethod)}")
-    if chamfer_variant not in get_args(ChamferVariant):
-        raise typer.BadParameter(f"--chamfer-variant must be one of {get_args(ChamferVariant)}")
+    _validate_metric_options(
+        align=align, sample_method=sample_method, chamfer_variant=chamfer_variant
+    )
 
     pred_traj = _load_pred_poses(pred, pred_poses, pred_pose_convention)
     gt_traj = _load_poses(gt_poses, gt_pose_convention) if gt_poses else None
@@ -143,6 +186,9 @@ def all_cmd(
                 "Trajectory alignment requires GT poses. Provide --gt-poses."
             )
 
+    mask = _load_pred_mask(mask_path, t_mask_scene_path)
+    pred_mask, gt_mask = _resolve_masks(mask, mask_mode)
+
     result = evaluate_geometry(
         pred_geom,
         gt_geom,
@@ -159,6 +205,8 @@ def all_cmd(
         gt_convention=gt_traj.convention if gt_traj else gt_pose_convention,
         pred_timestamps=pred_traj.timestamps if pred_traj else None,
         gt_timestamps=gt_traj.timestamps if gt_traj else None,
+        pred_mask=pred_mask,
+        gt_mask=gt_mask,
     )
     print_geometry_result(result, as_json=json_out)
 
@@ -187,10 +235,18 @@ def chamfer_cmd(
     gt_pose_convention: str = typer.Option(
         "unspecified", "--gt-pose-convention", help="Pose convention: T_wc | T_cw."
     ),
+    mask_path: str | None = typer.Option(
+        None, "--mask", help="Explicit path to occlusion mask .npy for this scene.",
+    ),
+    t_mask_scene_path: str | None = typer.Option(
+        None, "--t-mask-scene", help="Explicit path to T_mask_scene .txt for this scene.",
+    ),
+    mask_mode: str = typer.Option("pred", "--mask-mode", help="pred | gt | both"),
 ) -> None:
     """Just chamfer distance, with thresholds=[]."""
     pred_geom = _load_geom(pred)
     gt_geom = _load_geom(gt)
+    _validate_metric_options(align=align, chamfer_variant=chamfer_variant)
     pred_traj = _load_pred_poses(pred, pred_poses, pred_pose_convention)
     gt_traj = _load_poses(gt_poses, gt_pose_convention) if gt_poses else None
 
@@ -207,6 +263,9 @@ def chamfer_cmd(
                 "Trajectory alignment requires GT poses. Provide --gt-poses."
             )
 
+    mask = _load_pred_mask(mask_path, t_mask_scene_path)
+    pred_mask, gt_mask = _resolve_masks(mask, mask_mode)
+
     result = evaluate_geometry(
         pred_geom,
         gt_geom,
@@ -222,6 +281,8 @@ def chamfer_cmd(
         gt_convention=gt_traj.convention if gt_traj else gt_pose_convention,
         pred_timestamps=pred_traj.timestamps if pred_traj else None,
         gt_timestamps=gt_traj.timestamps if gt_traj else None,
+        pred_mask=pred_mask,
+        gt_mask=gt_mask,
     )
     if json_out:
         print(json.dumps({"chamfer": result.chamfer, "variant": result.chamfer_variant}, indent=2))
@@ -253,10 +314,18 @@ def fscore_cmd(
     gt_pose_convention: str = typer.Option(
         "unspecified", "--gt-pose-convention", help="Pose convention: T_wc | T_cw."
     ),
+    mask_path: str | None = typer.Option(
+        None, "--mask", help="Explicit path to occlusion mask .npy for this scene.",
+    ),
+    t_mask_scene_path: str | None = typer.Option(
+        None, "--t-mask-scene", help="Explicit path to T_mask_scene .txt for this scene.",
+    ),
+    mask_mode: str = typer.Option("pred", "--mask-mode", help="pred | gt | both"),
 ) -> None:
     """F-score / precision / recall at a single threshold."""
     pred_geom = _load_geom(pred)
     gt_geom = _load_geom(gt)
+    _validate_metric_options(align=align)
     pred_traj = _load_pred_poses(pred, pred_poses, pred_pose_convention)
     gt_traj = _load_poses(gt_poses, gt_pose_convention) if gt_poses else None
 
@@ -273,6 +342,9 @@ def fscore_cmd(
                 "Trajectory alignment requires GT poses. Provide --gt-poses."
             )
 
+    mask = _load_pred_mask(mask_path, t_mask_scene_path)
+    pred_mask, gt_mask = _resolve_masks(mask, mask_mode)
+
     result = evaluate_geometry(
         pred_geom,
         gt_geom,
@@ -287,6 +359,8 @@ def fscore_cmd(
         gt_convention=gt_traj.convention if gt_traj else gt_pose_convention,
         pred_timestamps=pred_traj.timestamps if pred_traj else None,
         gt_timestamps=gt_traj.timestamps if gt_traj else None,
+        pred_mask=pred_mask,
+        gt_mask=gt_mask,
     )
     print_geometry_result(result, as_json=json_out)
 
@@ -296,11 +370,17 @@ def depth_cmd(
     pred: str = typer.Argument(..., help="Predicted depth image (.png or .npy)."),
     gt: str = typer.Option(..., "--gt", help="Ground-truth depth image (.png or .npy)."),
     mask: str = typer.Option(None, "--mask", help="Optional boolean mask (.npy)."),
+    pred_scale: float = typer.Option(
+        1.0, "--pred-scale", help="Scale factor applied to predicted depth values."
+    ),
+    gt_scale: float = typer.Option(
+        1.0, "--gt-scale", help="Scale factor applied to ground-truth depth values."
+    ),
     json_out: bool = typer.Option(False, "--json", help="Emit JSON instead of a table."),
 ) -> None:
     """Compute AbsRel, SqRel, RMSE, RMSE log, and δ accuracy for depth maps."""
-    pred_depth = _load_depth_image(pred)
-    gt_depth = _load_depth_image(gt)
+    pred_depth = _load_depth_image(pred, scale=pred_scale)
+    gt_depth = _load_depth_image(gt, scale=gt_scale)
     mask_arr = None
     if mask is not None:
         mask_arr = np.load(mask).astype(bool)

@@ -12,6 +12,11 @@ from eval3r.metrics.geometry import (
     precision_at,
     recall_at,
 )
+from eval3r.metrics.occlusion import (
+    OcclusionMask,
+    filter_visible_points,
+    load_occlusion_mask,
+)
 from eval3r.utils.errors import EmptyGeometryError
 
 
@@ -116,3 +121,241 @@ def test_sampling_is_deterministic() -> None:
     a = sample_points(pts, 1000, method="uniform", seed=42)
     b = sample_points(pts, 1000, method="uniform", seed=42)
     assert np.array_equal(a, b)
+
+
+def test_sampling_without_replacement_when_possible() -> None:
+    from eval3r.metrics.sampling import sample_points
+
+    pts = np.arange(30, dtype=np.float64).reshape(10, 3)
+    sampled = sample_points(pts, 10, method="uniform", seed=42)
+
+    assert np.unique(sampled, axis=0).shape[0] == 10
+
+
+def test_sampling_returns_all_points_when_n_exceeds_total() -> None:
+    from eval3r.metrics.sampling import sample_points
+
+    pts = np.arange(15, dtype=np.float64).reshape(5, 3)
+    sampled = sample_points(pts, 12, method="uniform", seed=42)
+
+    assert sampled.shape == (5, 3)
+    assert np.array_equal(sampled, pts)
+
+
+def test_mesh_vertex_sampling_without_replacement_when_possible() -> None:
+    from eval3r.io.geometry import MeshData
+    from eval3r.metrics.sampling import sample_points
+
+    vertices = np.arange(30, dtype=np.float64).reshape(10, 3)
+    faces = np.array([[0, 1, 2]], dtype=np.int64)
+    mesh = MeshData(vertices=vertices, faces=faces)
+
+    sampled = sample_points(mesh, 10, method="vertex", seed=42)
+
+    assert np.unique(sampled, axis=0).shape[0] == 10
+
+
+def test_mesh_vertex_sampling_returns_all_vertices_when_n_exceeds_total() -> None:
+    from eval3r.io.geometry import MeshData
+    from eval3r.metrics.sampling import sample_points
+
+    vertices = np.arange(15, dtype=np.float64).reshape(5, 3)
+    faces = np.array([[0, 1, 2]], dtype=np.int64)
+    mesh = MeshData(vertices=vertices, faces=faces)
+
+    sampled = sample_points(mesh, 12, method="vertex", seed=42)
+
+    assert sampled.shape == (5, 3)
+    assert np.array_equal(sampled, vertices)
+
+
+# ---------------------------------------------------------------------------
+# Occlusion mask tests
+# ---------------------------------------------------------------------------
+
+
+def test_occlusion_mask_visible_center() -> None:
+    """Point at the centre voxel (only visible one) is kept."""
+    grid = np.ones((3, 3, 3), dtype=np.float64)
+    grid[1, 1, 1] = 0.0
+    mask = OcclusionMask(grid=grid, T_mask_scene=np.eye(4))
+    pts = np.array([[1.0, 1.0, 1.0]])
+    vis, n_vis, n_tot = filter_visible_points(pts, mask)
+    assert n_vis == 1
+    assert len(vis) == 1
+    assert n_tot == 1
+
+
+def test_occlusion_mask_all_occluded_raises() -> None:
+    """When every point is occluded an explicit error is raised."""
+    grid = np.ones((3, 3, 3), dtype=np.float64)
+    mask = OcclusionMask(grid=grid, T_mask_scene=np.eye(4))
+    pts = np.array([[0.0, 0.0, 0.0]])
+    with pytest.raises(ValueError, match="All points in the evaluated set were marked occluded"):
+        filter_visible_points(pts, mask)
+
+
+def test_occlusion_mask_mixed() -> None:
+    """Mixed visible/occluded points are correctly filtered."""
+    grid = np.ones((3, 3, 3), dtype=np.float64)
+    grid[1, 1, 1] = 0.0
+    mask = OcclusionMask(grid=grid, T_mask_scene=np.eye(4))
+    pts = np.array([[1.0, 1.0, 1.0], [0.0, 0.0, 0.0]])
+    vis, n_vis, n_tot = filter_visible_points(pts, mask)
+    assert n_vis == 1
+    assert len(vis) == 1
+    assert n_tot == 2
+
+
+def test_occlusion_mask_out_of_bounds() -> None:
+    """Points outside the grid are treated as occluded."""
+    grid = np.ones((3, 3, 3), dtype=np.float64)
+    grid[1, 1, 1] = 0.0
+    mask = OcclusionMask(grid=grid, T_mask_scene=np.eye(4))
+    pts = np.array([[10.0, 10.0, 10.0]])
+    with pytest.raises(ValueError, match="including out-of-bounds treated as occluded"):
+        filter_visible_points(pts, mask)
+
+
+def test_occlusion_mask_with_transform() -> None:
+    """Non-trivial T_mask_scene transform maps world coords correctly."""
+    grid = np.ones((5, 5, 5), dtype=np.float64)
+    grid[2, 2, 2] = 0.0  # visible at voxel index [2,2,2]
+    # world [2.5, 2.5, 2.5] → 0.4*2.5 + 1.0 = 2.0
+    w2g = np.array([
+        [0.4, 0.0, 0.0, 1.0],
+        [0.0, 0.4, 0.0, 1.0],
+        [0.0, 0.0, 0.4, 1.0],
+        [0.0, 0.0, 0.0, 1.0],
+    ])
+    mask = OcclusionMask(grid=grid, T_mask_scene=w2g)
+    pts = np.array([[2.5, 2.5, 2.5]])
+    vis, n_vis, _ = filter_visible_points(pts, mask)
+    assert n_vis == 1
+
+
+def test_occlusion_mask_load_roundtrip(tmp_path) -> None:
+    """load_occlusion_mask round-trips through disk correctly."""
+    grid = np.ones((3, 3, 3), dtype=np.float64)
+    grid[1, 1, 1] = 0.0
+    w2g = np.eye(4)
+    mask_path = tmp_path / "mask.npy"
+    w2g_path = tmp_path / "w2g.txt"
+    np.save(mask_path, grid)
+    np.savetxt(w2g_path, w2g)
+    loaded = load_occlusion_mask(mask_path, w2g_path)
+    assert np.allclose(loaded.grid, grid)
+    assert np.allclose(loaded.T_mask_scene, w2g)
+
+
+def test_occlusion_mask_no_mask_backward_compat() -> None:
+    """pred_mask=None produces the same result as the unmasked path."""
+    pts = _grid(8)
+    shifted = pts + np.array([0.05, 0.0, 0.0])
+    result_unmasked = evaluate_geometry(
+        pts, shifted, samples=2000, seed=0, thresholds=[0.05],
+    )
+    result_none = evaluate_geometry(
+        pts, shifted, samples=2000, seed=0, thresholds=[0.05],
+        pred_mask=None,
+    )
+    assert result_unmasked.chamfer == pytest.approx(result_none.chamfer)
+    assert result_unmasked.accuracy == pytest.approx(result_none.accuracy)
+    assert result_unmasked.completeness == pytest.approx(result_none.completeness)
+    assert result_unmasked.masked is False
+
+
+def test_occlusion_mask_improves_accuracy() -> None:
+    """Masking outlier pred points improves accuracy vs unmasked."""
+    gt_pts = _grid(6)  # dense grid around origin [-1,1]
+    # Add far-away outliers to prediction — these are "hallucinated" in occluded regions.
+    rng = np.random.default_rng(0)
+    outliers = rng.uniform(low=10, high=15, size=(500, 3))
+    pred_with_outliers = np.concatenate([gt_pts, outliers], axis=0)
+
+    # Build a mask where the central region is visible (value 0)
+    # and far-away regions are occluded (value 1).
+    dim = 20
+    grid = np.ones((dim, dim, dim), dtype=np.float64)
+    cx = cy = cz = np.linspace(-5, 5, dim)
+    gx, gy, gz = np.meshgrid(cx, cy, cz, indexing="ij")
+    grid[gx**2 + gy**2 + gz**2 < 4.0] = 0.0
+    w2g = np.eye(4)
+    w2g[:3, 3] = (dim - 1) / 2  # world 0 → grid centre
+    mask = OcclusionMask(grid=grid, T_mask_scene=w2g)
+
+    result_masked = evaluate_geometry(
+        pred_with_outliers, gt_pts, samples=3000, seed=42, thresholds=[0.05],
+        pred_mask=mask,
+    )
+    result_unmasked = evaluate_geometry(
+        pred_with_outliers, gt_pts, samples=3000, seed=42, thresholds=[0.05],
+    )
+
+    # Mask filters far-away outliers → accuracy improves (lower is better).
+    assert result_masked.accuracy < result_unmasked.accuracy
+    # Completeness (gt→pred) uses unfiltered pred in both paths.
+    assert result_masked.completeness == pytest.approx(result_unmasked.completeness, rel=1e-3)
+    assert result_masked.masked is True
+    assert result_masked.visible_points < result_masked.total_pred_points
+
+
+def test_gt_mask_applies_to_reverse_term() -> None:
+    pred = np.array([[0.0, 0.0, 0.0]], dtype=np.float64)
+    gt = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]], dtype=np.float64)
+
+    grid = np.array([[[0.0]], [[1.0]]], dtype=np.float64)
+    gt_mask = OcclusionMask(grid=grid, T_mask_scene=np.eye(4))
+
+    result = evaluate_geometry(
+        pred,
+        gt,
+        samples=2,
+        seed=0,
+        sample_method="uniform",
+        align_mode="none",
+        thresholds=[0.1],
+        gt_mask=gt_mask,
+    )
+
+    assert result.completeness == pytest.approx(0.0, abs=1e-12)
+    assert result.fscore[0.1]["recall"] == pytest.approx(1.0, abs=1e-12)
+
+
+def test_occlusion_mask_chamfer_l1_mean() -> None:
+    """Masked chamfer (l1_mean_bidirectional) is computed from split directions."""
+    pts = _grid(6)
+    outliers = np.array([[100.0, 0.0, 0.0]])
+    pred = np.concatenate([pts, outliers], axis=0)
+    grid = np.ones((10, 10, 10), dtype=np.float64)
+    grid[4:6, 4:6, 4:6] = 0.0  # small visible cube near origin
+    w2g = np.eye(4)
+    w2g[:3, 3] = 4.5  # center
+    mask = OcclusionMask(grid=grid, T_mask_scene=w2g)
+
+    result = evaluate_geometry(
+        pts, pred, samples=1000, seed=0, thresholds=[0.05],
+        chamfer_variant="l1_mean_bidirectional", pred_mask=mask,
+    )
+    assert result.chamfer_variant == "l1_mean_bidirectional"
+    assert result.masked is True
+
+
+def test_occlusion_mask_chamfer_l2_squared() -> None:
+    """Masked chamfer with l2_squared variant works correctly."""
+    pts = _grid(6)
+    outliers = np.array([[100.0, 0.0, 0.0]])
+    pred = np.concatenate([pts, outliers], axis=0)
+    grid = np.ones((10, 10, 10), dtype=np.float64)
+    grid[4:6, 4:6, 4:6] = 0.0
+    w2g = np.eye(4)
+    w2g[:3, 3] = 4.5
+    mask = OcclusionMask(grid=grid, T_mask_scene=w2g)
+
+    result = evaluate_geometry(
+        pts, pred, samples=1000, seed=0, thresholds=[0.05],
+        chamfer_variant="l2_squared", pred_mask=mask,
+    )
+    assert result.chamfer_variant == "l2_squared"
+    assert result.masked is True
+    assert result.chamfer >= 0.0

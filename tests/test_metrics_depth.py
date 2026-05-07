@@ -141,3 +141,18 @@ def test_delta_with_threshold() -> None:
     # ratio is exactly 1.0, so threshold 1.0 is strict (1.0 < 1.0 = false)
     assert delta_accuracy(d, d, 1.0) == pytest.approx(0.0)
     assert delta_accuracy(d, d, 1.01) == pytest.approx(1.0)
+
+
+def test_shape_mismatch_pred_gt_raises() -> None:
+    pred = _depth(8, 8)
+    gt = _depth(8, 7)
+    with pytest.raises(ValueError, match="pred and gt must have the same shape"):
+        depth_metrics(pred, gt)
+
+
+def test_shape_mismatch_mask_raises() -> None:
+    pred = _depth(8, 8)
+    gt = _depth(8, 8)
+    mask = np.ones((8, 7), dtype=bool)
+    with pytest.raises(ValueError, match="mask must have the same shape"):
+        depth_metrics(pred, gt, mask)
