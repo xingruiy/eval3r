@@ -56,6 +56,10 @@ class BenchmarkConfig:
     pred_pose_file: str = "{scene_id}.txt"
     pred_pose_convention: str = "unspecified"
     verbose: bool = False
+    # Occlusion mask for filtering predicted points in unobserved regions.
+    mask_dir: str | None = None
+    mask_name: str = "occlusion_mask.npy"
+    world2grid_name: str = "world2grid.txt"
 
 
 SceneStatus = Literal["ok", "missing_pred", "missing_gt", "failed"]
@@ -228,6 +232,15 @@ def _evaluate_one(
             os.makedirs("debug_plots", exist_ok=True)
             debug_plot_path = f"debug_plots/{scene_id}.png"
 
+        pred_mask = None
+        if config.mask_dir is not None:
+            from eval3r.metrics.occlusion import load_occlusion_mask
+
+            mask_path = Path(config.mask_dir) / scene_id / config.mask_name
+            w2g_path = Path(config.mask_dir) / scene_id / config.world2grid_name
+            if mask_path.exists() and w2g_path.exists():
+                pred_mask = load_occlusion_mask(mask_path, w2g_path)
+
         result = evaluate_geometry(
             pred_geom,
             gt_geom,
@@ -244,6 +257,7 @@ def _evaluate_one(
             gt_convention=gt_pose_convention,
             pred_timestamps=pred_timestamps,
             gt_timestamps=gt_timestamps,
+            pred_mask=pred_mask,
         )
         return SceneOutcome(
             scene_id=scene_id,
@@ -388,6 +402,9 @@ def run_benchmark(
             "pred_pose_file": cfg.pred_pose_file,
             "pred_pose_convention": cfg.pred_pose_convention,
             "verbose": cfg.verbose,
+            "mask_dir": cfg.mask_dir,
+            "mask_name": cfg.mask_name,
+            "world2grid_name": cfg.world2grid_name,
         },
     )
 

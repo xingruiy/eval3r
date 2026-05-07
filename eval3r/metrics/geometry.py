@@ -8,11 +8,16 @@ from typing import Any, Literal
 import numpy as np
 from scipy.spatial import cKDTree
 
+from typing import TYPE_CHECKING
+
 from eval3r.align import AlignMode, align
 from eval3r.io.geometry import MeshData, PointCloudData
 from eval3r.metrics.sampling import SampleMethod, sample_points
 from eval3r.utils.errors import EmptyGeometryError
 from eval3r.utils.typing import Points, Poses
+
+if TYPE_CHECKING:
+    from eval3r.metrics.occlusion import OcclusionMask
 
 ChamferVariant = Literal[
     "l1_mean_bidirectional",
@@ -95,9 +100,12 @@ class GeometryEvalResult:
     align_mode: AlignMode = "none"
     align_scale: float = 1.0
     extra: dict[str, Any] = field(default_factory=dict)
+    masked: bool = False
+    visible_points: int = 0
+    total_pred_points: int = 0
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        d: dict[str, Any] = {
             "chamfer": self.chamfer,
             "chamfer_variant": self.chamfer_variant,
             "accuracy": self.accuracy,
@@ -111,8 +119,13 @@ class GeometryEvalResult:
             "sample_method": self.sample_method,
             "align_mode": self.align_mode,
             "align_scale": self.align_scale,
-            **self.extra,
         }
+        if self.masked:
+            d["masked"] = True
+            d["visible_points"] = self.visible_points
+            d["total_pred_points"] = self.total_pred_points
+        d.update(self.extra)
+        return d
 
 
 def evaluate_geometry(
@@ -132,6 +145,7 @@ def evaluate_geometry(
     gt_convention: str = "unspecified",
     pred_timestamps: np.ndarray | None = None,
     gt_timestamps: np.ndarray | None = None,
+    pred_mask: OcclusionMask | None = None,
 ) -> GeometryEvalResult:
     """Sample → align → compute chamfer / accuracy / completeness / F-score.
 
@@ -158,13 +172,47 @@ def evaluate_geometry(
 
         save_debug_plot(pred_pts, gt_pts, pred_aligned, debug_plot_path, align_mode, al.scale)
 
-    cd = chamfer_distance(pred_aligned, gt_pts, variant=chamfer_variant)
-    acc = accuracy(pred_aligned, gt_pts)
-    comp = completeness(pred_aligned, gt_pts)
-    fdict: dict[float, dict[str, float]] = {}
-    for thr in thresholds:
-        f, p, r = fscore_at(pred_aligned, gt_pts, threshold=float(thr))
-        fdict[float(thr)] = {"f": f, "precision": p, "recall": r}
+    # --- occlusion mask filtering ---
+    n_visible = len(pred_aligned)
+    pred_aligned_full = pred_aligned
+    if pred_mask is not None:
+        from eval3r.metrics.occlusion import filter_visible_points
+
+        pred_aligned, n_visible, _ = filter_visible_points(pred_aligned, pred_mask)
+
+    if pred_mask is not None:
+        d_pg = _nn_dists(pred_aligned, gt_pts)
+        d_gp = _nn_dists(gt_pts, pred_aligned_full)
+
+        acc = float(d_pg.mean())
+        comp = float(d_gp.mean())
+
+        if chamfer_variant == "l1_mean_bidirectional":
+            cd = float(0.5 * (d_pg.mean() + d_gp.mean()))
+        elif chamfer_variant == "l1_sum_bidirectional":
+            cd = float(d_pg.mean() + d_gp.mean())
+        elif chamfer_variant == "l2_squared":
+            cd = float((d_pg**2).mean() + (d_gp**2).mean())
+        elif chamfer_variant == "l2_unsquared":
+            cd = float(d_pg.mean() + d_gp.mean())
+        else:
+            raise ValueError(f"Unknown chamfer variant: {chamfer_variant!r}")
+
+        fdict: dict[float, dict[str, float]] = {}
+        for thr in thresholds:
+            p = float((d_pg < thr).mean())
+            r = float((d_gp < thr).mean())
+            f = 2 * p * r / (p + r) if (p + r) > 0 else 0.0
+            fdict[float(thr)] = {"f": f, "precision": p, "recall": r}
+    else:
+        cd = chamfer_distance(pred_aligned, gt_pts, variant=chamfer_variant)
+        acc = accuracy(pred_aligned, gt_pts)
+        comp = completeness(pred_aligned, gt_pts)
+        fdict = {}
+        for thr in thresholds:
+            f, p, r = fscore_at(pred_aligned, gt_pts, threshold=float(thr))
+            fdict[float(thr)] = {"f": f, "precision": p, "recall": r}
+
     return GeometryEvalResult(
         chamfer=cd,
         chamfer_variant=chamfer_variant,
@@ -176,6 +224,9 @@ def evaluate_geometry(
         sample_method=sample_method,
         align_mode=align_mode,
         align_scale=al.scale,
+        masked=pred_mask is not None,
+        visible_points=n_visible,
+        total_pred_points=len(pred_aligned_full),
     )
 
 
@@ -209,6 +260,8 @@ class Evaluator:
         self,
         pred: Points | PointCloudData | MeshData,
         gt: Points | PointCloudData | MeshData,
+        *,
+        pred_mask: OcclusionMask | None = None,
     ) -> GeometryEvalResult:
         return evaluate_geometry(
             pred,
@@ -219,4 +272,5 @@ class Evaluator:
             align_mode=self.align_mode,
             thresholds=self.thresholds,
             chamfer_variant=self.chamfer_variant,
+            pred_mask=pred_mask,
         )

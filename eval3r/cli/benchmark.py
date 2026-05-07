@@ -84,6 +84,9 @@ def _build_config(
     pred_pose_file: str,
     pred_pose_convention: str,
     verbose: bool,
+    mask_dir: str | None,
+    mask_name: str,
+    world2grid_name: str,
 ) -> BenchmarkConfig:
     """Merge CLI options with preset defaults into a BenchmarkConfig."""
     align_value = align or preset["align"]
@@ -109,6 +112,9 @@ def _build_config(
         pred_pose_file=pred_pose_file,
         pred_pose_convention=pred_pose_convention,
         verbose=verbose,
+        mask_dir=mask_dir,
+        mask_name=mask_name,
+        world2grid_name=world2grid_name,
     )
 
 
@@ -177,6 +183,18 @@ def run_cmd(
         False, "--verbose", "-v",
         help="Show error details for failed scenes.",
     ),
+    mask_dir: str | None = typer.Option(
+        None, "--mask-dir",
+        help="Directory with per-scene subdirs containing occlusion_mask.npy + world2grid.txt.",
+    ),
+    mask_name: str = typer.Option(
+        "occlusion_mask.npy", "--mask-name",
+        help="Filename of the occlusion mask .npy file within each scene subdir.",
+    ),
+    world2grid_name: str = typer.Option(
+        "world2grid.txt", "--world2grid-name",
+        help="Filename of the world2grid .txt file within each scene subdir.",
+    ),
 ) -> None:
     """Run a geometry benchmark against a registered dataset."""
     cls = get_dataset(dataset)
@@ -204,6 +222,9 @@ def run_cmd(
         pred_pose_file=pred_pose_file,
         pred_pose_convention=pred_pose_convention,
         verbose=verbose,
+        mask_dir=mask_dir,
+        mask_name=mask_name,
+        world2grid_name=world2grid_name,
     )
 
     ds = cls(root, split=split, validate_on_init=False, **adapter_kwargs)  # type: ignore[arg-type]
@@ -319,6 +340,18 @@ def scannet_cmd(
         False, "--verbose", "-v",
         help="Show error details for failed scenes.",
     ),
+    mask_dir: str | None = typer.Option(
+        None, "--mask-dir",
+        help="Directory with per-scene subdirs containing occlusion_mask.npy + world2grid.txt.",
+    ),
+    mask_name: str = typer.Option(
+        "occlusion_mask.npy", "--mask-name",
+        help="Filename of the occlusion mask .npy file within each scene subdir.",
+    ),
+    world2grid_name: str = typer.Option(
+        "world2grid.txt", "--world2grid-name",
+        help="Filename of the world2grid .txt file within each scene subdir.",
+    ),
 ) -> None:
     """Run the ScanNet benchmark (backward-compatible alias for `e3r benchmark run scannet`)."""
     adapter_opts = []
@@ -354,6 +387,9 @@ def scannet_cmd(
         pred_pose_file=pred_pose_file,
         pred_pose_convention=pred_pose_convention,
         verbose=verbose,
+        mask_dir=mask_dir,
+        mask_name=mask_name,
+        world2grid_name=world2grid_name,
     )
 
 
@@ -369,6 +405,12 @@ def _write_csv(path: Path, payload: dict) -> None:
         "accuracy",
         "completeness",
     ]
+    # Check if any scene used masking.
+    any_masked = any(
+        s["result"] and s["result"].get("masked") for s in payload["scenes"]
+    )
+    if any_masked:
+        fieldnames.extend(["masked", "visible_points", "total_pred_points"])
     # Add f-score / precision / recall columns per threshold encountered.
     extra_keys: set[str] = set()
     for s in payload["scenes"]:
@@ -383,6 +425,10 @@ def _write_csv(path: Path, payload: dict) -> None:
             row["chamfer"] = s["result"]["chamfer"]
             row["accuracy"] = s["result"]["accuracy"]
             row["completeness"] = s["result"]["completeness"]
+            if any_masked:
+                row["masked"] = s["result"].get("masked", False)
+                row["visible_points"] = s["result"].get("visible_points", 0)
+                row["total_pred_points"] = s["result"].get("total_pred_points", 0)
             for thr, v in s["result"]["fscore"].items():
                 row[f"f@{thr}"] = v["f"]
                 row[f"precision@{thr}"] = v["precision"]
