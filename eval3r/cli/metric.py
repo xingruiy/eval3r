@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from dataclasses import dataclass
 from pathlib import Path
 from typing import get_args
 
@@ -13,14 +14,16 @@ import typer
 import numpy as np
 
 from eval3r.align import AlignMode
+from eval3r.datasets import Asset, get_dataset
 from eval3r.io.geometry import load_mesh, load_point_cloud
 from eval3r.io.trajectory import Trajectory, load_trajectory_auto
 from eval3r.metrics.depth import depth_metrics
 from eval3r.metrics.geometry import ChamferVariant, MaskMode, evaluate_geometry
 from eval3r.metrics.sampling import SampleMethod
 from eval3r.prediction.reader import PredictionReader
+from eval3r.presets import PRESETS
 from eval3r.report.table import print_depth_result, print_geometry_result
-from eval3r.utils.errors import MissingArtifactError
+from eval3r.utils.errors import MissingArtifactError, NotSupportedError
 from eval3r.utils.optional import optional_import
 
 app = typer.Typer(no_args_is_help=True, add_completion=False)
@@ -68,6 +71,99 @@ def _load_geom(path: str):  # type: ignore[no-untyped-def]
         return load_mesh(p)
     except Exception:
         return load_point_cloud(p)
+
+
+@dataclass
+class GTResolution:
+    geom: object  # MeshData | PointCloudData
+    poses: Trajectory | None = None
+
+
+def _resolve_gt(
+    gt: str,
+    dataset: str | None,
+    scene_id: str | None,
+) -> GTResolution:
+    """Resolve --gt to (geometry, optional poses) using --dataset/--scene-id.
+
+    File path → load via :func:`_load_geom` (preset still fills metric defaults
+    upstream). Folder path → require both --dataset and --scene-id; instantiate
+    the registered adapter rooted at the folder, confirm the scene, and load
+    geometry (mesh-then-points) plus poses if the adapter supports them.
+    """
+    p = Path(gt)
+    if p.is_file():
+        return GTResolution(geom=_load_geom(gt))
+    if not p.exists():
+        raise typer.BadParameter(f"--gt path does not exist: {gt}")
+    if dataset is None or scene_id is None:
+        missing = [
+            flag
+            for flag, val in (("--dataset", dataset), ("--scene-id", scene_id))
+            if val is None
+        ]
+        raise typer.BadParameter(
+            "--gt is a folder; the following options are required: "
+            f"{', '.join(missing)}."
+        )
+    try:
+        adapter_cls = get_dataset(dataset)
+    except KeyError as exc:
+        raise typer.BadParameter(str(exc))
+    adapter = adapter_cls(root=str(p), validate_on_init=False)
+    scenes = adapter.list_scenes()
+    if scene_id not in scenes:
+        sample = ", ".join(scenes[:5]) + (", ..." if len(scenes) > 5 else "")
+        raise typer.BadParameter(
+            f"scene {scene_id!r} not found in dataset {dataset!r}. "
+            f"Available ({len(scenes)}): {sample}"
+        )
+    try:
+        geom = adapter.load_mesh(scene_id)
+    except (NotSupportedError, MissingArtifactError):
+        geom = adapter.load_point_cloud(scene_id)
+    poses: Trajectory | None = None
+    if adapter.supports(Asset.POSES):
+        try:
+            poses = adapter.load_poses(scene_id)
+        except (NotSupportedError, MissingArtifactError):
+            poses = None
+    return GTResolution(geom=geom, poses=poses)
+
+
+def _apply_preset(
+    dataset: str | None,
+    *,
+    samples: int | None = None,
+    seed: int | None = None,
+    align: str | None = None,
+    thresholds: list[float] | None = None,
+    chamfer_variant: str | None = None,
+) -> dict:
+    """Resolve sentinels (None) against the dataset preset, then defaults.
+
+    Returns a dict with keys ``samples``, ``seed``, ``align``, ``thresholds``,
+    ``chamfer_variant`` — only keys whose argument was passed in are populated.
+    CLI explicit values win; preset fills the rest; hardcoded defaults last.
+    """
+    if dataset is not None and dataset not in PRESETS:
+        raise typer.BadParameter(
+            f"unknown dataset: {dataset!r}. Available: {sorted(PRESETS)}"
+        )
+    preset = PRESETS.get(dataset, {}) if dataset else {}
+    return {
+        "samples": samples if samples is not None else preset.get("samples", 200_000),
+        "seed": seed if seed is not None else preset.get("seed", 42),
+        "align": align if align is not None else preset.get("align", "none"),
+        "thresholds": (
+            list(thresholds) if thresholds else list(preset.get("thresholds", [0.05]))
+        ),
+        "chamfer_variant": (
+            chamfer_variant
+            if chamfer_variant is not None
+            else preset.get("chamfer_variant", "l1_mean_bidirectional")
+        ),
+    }
 
 
 def _load_poses(path: str, convention: str) -> Trajectory:
@@ -147,14 +243,28 @@ def _validate_metric_options(
 @app.command("all")
 def all_cmd(
     pred: str = typer.Argument(..., help="Prediction directory or geometry file."),
-    gt: str = typer.Option(..., "--gt", help="Ground-truth geometry file (ply/obj/...)."),
-    samples: int = typer.Option(200_000, help="Number of samples for metric evaluation."),
-    seed: int = typer.Option(42, help="RNG seed for sampling."),
+    gt: str = typer.Option(..., "--gt", help="Ground-truth geometry file or dataset folder."),
+    dataset: str | None = typer.Option(
+        None, "--dataset",
+        help=(
+            "Registered dataset name: " + " | ".join(sorted(PRESETS)) + ". "
+            "Required when --gt is a folder. When --gt is a file, the preset still "
+            "fills metric defaults (chamfer variant, thresholds, samples, seed, align)."
+        ),
+    ),
+    scene_id: str | None = typer.Option(
+        None, "--scene-id",
+        help="Scene id within the dataset. Required when --gt is a folder.",
+    ),
+    samples: int | None = typer.Option(None, help="Number of samples for metric evaluation."),
+    seed: int | None = typer.Option(None, help="RNG seed for sampling."),
     sample_method: str = typer.Option("area", help="area | vertex | uniform"),
-    align: str = typer.Option("none", help="Alignment mode: " + " | ".join(get_args(AlignMode))),
-    thresholds: list[float] = typer.Option([0.05], "--thresholds", help="F-score thresholds."),
-    chamfer_variant: str = typer.Option(
-        "l1_mean_bidirectional",
+    align: str | None = typer.Option(
+        None, help="Alignment mode: " + " | ".join(get_args(AlignMode))
+    ),
+    thresholds: list[float] | None = typer.Option(None, "--thresholds", help="F-score thresholds."),
+    chamfer_variant: str | None = typer.Option(
+        None,
         help="Chamfer variant: " + " | ".join(get_args(ChamferVariant)),
     ),
     json_out: bool = typer.Option(False, "--json", help="Emit JSON instead of a table."),
@@ -183,13 +293,32 @@ def all_cmd(
 ) -> None:
     """Compute chamfer, accuracy, completeness, and F-score for a prediction vs. GT."""
     pred_geom = _load_geom(pred)
-    gt_geom = _load_geom(gt)
+    gt_resolution = _resolve_gt(gt, dataset, scene_id)
+    gt_geom = gt_resolution.geom
+    resolved = _apply_preset(
+        dataset,
+        samples=samples,
+        seed=seed,
+        align=align,
+        thresholds=thresholds,
+        chamfer_variant=chamfer_variant,
+    )
+    samples = resolved["samples"]
+    seed = resolved["seed"]
+    align = resolved["align"]
+    thresholds = resolved["thresholds"]
+    chamfer_variant = resolved["chamfer_variant"]
     _validate_metric_options(
         align=align, sample_method=sample_method, chamfer_variant=chamfer_variant
     )
 
     pred_traj = _load_pred_poses(pred, pred_poses, pred_pose_convention)
-    gt_traj = _load_poses(gt_poses, gt_pose_convention) if gt_poses else None
+    if gt_resolution.poses is not None:
+        gt_traj = gt_resolution.poses
+    elif gt_poses is not None:
+        gt_traj = _load_poses(gt_poses, gt_pose_convention)
+    else:
+        gt_traj = None
 
     if isinstance(align, str) and align.startswith("traj_"):
         if pred_traj is None:
@@ -233,10 +362,21 @@ def all_cmd(
 def chamfer_cmd(
     pred: str = typer.Argument(...),
     gt: str = typer.Option(..., "--gt"),
-    samples: int = typer.Option(200_000),
-    seed: int = typer.Option(42),
-    align: str = typer.Option("none"),
-    chamfer_variant: str = typer.Option("l1_mean_bidirectional"),
+    dataset: str | None = typer.Option(
+        None, "--dataset",
+        help=(
+            "Registered dataset name: " + " | ".join(sorted(PRESETS)) + ". "
+            "Required when --gt is a folder; otherwise fills metric defaults."
+        ),
+    ),
+    scene_id: str | None = typer.Option(
+        None, "--scene-id",
+        help="Scene id within the dataset. Required when --gt is a folder.",
+    ),
+    samples: int | None = typer.Option(None),
+    seed: int | None = typer.Option(None),
+    align: str | None = typer.Option(None),
+    chamfer_variant: str | None = typer.Option(None),
     json_out: bool = typer.Option(False, "--json"),
     debug_plot: bool = typer.Option(
         False, "--debug-plot", help="Export a 3D scatter plot of aligned point clouds."
@@ -263,10 +403,27 @@ def chamfer_cmd(
 ) -> None:
     """Just chamfer distance, with thresholds=[]."""
     pred_geom = _load_geom(pred)
-    gt_geom = _load_geom(gt)
+    gt_resolution = _resolve_gt(gt, dataset, scene_id)
+    gt_geom = gt_resolution.geom
+    resolved = _apply_preset(
+        dataset,
+        samples=samples,
+        seed=seed,
+        align=align,
+        chamfer_variant=chamfer_variant,
+    )
+    samples = resolved["samples"]
+    seed = resolved["seed"]
+    align = resolved["align"]
+    chamfer_variant = resolved["chamfer_variant"]
     _validate_metric_options(align=align, chamfer_variant=chamfer_variant)
     pred_traj = _load_pred_poses(pred, pred_poses, pred_pose_convention)
-    gt_traj = _load_poses(gt_poses, gt_pose_convention) if gt_poses else None
+    if gt_resolution.poses is not None:
+        gt_traj = gt_resolution.poses
+    elif gt_poses is not None:
+        gt_traj = _load_poses(gt_poses, gt_pose_convention)
+    else:
+        gt_traj = None
 
     if isinstance(align, str) and align.startswith("traj_"):
         if pred_traj is None:
@@ -312,10 +469,21 @@ def chamfer_cmd(
 def fscore_cmd(
     pred: str = typer.Argument(...),
     gt: str = typer.Option(..., "--gt"),
-    threshold: float = typer.Option(0.05, help="F-score distance threshold."),
-    samples: int = typer.Option(200_000),
-    seed: int = typer.Option(42),
-    align: str = typer.Option("none"),
+    dataset: str | None = typer.Option(
+        None, "--dataset",
+        help=(
+            "Registered dataset name: " + " | ".join(sorted(PRESETS)) + ". "
+            "Required when --gt is a folder; otherwise fills metric defaults."
+        ),
+    ),
+    scene_id: str | None = typer.Option(
+        None, "--scene-id",
+        help="Scene id within the dataset. Required when --gt is a folder.",
+    ),
+    threshold: float | None = typer.Option(None, help="F-score distance threshold."),
+    samples: int | None = typer.Option(None),
+    seed: int | None = typer.Option(None),
+    align: str | None = typer.Option(None),
     json_out: bool = typer.Option(False, "--json"),
     debug_plot: bool = typer.Option(
         False, "--debug-plot", help="Export a 3D scatter plot of aligned point clouds."
@@ -342,10 +510,24 @@ def fscore_cmd(
 ) -> None:
     """F-score / precision / recall at a single threshold."""
     pred_geom = _load_geom(pred)
-    gt_geom = _load_geom(gt)
+    gt_resolution = _resolve_gt(gt, dataset, scene_id)
+    gt_geom = gt_resolution.geom
+    resolved = _apply_preset(
+        dataset, samples=samples, seed=seed, align=align,
+    )
+    samples = resolved["samples"]
+    seed = resolved["seed"]
+    align = resolved["align"]
+    if threshold is None:
+        threshold = float(resolved["thresholds"][0])
     _validate_metric_options(align=align)
     pred_traj = _load_pred_poses(pred, pred_poses, pred_pose_convention)
-    gt_traj = _load_poses(gt_poses, gt_pose_convention) if gt_poses else None
+    if gt_resolution.poses is not None:
+        gt_traj = gt_resolution.poses
+    elif gt_poses is not None:
+        gt_traj = _load_poses(gt_poses, gt_pose_convention)
+    else:
+        gt_traj = None
 
     if isinstance(align, str) and align.startswith("traj_"):
         if pred_traj is None:

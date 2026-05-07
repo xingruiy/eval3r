@@ -242,3 +242,129 @@ def test_metric_fscore_validates_align_option(tmp_path, gaussian_cloud) -> None:
         ["metric", "fscore", pred, "--gt", str(gt_path), "--align", "bad_align"],
     )
     assert result.exit_code == 2
+
+
+def _scannet_pred(preds_root, scene_id) -> str:
+    """Write a tiny prediction directory matching the cube fake-scannet uses."""
+    from tests._fake_scannet import CUBE_FACES, CUBE_VERTS
+
+    pred_dir = preds_root / scene_id
+    with PredictionWriter(
+        pred_dir, scene_id=scene_id, dataset="scannet", method="m",
+        unit="m", coordinate_system="opengl", pose_convention="T_wc",
+    ) as w:
+        w.save_mesh(CUBE_VERTS, CUBE_FACES)
+    return str(pred_dir)
+
+
+def test_metric_all_gt_folder_requires_dataset(tmp_path) -> None:
+    from tests._fake_scannet import make_scannet_root
+
+    make_scannet_root(tmp_path / "ds", ["s1"])
+    pred = _scannet_pred(tmp_path / "preds", "s1")
+    result = runner.invoke(
+        app,
+        ["metric", "all", pred, "--gt", str(tmp_path / "ds"), "--samples", "256"],
+    )
+    assert result.exit_code != 0
+    assert "--dataset" in result.output and "--scene-id" in result.output
+
+
+def test_metric_all_gt_folder_requires_scene_id(tmp_path) -> None:
+    from tests._fake_scannet import make_scannet_root
+
+    make_scannet_root(tmp_path / "ds", ["s1"])
+    pred = _scannet_pred(tmp_path / "preds", "s1")
+    result = runner.invoke(
+        app,
+        [
+            "metric", "all", pred,
+            "--gt", str(tmp_path / "ds"),
+            "--dataset", "scannet",
+            "--samples", "256",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "--scene-id" in result.output
+
+
+def test_metric_all_gt_folder_full(tmp_path) -> None:
+    from tests._fake_scannet import make_scannet_root
+
+    make_scannet_root(tmp_path / "ds", ["s1"])
+    pred = _scannet_pred(tmp_path / "preds", "s1")
+    result = runner.invoke(
+        app,
+        [
+            "metric", "all", pred,
+            "--gt", str(tmp_path / "ds"),
+            "--dataset", "scannet",
+            "--scene-id", "s1",
+            "--samples", "256",
+            "--seed", "0",
+            "--json",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(result.stdout)
+    # scannet preset → thresholds [0.05], chamfer_variant l1_mean_bidirectional.
+    assert payload["chamfer_variant"] == "l1_mean_bidirectional"
+    assert "0.05" in payload["fscore"]
+
+
+def test_metric_all_gt_folder_invalid_scene_id(tmp_path) -> None:
+    from tests._fake_scannet import make_scannet_root
+
+    make_scannet_root(tmp_path / "ds", ["s1", "s2"])
+    pred = _scannet_pred(tmp_path / "preds", "s1")
+    result = runner.invoke(
+        app,
+        [
+            "metric", "all", pred,
+            "--gt", str(tmp_path / "ds"),
+            "--dataset", "scannet",
+            "--scene-id", "nope",
+            "--samples", "256",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "nope" in result.output
+    assert "s1" in result.output
+
+
+def test_metric_all_file_gt_with_dataset_applies_preset(tmp_path, gaussian_cloud) -> None:
+    """File GT + --dataset still pulls preset metric defaults (e.g. thresholds)."""
+    pred = _write_pred(tmp_path, gaussian_cloud)
+    gt_path = tmp_path / "gt.ply"
+    save_point_cloud_ply(gt_path, gaussian_cloud)
+    result = runner.invoke(
+        app,
+        [
+            "metric", "all", pred,
+            "--gt", str(gt_path),
+            "--dataset", "dtu",
+            "--samples", "512",
+            "--seed", "0",
+            "--json",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(result.stdout)
+    # DTU preset → thresholds [1.0, 2.0, 5.0]. CLI did not pass --thresholds.
+    assert set(payload["fscore"].keys()) == {"1.0", "2.0", "5.0"}
+
+
+def test_metric_all_unknown_dataset_raises(tmp_path, gaussian_cloud) -> None:
+    pred = _write_pred(tmp_path, gaussian_cloud)
+    gt_path = tmp_path / "gt.ply"
+    save_point_cloud_ply(gt_path, gaussian_cloud)
+    result = runner.invoke(
+        app,
+        [
+            "metric", "all", pred,
+            "--gt", str(gt_path),
+            "--dataset", "no_such_dataset",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "no_such_dataset" in result.output
