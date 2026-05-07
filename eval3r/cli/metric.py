@@ -67,24 +67,18 @@ def _load_poses(path: str, convention: str) -> Trajectory:
 
 
 def _load_pred_mask(
-    pred_path: str,
-    mask_dir: str | None,
-    mask_name: str,
-    t_mask_scene_name: str,
+    mask_path: str | None = None,
+    t_mask_scene_path: str | None = None,
 ) -> object | None:  # OcclusionMask | None
-    """Load occlusion mask if *mask_dir* is provided."""
-    if mask_dir is None:
-        return None
-    from eval3r.metrics.occlusion import load_occlusion_mask
-
-    scene_id = Path(pred_path).stem
-    mask_path = Path(mask_dir) / scene_id / mask_name
-    w2g_path = Path(mask_dir) / scene_id / t_mask_scene_name
-    if not mask_path.exists():
-        return None
-    if not w2g_path.exists():
-        return None
-    return load_occlusion_mask(mask_path, w2g_path)
+    """Load occlusion mask from explicit file paths."""
+    if (mask_path is None) != (t_mask_scene_path is None):
+        raise typer.BadParameter(
+            "Masking requires both --mask and --t-mask-scene, or neither."
+        )
+    if mask_path is not None and t_mask_scene_path is not None:
+        from eval3r.metrics.occlusion import load_occlusion_mask
+        return load_occlusion_mask(mask_path, t_mask_scene_path)
+    return None
 
 
 def _resolve_masks(mask: object | None, mask_mode: str) -> tuple[object | None, object | None]:
@@ -147,17 +141,11 @@ def all_cmd(
     gt_pose_convention: str = typer.Option(
         "unspecified", "--gt-pose-convention", help="Pose convention: T_wc | T_cw."
     ),
-    mask_dir: str | None = typer.Option(
-        None, "--mask-dir",
-        help="Directory with per-scene subdirs containing occlusion masks.",
+    mask_path: str | None = typer.Option(
+        None, "--mask", help="Explicit path to occlusion mask .npy for this scene.",
     ),
-    mask_name: str = typer.Option(
-        "occlusion_mask.npy", "--mask-name",
-        help="Filename of the occlusion mask .npy within each scene subdir.",
-    ),
-    t_mask_scene_name: str = typer.Option(
-        "T_mask_scene.txt", "--t-mask-scene-name",
-        help="Filename of the T_mask_scene .txt within each scene subdir.",
+    t_mask_scene_path: str | None = typer.Option(
+        None, "--t-mask-scene", help="Explicit path to T_mask_scene .txt for this scene.",
     ),
     mask_mode: str = typer.Option("pred", "--mask-mode", help="pred | gt | both"),
 ) -> None:
@@ -187,7 +175,7 @@ def all_cmd(
                 "Trajectory alignment requires GT poses. Provide --gt-poses."
             )
 
-    mask = _load_pred_mask(pred, mask_dir, mask_name, t_mask_scene_name)
+    mask = _load_pred_mask(mask_path, t_mask_scene_path)
     pred_mask, gt_mask = _resolve_masks(mask, mask_mode)
 
     result = evaluate_geometry(
@@ -236,17 +224,11 @@ def chamfer_cmd(
     gt_pose_convention: str = typer.Option(
         "unspecified", "--gt-pose-convention", help="Pose convention: T_wc | T_cw."
     ),
-    mask_dir: str | None = typer.Option(
-        None, "--mask-dir",
-        help="Directory with per-scene subdirs containing occlusion masks.",
+    mask_path: str | None = typer.Option(
+        None, "--mask", help="Explicit path to occlusion mask .npy for this scene.",
     ),
-    mask_name: str = typer.Option(
-        "occlusion_mask.npy", "--mask-name",
-        help="Filename of the occlusion mask .npy within each scene subdir.",
-    ),
-    t_mask_scene_name: str = typer.Option(
-        "T_mask_scene.txt", "--t-mask-scene-name",
-        help="Filename of the T_mask_scene .txt within each scene subdir.",
+    t_mask_scene_path: str | None = typer.Option(
+        None, "--t-mask-scene", help="Explicit path to T_mask_scene .txt for this scene.",
     ),
     mask_mode: str = typer.Option("pred", "--mask-mode", help="pred | gt | both"),
 ) -> None:
@@ -269,7 +251,7 @@ def chamfer_cmd(
                 "Trajectory alignment requires GT poses. Provide --gt-poses."
             )
 
-    mask = _load_pred_mask(pred, mask_dir, mask_name, t_mask_scene_name)
+    mask = _load_pred_mask(mask_path, t_mask_scene_path)
     pred_mask, gt_mask = _resolve_masks(mask, mask_mode)
 
     result = evaluate_geometry(
@@ -320,17 +302,11 @@ def fscore_cmd(
     gt_pose_convention: str = typer.Option(
         "unspecified", "--gt-pose-convention", help="Pose convention: T_wc | T_cw."
     ),
-    mask_dir: str | None = typer.Option(
-        None, "--mask-dir",
-        help="Directory with per-scene subdirs containing occlusion masks.",
+    mask_path: str | None = typer.Option(
+        None, "--mask", help="Explicit path to occlusion mask .npy for this scene.",
     ),
-    mask_name: str = typer.Option(
-        "occlusion_mask.npy", "--mask-name",
-        help="Filename of the occlusion mask .npy within each scene subdir.",
-    ),
-    t_mask_scene_name: str = typer.Option(
-        "T_mask_scene.txt", "--t-mask-scene-name",
-        help="Filename of the T_mask_scene .txt within each scene subdir.",
+    t_mask_scene_path: str | None = typer.Option(
+        None, "--t-mask-scene", help="Explicit path to T_mask_scene .txt for this scene.",
     ),
     mask_mode: str = typer.Option("pred", "--mask-mode", help="pred | gt | both"),
 ) -> None:
@@ -353,7 +329,7 @@ def fscore_cmd(
                 "Trajectory alignment requires GT poses. Provide --gt-poses."
             )
 
-    mask = _load_pred_mask(pred, mask_dir, mask_name, t_mask_scene_name)
+    mask = _load_pred_mask(mask_path, t_mask_scene_path)
     pred_mask, gt_mask = _resolve_masks(mask, mask_mode)
 
     result = evaluate_geometry(
