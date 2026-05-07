@@ -121,6 +121,51 @@ def test_metric_depth_png_scales(tmp_path) -> None:
     assert scaled_payload["rmse"] == pytest.approx(unscaled_payload["rmse"] * 0.001)
 
 
+
+
+def test_metric_depth_png_default_scale_warns(tmp_path) -> None:
+    imageio = pytest.importorskip("imageio.v3")
+    pred_path = tmp_path / "pred.png"
+    gt_path = tmp_path / "gt.png"
+    imageio.imwrite(pred_path, np.full((4, 4), 2000, dtype=np.uint16))
+    imageio.imwrite(gt_path, np.full((4, 4), 2500, dtype=np.uint16))
+
+    result = runner.invoke(
+        app, ["metric", "depth", str(pred_path), "--gt", str(gt_path), "--json"]
+    )
+
+    assert result.exit_code == 0, result.stdout
+    assert "WARNING: PNG depth loaded with scale=1.0" in result.stderr
+    assert "--pred-scale 0.001" in result.stderr
+    assert "--gt-scale 0.001" in result.stderr
+
+
+def test_metric_depth_png_non_default_scale_no_warning(tmp_path) -> None:
+    imageio = pytest.importorskip("imageio.v3")
+    pred_path = tmp_path / "pred.png"
+    gt_path = tmp_path / "gt.png"
+    imageio.imwrite(pred_path, np.full((4, 4), 2000, dtype=np.uint16))
+    imageio.imwrite(gt_path, np.full((4, 4), 2500, dtype=np.uint16))
+
+    result = runner.invoke(
+        app,
+        [
+            "metric",
+            "depth",
+            str(pred_path),
+            "--gt",
+            str(gt_path),
+            "--pred-scale",
+            "0.001",
+            "--gt-scale",
+            "0.001",
+            "--json",
+        ],
+    )
+
+    assert result.exit_code == 0, result.stdout
+    assert "WARNING: PNG depth loaded with scale=1.0" not in result.stderr
+
 def test_metric_all_explicit_mask_requires_both_paths(tmp_path, gaussian_cloud) -> None:
     pred = _write_pred(tmp_path, gaussian_cloud)
     gt_path = tmp_path / "gt.ply"
@@ -197,3 +242,133 @@ def test_metric_fscore_validates_align_option(tmp_path, gaussian_cloud) -> None:
         ["metric", "fscore", pred, "--gt", str(gt_path), "--align", "bad_align"],
     )
     assert result.exit_code == 2
+
+
+def _scannet_pred(preds_root, scene_id) -> str:
+    """Write a tiny prediction directory matching the cube fake-scannet uses."""
+    from tests._fake_scannet import CUBE_FACES, CUBE_VERTS
+
+    pred_dir = preds_root / scene_id
+    with PredictionWriter(
+        pred_dir, scene_id=scene_id, dataset="scannet", method="m",
+        unit="m", coordinate_system="opengl", pose_convention="T_wc",
+    ) as w:
+        w.save_mesh(CUBE_VERTS, CUBE_FACES)
+    return str(pred_dir)
+
+
+def test_metric_all_gt_folder_requires_dataset(tmp_path) -> None:
+    from tests._fake_scannet import make_scannet_root
+
+    make_scannet_root(tmp_path / "ds", ["s1"])
+    pred = _scannet_pred(tmp_path / "preds", "s1")
+    result = runner.invoke(
+        app,
+        ["metric", "all", pred, "--gt", str(tmp_path / "ds"), "--samples", "256"],
+        env={"NO_COLOR": "1", "TERM": "dumb"},
+    )
+    assert result.exit_code != 0
+    assert "--dataset" in result.output and "--scene-id" in result.output
+
+
+def test_metric_all_gt_folder_requires_scene_id(tmp_path) -> None:
+    from tests._fake_scannet import make_scannet_root
+
+    make_scannet_root(tmp_path / "ds", ["s1"])
+    pred = _scannet_pred(tmp_path / "preds", "s1")
+    result = runner.invoke(
+        app,
+        [
+            "metric", "all", pred,
+            "--gt", str(tmp_path / "ds"),
+            "--dataset", "scannet",
+            "--samples", "256",
+        ],
+        env={"NO_COLOR": "1", "TERM": "dumb"},
+    )
+    assert result.exit_code != 0
+    assert "--scene-id" in result.output
+
+
+def test_metric_all_gt_folder_full(tmp_path) -> None:
+    from tests._fake_scannet import make_scannet_root
+
+    make_scannet_root(tmp_path / "ds", ["s1"])
+    pred = _scannet_pred(tmp_path / "preds", "s1")
+    result = runner.invoke(
+        app,
+        [
+            "metric", "all", pred,
+            "--gt", str(tmp_path / "ds"),
+            "--dataset", "scannet",
+            "--scene-id", "s1",
+            "--samples", "256",
+            "--seed", "0",
+            "--json",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(result.stdout)
+    # scannet preset → thresholds [0.05], chamfer_variant l1_mean_bidirectional.
+    assert payload["chamfer_variant"] == "l1_mean_bidirectional"
+    assert "0.05" in payload["fscore"]
+
+
+def test_metric_all_gt_folder_invalid_scene_id(tmp_path) -> None:
+    from tests._fake_scannet import make_scannet_root
+
+    make_scannet_root(tmp_path / "ds", ["s1", "s2"])
+    pred = _scannet_pred(tmp_path / "preds", "s1")
+    result = runner.invoke(
+        app,
+        [
+            "metric", "all", pred,
+            "--gt", str(tmp_path / "ds"),
+            "--dataset", "scannet",
+            "--scene-id", "nope",
+            "--samples", "256",
+        ],
+        env={"NO_COLOR": "1", "TERM": "dumb"},
+    )
+    assert result.exit_code != 0
+    assert "nope" in result.output
+    assert "s1" in result.output
+
+
+def test_metric_all_file_gt_with_dataset_applies_preset(tmp_path, gaussian_cloud) -> None:
+    """File GT + --dataset still pulls preset metric defaults (e.g. thresholds)."""
+    pred = _write_pred(tmp_path, gaussian_cloud)
+    gt_path = tmp_path / "gt.ply"
+    save_point_cloud_ply(gt_path, gaussian_cloud)
+    result = runner.invoke(
+        app,
+        [
+            "metric", "all", pred,
+            "--gt", str(gt_path),
+            "--dataset", "dtu",
+            "--samples", "512",
+            "--seed", "0",
+            "--json",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(result.stdout)
+    # DTU preset → thresholds [1.0, 2.0, 5.0]. CLI did not pass --thresholds.
+    assert set(payload["fscore"].keys()) == {"1.0", "2.0", "5.0"}
+
+
+def test_metric_all_unknown_dataset_raises(tmp_path, gaussian_cloud) -> None:
+    pred = _write_pred(tmp_path, gaussian_cloud)
+    gt_path = tmp_path / "gt.ply"
+    save_point_cloud_ply(gt_path, gaussian_cloud)
+    result = runner.invoke(
+        app,
+        [
+            "metric", "all", pred,
+            "--gt", str(gt_path),
+            "--dataset", "no_such_dataset",
+        ],
+        env={"NO_COLOR": "1", "TERM": "dumb"},
+    )
+    assert result.exit_code != 0
+    assert "no_such_dataset" in result.output

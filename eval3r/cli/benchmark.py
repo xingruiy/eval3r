@@ -150,9 +150,15 @@ def run_cmd(
         "--missing-fscore-default",
         help="Default applied to f-score / precision / recall for missing or failed scenes (used in summary_all).",
     ),
-    geometry_pattern: list[str] = typer.Option(
-        [], "--geometry-pattern",
-        help="Custom prediction filename patterns (repeatable, prepended to defaults).",
+    pred_filename: list[str] = typer.Option(
+        [],
+        "--pred-filename",
+        "--geometry-pattern",
+        help=(
+            "Custom prediction filename patterns (repeatable, prepended to defaults). "
+            "Use {scene_id} in the pattern, e.g. '{scene_id}/mesh.ply' or "
+            "'predictions/{scene_id}.ply'."
+        ),
     ),
     adapter_opt: list[str] = typer.Option(
         [], "-o", "--adapter-opt",
@@ -247,7 +253,7 @@ def run_cmd(
 
     locator = PredictionLocator(
         preds_root=Path(preds_root),
-        extra_patterns=tuple(geometry_pattern),
+        extra_patterns=tuple(pred_filename),
     )
     result = run_benchmark(ds, preds_root, locator=locator, config=cfg, split=split)
     payload = result.to_dict()
@@ -311,9 +317,14 @@ def scannet_cmd(
         "--missing-fscore-default",
         help="Default applied to f-score / precision / recall for missing or failed scenes (used in summary_all).",
     ),
-    geometry_pattern: list[str] = typer.Option(
-        [], "--geometry-pattern",
-        help="Custom prediction filename patterns (repeatable, prepended to defaults).",
+    pred_filename: list[str] = typer.Option(
+        [],
+        "--pred-filename",
+        help=(
+            "Custom prediction filename patterns (repeatable, prepended to defaults). "
+            "Use {scene_id} in the pattern, e.g. '{scene_id}/mesh.ply' or "
+            "'predictions/{scene_id}.ply'."
+        ),
     ),
     color_subdir: str | None = typer.Option(None, "--color-subdir"),
     depth_subdir: str | None = typer.Option(None, "--depth-subdir"),
@@ -383,7 +394,7 @@ def scannet_cmd(
         workers=workers,
         missing_distance_default=missing_distance_default,
         missing_fscore_default=missing_fscore_default,
-        geometry_pattern=geometry_pattern,
+        pred_filename=pred_filename,
         adapter_opt=adapter_opts,
         fail_on_missing=fail_on_missing,
         debug_plot=debug_plot,
