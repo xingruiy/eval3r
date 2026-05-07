@@ -53,7 +53,8 @@ def sample_points(
 ) -> Points:
     """Return ``n`` deterministic samples from ``geom``.
 
-    For point clouds (or raw arrays), 'area' is treated as 'uniform' with replacement.
+    For point clouds (or raw arrays), 'area' is treated as 'uniform'.
+    Sampling is without replacement when possible, otherwise with replacement.
     """
     rng = np.random.default_rng(seed)
 
@@ -74,5 +75,5 @@ def sample_points(
         points = np.asarray(geom, dtype=np.float64)
     if len(points) == 0:
         raise EmptyGeometryError("Cannot sample from an empty point set")
-    idx = rng.choice(len(points), size=n, replace=True)
+    idx = rng.choice(len(points), size=n, replace=(n > len(points)))
     return points[idx].astype(np.float64)
