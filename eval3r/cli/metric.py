@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 from typing import get_args
 
+import math
+
 import typer
 
 import numpy as np
@@ -34,6 +36,22 @@ def _load_depth_image(path: str, scale: float = 1.0) -> np.ndarray:
         return imageio.imread(p).astype(np.float32) * np.float32(scale)
     raise typer.BadParameter(f"Unsupported depth image format: {suffix}. Use .png or .npy.")
 
+
+
+
+def _warn_if_png_default_scale(path: str, scale: float, scale_flag: str) -> None:
+    if Path(path).suffix.lower() != ".png":
+        return
+    if not math.isclose(scale, 1.0):
+        return
+    typer.echo(
+        (
+            "WARNING: PNG depth loaded with scale=1.0. "
+            "If this is a uint16 depth map in millimeters, use "
+            f"--{scale_flag} 0.001."
+        ),
+        err=True,
+    )
 
 def _load_geom(path: str):  # type: ignore[no-untyped-def]
     p = Path(path)
@@ -379,6 +397,9 @@ def depth_cmd(
     json_out: bool = typer.Option(False, "--json", help="Emit JSON instead of a table."),
 ) -> None:
     """Compute AbsRel, SqRel, RMSE, RMSE log, and δ accuracy for depth maps."""
+    _warn_if_png_default_scale(pred, pred_scale, "pred-scale")
+    _warn_if_png_default_scale(gt, gt_scale, "gt-scale")
+
     pred_depth = _load_depth_image(pred, scale=pred_scale)
     gt_depth = _load_depth_image(gt, scale=gt_scale)
     mask_arr = None
