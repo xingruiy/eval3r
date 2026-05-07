@@ -24,6 +24,34 @@ from eval3r.utils.optional import optional_import
 app = typer.Typer(no_args_is_help=True, add_completion=False)
 
 
+METRIC_PRESETS: dict[str, dict[str, object]] = {
+    "dtu": {
+        "thresholds": [1.0, 2.0, 5.0],
+        "units": "mm",
+        "sample_method": "area",
+        "align": "none",
+        "mask_mode": "pred",
+        "gt_geometry": "point_cloud",
+    },
+    "tanks_temples": {
+        "thresholds": [0.01, 0.02, 0.05],
+        "units": "m",
+        "sample_method": "area",
+        "align": "none",
+        "mask_mode": "pred",
+        "gt_geometry": "mesh",
+    },
+    "scannet": {
+        "thresholds": [0.05],
+        "units": "m",
+        "sample_method": "area",
+        "align": "none",
+        "mask_mode": "pred",
+        "gt_geometry": "mesh",
+    },
+}
+
+
 def _load_depth_image(path: str, scale: float = 1.0) -> np.ndarray:
     p = Path(path)
     suffix = p.suffix.lower()
@@ -126,6 +154,14 @@ def _validate_metric_options(
     if chamfer_variant is not None and chamfer_variant not in get_args(ChamferVariant):
         raise typer.BadParameter(f"--chamfer-variant must be one of {get_args(ChamferVariant)}")
 
+
+def _load_gt_for_policy(path: str, gt_geometry: str):
+    if gt_geometry == "mesh":
+        return load_mesh(Path(path))
+    if gt_geometry == "point_cloud":
+        return load_point_cloud(Path(path))
+    return _load_geom(path)
+
 @app.command("all")
 def all_cmd(
     pred: str = typer.Argument(..., help="Prediction directory or geometry file."),
@@ -162,18 +198,38 @@ def all_cmd(
         None, "--t-mask-scene", help="Explicit path to T_mask_scene .txt for this scene.",
     ),
     mask_mode: str = typer.Option("pred", "--mask-mode", help="pred | gt | both"),
+    preset: str | None = typer.Option(
+        None,
+        "--preset",
+        help="Metric preset: dtu | tanks_temples | scannet. Overrides thresholds, units, sampling, alignment, masking, and GT geometry policy.",
+    ),
 ) -> None:
     """Compute chamfer, accuracy, completeness, and F-score for a prediction vs. GT."""
+    config: dict[str, object] = {
+        "thresholds": thresholds,
+        "sample_method": sample_method,
+        "align": align,
+        "mask_mode": mask_mode,
+        "units": "native",
+        "gt_geometry": "auto",
+    }
+    if preset is not None:
+        if preset not in METRIC_PRESETS:
+            raise typer.BadParameter(
+                f"unknown preset: {preset}; available: {sorted(METRIC_PRESETS)}"
+            )
+        config.update(METRIC_PRESETS[preset])
+
     pred_geom = _load_geom(pred)
-    gt_geom = _load_geom(gt)
+    gt_geom = _load_gt_for_policy(gt, str(config["gt_geometry"]))
     _validate_metric_options(
-        align=align, sample_method=sample_method, chamfer_variant=chamfer_variant
+        align=str(config["align"]), sample_method=str(config["sample_method"]), chamfer_variant=chamfer_variant
     )
 
     pred_traj = _load_pred_poses(pred, pred_poses, pred_pose_convention)
     gt_traj = _load_poses(gt_poses, gt_pose_convention) if gt_poses else None
 
-    if isinstance(align, str) and align.startswith("traj_"):
+    if str(config["align"]).startswith("traj_"):
         if pred_traj is None:
             raise typer.BadParameter(
                 "Trajectory alignment requires prediction poses. "
@@ -187,16 +243,16 @@ def all_cmd(
             )
 
     mask = _load_pred_mask(mask_path, t_mask_scene_path)
-    pred_mask, gt_mask = _resolve_masks(mask, mask_mode)
+    pred_mask, gt_mask = _resolve_masks(mask, str(config["mask_mode"]))
 
     result = evaluate_geometry(
         pred_geom,
         gt_geom,
         samples=samples,
         seed=seed,
-        sample_method=sample_method,  # type: ignore[arg-type]
-        align_mode=align,  # type: ignore[arg-type]
-        thresholds=thresholds,
+        sample_method=str(config["sample_method"]),  # type: ignore[arg-type]
+        align_mode=str(config["align"]),  # type: ignore[arg-type]
+        thresholds=list(config["thresholds"]),
         chamfer_variant=chamfer_variant,  # type: ignore[arg-type]
         debug_plot_path="debug_plot.png" if debug_plot else None,
         pred_poses=pred_traj.poses if pred_traj else None,

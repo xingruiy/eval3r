@@ -175,6 +175,39 @@ def test_metric_chamfer_validates_align_option(tmp_path, gaussian_cloud) -> None
     assert result.exit_code == 2
 
 
+def test_metric_all_dtu_preset_overrides_thresholds(tmp_path, gaussian_cloud) -> None:
+    pred = _write_pred(tmp_path, gaussian_cloud)
+    gt_path = tmp_path / "gt.ply"
+    save_point_cloud_ply(gt_path, gaussian_cloud)
+    result = runner.invoke(
+        app,
+        [
+            "metric", "all", pred,
+            "--gt", str(gt_path),
+            "--preset", "dtu",
+            "--thresholds", "0.01",
+            "--json",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(result.stdout)
+    assert "1.0" in payload["fscore"]
+    assert "2.0" in payload["fscore"]
+    assert "5.0" in payload["fscore"]
+
+
+def test_metric_all_unknown_preset_fails(tmp_path, gaussian_cloud) -> None:
+    pred = _write_pred(tmp_path, gaussian_cloud)
+    gt_path = tmp_path / "gt.ply"
+    save_point_cloud_ply(gt_path, gaussian_cloud)
+    result = runner.invoke(
+        app,
+        ["metric", "all", pred, "--gt", str(gt_path), "--preset", "bad_preset"],
+    )
+    assert result.exit_code != 0
+    assert "unknown preset" in result.output
+
+
 def test_metric_chamfer_validates_chamfer_variant_option(tmp_path, gaussian_cloud) -> None:
     pred = _write_pred(tmp_path, gaussian_cloud)
     gt_path = tmp_path / "gt.ply"
