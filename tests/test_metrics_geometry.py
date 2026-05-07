@@ -123,6 +123,25 @@ def test_sampling_is_deterministic() -> None:
     assert np.array_equal(a, b)
 
 
+def test_sampling_without_replacement_when_possible() -> None:
+    from eval3r.metrics.sampling import sample_points
+
+    pts = np.arange(30, dtype=np.float64).reshape(10, 3)
+    sampled = sample_points(pts, 10, method="uniform", seed=42)
+
+    assert np.unique(sampled, axis=0).shape[0] == 10
+
+
+def test_sampling_with_replacement_when_needed() -> None:
+    from eval3r.metrics.sampling import sample_points
+
+    pts = np.arange(15, dtype=np.float64).reshape(5, 3)
+    sampled = sample_points(pts, 12, method="uniform", seed=42)
+
+    assert sampled.shape == (12, 3)
+    assert np.unique(sampled, axis=0).shape[0] <= 5
+
+
 # ---------------------------------------------------------------------------
 # Occlusion mask tests
 # ---------------------------------------------------------------------------
@@ -252,6 +271,28 @@ def test_occlusion_mask_improves_accuracy() -> None:
     assert result_masked.completeness == pytest.approx(result_unmasked.completeness, rel=1e-3)
     assert result_masked.masked is True
     assert result_masked.visible_points < result_masked.total_pred_points
+
+
+def test_gt_mask_applies_to_reverse_term() -> None:
+    pred = np.array([[0.0, 0.0, 0.0]], dtype=np.float64)
+    gt = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]], dtype=np.float64)
+
+    grid = np.array([[[0.0]], [[1.0]]], dtype=np.float64)
+    gt_mask = OcclusionMask(grid=grid, T_mask_scene=np.eye(4))
+
+    result = evaluate_geometry(
+        pred,
+        gt,
+        samples=2,
+        seed=0,
+        sample_method="uniform",
+        align_mode="none",
+        thresholds=[0.1],
+        gt_mask=gt_mask,
+    )
+
+    assert result.completeness == pytest.approx(0.0, abs=1e-12)
+    assert result.fscore[0.1]["recall"] == pytest.approx(1.0, abs=1e-12)
 
 
 def test_occlusion_mask_chamfer_l1_mean() -> None:

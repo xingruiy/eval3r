@@ -7,7 +7,7 @@ import traceback
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, get_args
 
 import numpy as np
 
@@ -253,6 +253,10 @@ def _evaluate_one(
                 elif config.mask_mode == "both":
                     pred_mask = mask_obj
                     gt_mask = mask_obj
+                else:
+                    raise ValueError(
+                        f"Invalid mask_mode {config.mask_mode!r}; expected one of {get_args(MaskMode)}"
+                    )
             else:
                 mask_missing = True
 
@@ -314,6 +318,10 @@ def run_benchmark(
     progress: bool = True,
 ) -> BenchmarkResult:
     cfg = config or BenchmarkConfig()
+    if cfg.mask_mode not in get_args(MaskMode):
+        raise ValueError(
+            f"Invalid mask_mode {cfg.mask_mode!r}; expected one of {get_args(MaskMode)}"
+        )
     loc = locator or PredictionLocator(preds_root=Path(preds_root))
     scenes = dataset.list_scenes(split)
     if split is not None:

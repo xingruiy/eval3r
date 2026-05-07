@@ -57,13 +57,18 @@ class PredictionWriter:
         self._overwrite = overwrite
         if self.out_dir.exists():
             manifest_path = self.out_dir / MANIFEST_FILENAME
-            if manifest_path.exists() and not overwrite:
+            if overwrite:
+                shutil.rmtree(self.out_dir)
+            elif manifest_path.exists():
                 raise FileExistsError(
                     f"Prediction already exists at {self.out_dir}. "
                     f"Pass overwrite=True to replace it."
                 )
-            if overwrite and manifest_path.exists():
-                shutil.rmtree(self.out_dir)
+            elif any(self.out_dir.iterdir()):
+                raise FileExistsError(
+                    f"{self.out_dir} exists and is non-empty. "
+                    "Pass overwrite=True to replace it."
+                )
         self.out_dir.mkdir(parents=True, exist_ok=True)
 
         self._unit = Unit(unit)

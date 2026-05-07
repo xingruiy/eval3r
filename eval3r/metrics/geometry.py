@@ -189,7 +189,7 @@ def evaluate_geometry(
 
     if pred_mask is not None or gt_mask is not None:
         d_pg = _nn_dists(pred_aligned, gt_eval)
-        d_gp = _nn_dists(gt_pts, pred_aligned_full)
+        d_gp = _nn_dists(gt_eval, pred_aligned)
 
         acc = float(d_pg.mean())
         comp = float(d_gp.mean())
