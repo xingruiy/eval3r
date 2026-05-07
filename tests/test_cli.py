@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 
 import numpy as np
+import pytest
 from typer.testing import CliRunner
 
 from eval3r import PredictionWriter
@@ -82,3 +83,39 @@ def test_preset_list() -> None:
     result = runner.invoke(app, ["preset", "list"])
     assert result.exit_code == 0
     assert "scannet" in result.stdout
+
+
+def test_metric_depth_png_scales(tmp_path) -> None:
+    imageio = pytest.importorskip("imageio.v3")
+    pred_path = tmp_path / "pred.png"
+    gt_path = tmp_path / "gt.png"
+    imageio.imwrite(pred_path, np.full((4, 4), 2000, dtype=np.uint16))
+    imageio.imwrite(gt_path, np.full((4, 4), 2500, dtype=np.uint16))
+
+    unscaled = runner.invoke(
+        app, ["metric", "depth", str(pred_path), "--gt", str(gt_path), "--json"]
+    )
+    assert unscaled.exit_code == 0, unscaled.stdout
+    unscaled_payload = json.loads(unscaled.stdout)
+
+    scaled = runner.invoke(
+        app,
+        [
+            "metric",
+            "depth",
+            str(pred_path),
+            "--gt",
+            str(gt_path),
+            "--pred-scale",
+            "0.001",
+            "--gt-scale",
+            "0.001",
+            "--json",
+        ],
+    )
+    assert scaled.exit_code == 0, scaled.stdout
+    scaled_payload = json.loads(scaled.stdout)
+
+    assert scaled_payload["abs_rel"] == pytest.approx(unscaled_payload["abs_rel"])
+    assert scaled_payload["sq_rel"] == pytest.approx(unscaled_payload["sq_rel"] * 0.001)
+    assert scaled_payload["rmse"] == pytest.approx(unscaled_payload["rmse"] * 0.001)
