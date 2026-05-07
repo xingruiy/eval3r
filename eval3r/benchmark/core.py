@@ -23,6 +23,7 @@ from eval3r.io.geometry import (
 from eval3r.metrics.geometry import (
     ChamferVariant,
     GeometryEvalResult,
+    MaskMode,
     evaluate_geometry,
 )
 from eval3r.metrics.sampling import SampleMethod
@@ -59,7 +60,8 @@ class BenchmarkConfig:
     # Occlusion mask for filtering predicted points in unobserved regions.
     mask_dir: str | None = None
     mask_name: str = "occlusion_mask.npy"
-    world2grid_name: str = "world2grid.txt"
+    t_mask_scene_name: str = "T_mask_scene.txt"
+    mask_mode: MaskMode = "pred"
 
 
 SceneStatus = Literal["ok", "missing_pred", "missing_gt", "failed"]
@@ -235,14 +237,22 @@ def _evaluate_one(
             debug_plot_path = f"debug_plots/{scene_id}.png"
 
         pred_mask = None
+        gt_mask = None
         mask_missing = False
         if config.mask_dir is not None:
             from eval3r.metrics.occlusion import load_occlusion_mask
 
             mask_path = Path(config.mask_dir) / scene_id / config.mask_name
-            w2g_path = Path(config.mask_dir) / scene_id / config.world2grid_name
+            w2g_path = Path(config.mask_dir) / scene_id / config.t_mask_scene_name
             if mask_path.exists() and w2g_path.exists():
-                pred_mask = load_occlusion_mask(mask_path, w2g_path)
+                mask_obj = load_occlusion_mask(mask_path, w2g_path)
+                if config.mask_mode == "pred":
+                    pred_mask = mask_obj
+                elif config.mask_mode == "gt":
+                    gt_mask = mask_obj
+                elif config.mask_mode == "both":
+                    pred_mask = mask_obj
+                    gt_mask = mask_obj
             else:
                 mask_missing = True
 
@@ -263,6 +273,7 @@ def _evaluate_one(
             pred_timestamps=pred_timestamps,
             gt_timestamps=gt_timestamps,
             pred_mask=pred_mask,
+            gt_mask=gt_mask,
         )
         return SceneOutcome(
             scene_id=scene_id,
@@ -410,7 +421,8 @@ def run_benchmark(
             "verbose": cfg.verbose,
             "mask_dir": cfg.mask_dir,
             "mask_name": cfg.mask_name,
-            "world2grid_name": cfg.world2grid_name,
+            "t_mask_scene_name": cfg.t_mask_scene_name,
+            "mask_mode": cfg.mask_mode,
         },
     )
 

@@ -15,7 +15,7 @@ from eval3r.align import AlignMode
 from eval3r.benchmark import BenchmarkConfig, run_benchmark
 from eval3r.datasets import get_dataset
 from eval3r.datasets.base import Asset
-from eval3r.metrics.geometry import ChamferVariant
+from eval3r.metrics.geometry import ChamferVariant, MaskMode
 from eval3r.prediction.discovery import PredictionLocator
 from eval3r.presets import PRESETS
 from eval3r.presets.scannet import SCANNET_PRESET
@@ -86,7 +86,8 @@ def _build_config(
     verbose: bool,
     mask_dir: str | None,
     mask_name: str,
-    world2grid_name: str,
+    t_mask_scene_name: str,
+    mask_mode: str,
 ) -> BenchmarkConfig:
     """Merge CLI options with preset defaults into a BenchmarkConfig."""
     align_value = align or preset["align"]
@@ -95,6 +96,8 @@ def _build_config(
         raise typer.BadParameter(f"--align must be one of {get_args(AlignMode)}")
     if chamfer_value not in get_args(ChamferVariant):
         raise typer.BadParameter(f"--chamfer-variant must be one of {get_args(ChamferVariant)}")
+    if mask_mode not in get_args(MaskMode):
+        raise typer.BadParameter(f"--mask-mode must be one of {get_args(MaskMode)}")
     return BenchmarkConfig(
         samples=samples if samples is not None else preset["samples"],
         seed=seed if seed is not None else preset["seed"],
@@ -114,7 +117,8 @@ def _build_config(
         verbose=verbose,
         mask_dir=mask_dir,
         mask_name=mask_name,
-        world2grid_name=world2grid_name,
+        t_mask_scene_name=t_mask_scene_name,
+        mask_mode=mask_mode,  # type: ignore[arg-type]
     )
 
 
@@ -185,16 +189,17 @@ def run_cmd(
     ),
     mask_dir: str | None = typer.Option(
         None, "--mask-dir",
-        help="Directory with per-scene subdirs containing occlusion_mask.npy + world2grid.txt.",
+        help="Directory with per-scene subdirs containing occlusion_mask.npy + T_mask_scene.txt.",
     ),
     mask_name: str = typer.Option(
         "occlusion_mask.npy", "--mask-name",
         help="Filename of the occlusion mask .npy file within each scene subdir.",
     ),
-    world2grid_name: str = typer.Option(
-        "world2grid.txt", "--world2grid-name",
-        help="Filename of the world2grid .txt file within each scene subdir.",
+    t_mask_scene_name: str = typer.Option(
+        "T_mask_scene.txt", "--t-mask-scene-name",
+        help="Filename of the T_mask_scene .txt file within each scene subdir.",
     ),
+    mask_mode: str = typer.Option("pred", "--mask-mode", help="pred | gt | both"),
 ) -> None:
     """Run a geometry benchmark against a registered dataset."""
     cls = get_dataset(dataset)
@@ -224,7 +229,8 @@ def run_cmd(
         verbose=verbose,
         mask_dir=mask_dir,
         mask_name=mask_name,
-        world2grid_name=world2grid_name,
+        t_mask_scene_name=t_mask_scene_name,
+        mask_mode=mask_mode,
     )
 
     ds = cls(root, split=split, validate_on_init=False, **adapter_kwargs)  # type: ignore[arg-type]
@@ -342,16 +348,17 @@ def scannet_cmd(
     ),
     mask_dir: str | None = typer.Option(
         None, "--mask-dir",
-        help="Directory with per-scene subdirs containing occlusion_mask.npy + world2grid.txt.",
+        help="Directory with per-scene subdirs containing occlusion_mask.npy + T_mask_scene.txt.",
     ),
     mask_name: str = typer.Option(
         "occlusion_mask.npy", "--mask-name",
         help="Filename of the occlusion mask .npy file within each scene subdir.",
     ),
-    world2grid_name: str = typer.Option(
-        "world2grid.txt", "--world2grid-name",
-        help="Filename of the world2grid .txt file within each scene subdir.",
+    t_mask_scene_name: str = typer.Option(
+        "T_mask_scene.txt", "--t-mask-scene-name",
+        help="Filename of the T_mask_scene .txt file within each scene subdir.",
     ),
+    mask_mode: str = typer.Option("pred", "--mask-mode", help="pred | gt | both"),
 ) -> None:
     """Run the ScanNet benchmark (backward-compatible alias for `e3r benchmark run scannet`)."""
     adapter_opts = []
@@ -389,7 +396,8 @@ def scannet_cmd(
         verbose=verbose,
         mask_dir=mask_dir,
         mask_name=mask_name,
-        world2grid_name=world2grid_name,
+        t_mask_scene_name=t_mask_scene_name,
+        mask_mode=mask_mode,
     )
 
 

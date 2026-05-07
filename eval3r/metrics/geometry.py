@@ -25,6 +25,7 @@ ChamferVariant = Literal[
     "l2_squared",
     "l2_unsquared",
 ]
+MaskMode = Literal["pred", "gt", "both"]
 
 
 def _nn_dists(a: Points, b: Points) -> np.ndarray:
@@ -146,6 +147,7 @@ def evaluate_geometry(
     pred_timestamps: np.ndarray | None = None,
     gt_timestamps: np.ndarray | None = None,
     pred_mask: OcclusionMask | None = None,
+    gt_mask: OcclusionMask | None = None,
 ) -> GeometryEvalResult:
     """Sample → align → compute chamfer / accuracy / completeness / F-score.
 
@@ -175,13 +177,18 @@ def evaluate_geometry(
     # --- occlusion mask filtering ---
     n_visible = len(pred_aligned)
     pred_aligned_full = pred_aligned
+    gt_eval = gt_pts
     if pred_mask is not None:
         from eval3r.metrics.occlusion import filter_visible_points
 
         pred_aligned, n_visible, _ = filter_visible_points(pred_aligned, pred_mask)
+    if gt_mask is not None:
+        from eval3r.metrics.occlusion import filter_visible_points
 
-    if pred_mask is not None:
-        d_pg = _nn_dists(pred_aligned, gt_pts)
+        gt_eval, _, _ = filter_visible_points(gt_pts, gt_mask)
+
+    if pred_mask is not None or gt_mask is not None:
+        d_pg = _nn_dists(pred_aligned, gt_eval)
         d_gp = _nn_dists(gt_pts, pred_aligned_full)
 
         acc = float(d_pg.mean())
@@ -205,12 +212,12 @@ def evaluate_geometry(
             f = 2 * p * r / (p + r) if (p + r) > 0 else 0.0
             fdict[float(thr)] = {"f": f, "precision": p, "recall": r}
     else:
-        cd = chamfer_distance(pred_aligned, gt_pts, variant=chamfer_variant)
-        acc = accuracy(pred_aligned, gt_pts)
-        comp = completeness(pred_aligned, gt_pts)
+        cd = chamfer_distance(pred_aligned, gt_eval, variant=chamfer_variant)
+        acc = accuracy(pred_aligned, gt_eval)
+        comp = completeness(pred_aligned, gt_eval)
         fdict = {}
         for thr in thresholds:
-            f, p, r = fscore_at(pred_aligned, gt_pts, threshold=float(thr))
+            f, p, r = fscore_at(pred_aligned, gt_eval, threshold=float(thr))
             fdict[float(thr)] = {"f": f, "precision": p, "recall": r}
 
     return GeometryEvalResult(
@@ -224,7 +231,7 @@ def evaluate_geometry(
         sample_method=sample_method,
         align_mode=align_mode,
         align_scale=al.scale,
-        masked=pred_mask is not None,
+        masked=pred_mask is not None or gt_mask is not None,
         visible_points=n_visible,
         total_pred_points=len(pred_aligned_full),
     )

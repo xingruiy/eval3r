@@ -90,7 +90,7 @@ def test_benchmark_json_marks_missing_scene_mask(tmp_path: Path) -> None:
     mask_root = tmp_path / "masks"
     (mask_root / "s1").mkdir(parents=True)
     np.save(mask_root / "s1" / "occlusion_mask.npy", np.zeros((1, 1, 1), dtype=np.uint8))
-    np.savetxt(mask_root / "s1" / "world2grid.txt", np.eye(4))
+    np.savetxt(mask_root / "s1" / "T_mask_scene.txt", np.eye(4))
 
     result = runner.invoke(
         app,

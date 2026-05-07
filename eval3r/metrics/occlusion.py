@@ -16,16 +16,16 @@ from eval3r.utils.typing import Points
 class OcclusionMask:
     """3D voxel grid marking occluded regions (1=occluded, 0=visible).
 
-    The ``world2grid`` matrix maps world-space homogeneous coordinates
-    ``[x, y, z, 1]`` to voxel-index space ``[i, j, k]``, where each
+    The ``T_mask_scene`` matrix maps homogeneous scene coordinates
+    ``[x, y, z, 1]`` to continuous voxel coordinates ``[i, j, k, 1]``, where each
     integer coordinate selects a voxel centre.
     """
 
     grid: np.ndarray
     """3D float array of shape (Dx, Dy, Dz); 1.0 = occluded, 0.0 = visible."""
 
-    world2grid: np.ndarray
-    """4x4 affine matrix mapping world → voxel-index coordinates."""
+    T_mask_scene: np.ndarray
+    """4x4 affine matrix mapping scene/world → occlusion-mask voxel coordinates."""
 
     source: str = ""
     """Path to the mask file, for provenance."""
@@ -33,13 +33,13 @@ class OcclusionMask:
 
 def load_occlusion_mask(
     mask_path: str | Path,
-    world2grid_path: str | Path,
+    T_mask_scene_path: str | Path,
 ) -> OcclusionMask:
-    """Load occlusion mask and world2grid transform from disk.
+    """Load occlusion mask and ``T_mask_scene`` transform from disk.
 
     Args:
         mask_path: Path to a ``.npy`` file containing the 3D occlusion grid.
-        world2grid_path: Path to a whitespace-delimited 4×4 text file.
+        T_mask_scene_path: Path to a whitespace-delimited 4×4 text file.
 
     Returns:
         OcclusionMask with the loaded data.
@@ -51,15 +51,15 @@ def load_occlusion_mask(
             f"Occlusion mask must be 3D, got shape {grid.shape}"
         )
 
-    world2grid = np.loadtxt(world2grid_path)
-    if world2grid.shape != (4, 4):
+    T_mask_scene = np.loadtxt(T_mask_scene_path)
+    if T_mask_scene.shape != (4, 4):
         raise ValueError(
-            f"world2grid must be 4×4, got shape {world2grid.shape}"
+            f"T_mask_scene must be 4×4, got shape {T_mask_scene.shape}"
         )
 
     return OcclusionMask(
         grid=grid.astype(np.float64, copy=False),
-        world2grid=world2grid.astype(np.float64),
+        T_mask_scene=T_mask_scene.astype(np.float64),
         source=str(mask_path),
     )
 
@@ -82,7 +82,7 @@ def filter_visible_points(
 
     # Transform world-space points to grid-index coordinates.
     homogeneous = np.column_stack([points, np.ones(n_total)])
-    grid_coords = (mask.world2grid @ homogeneous.T).T[:, :3]  # (N, 3)
+    grid_coords = (mask.T_mask_scene @ homogeneous.T).T[:, :3]  # (N, 3)
 
     # Trilinear interpolation (order=1) over the occlusion grid.
     # map_coordinates expects coords as a tuple of 1-D arrays, one per axis.
