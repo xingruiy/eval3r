@@ -3,7 +3,7 @@
 [![PyPI version](https://img.shields.io/pypi/v/eval3r.svg)](https://pypi.org/project/eval3r/)
 [![Python versions](https://img.shields.io/pypi/pyversions/eval3r.svg)](https://pypi.org/project/eval3r/)
 [![Documentation Status](https://readthedocs.org/projects/eval3r/badge/?version=latest)](https://eval3r.readthedocs.io/en/latest/?badge=latest)
-[![CI](https://github.com/xingruiy/eval3r/actions/workflows/publish.yml/badge.svg)](https://github.com/xingruiy/eval3r/actions/workflows/publish.yml)
+[![CI](https://github.com/xingruiy/eval3r/actions/workflows/ci.yml/badge.svg)](https://github.com/xingruiy/eval3r/actions/workflows/ci.yml)
 
 > [!NOTE]
 > Eval3r is a research-oriented project and is under active development, we strive to make it more useful for the research community. Please don't hesitate to open an issue or submit a pull request with feedback, suggestions, or improvements.
