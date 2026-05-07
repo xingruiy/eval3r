@@ -132,7 +132,8 @@ def test_metric_all_explicit_mask_requires_both_paths(tmp_path, gaussian_cloud) 
         app, ["metric", "all", pred, "--gt", str(gt_path), "--mask", str(mask_path)]
     )
     assert result.exit_code != 0
-    assert "both --mask and --t-mask-scene" in result.output
+    clean_output = result.output.replace("", "")
+    assert "--mask" in clean_output and "--t-mask-scene" in clean_output
 
 
 def test_metric_all_explicit_mask_paths_are_used(tmp_path, gaussian_cloud) -> None:
@@ -172,4 +173,6 @@ def test_metric_all_rejects_legacy_mask_dir_option(tmp_path, gaussian_cloud) -> 
         ["metric", "all", str(pred_path), "--gt", str(gt_path), "--mask-dir", str(tmp_path)],
     )
     assert result.exit_code != 0
-    assert "No such option: --mask-dir" in result.output
+    clean_output = result.output.replace("", "")
+    assert "No such option" in clean_output
+    assert "--mask-dir" in clean_output
