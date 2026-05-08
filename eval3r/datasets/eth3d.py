@@ -202,7 +202,7 @@ class ETH3DAdapter(DatasetAdapter):
             )
         if asset is Asset.POSES:
             return sd / self._calibration_subdir / "images.txt"
-        if asset is Asset.INTRINSICS:
+        if asset in (Asset.INTRINSICS, Asset.INTRINSICS_DEPTH, Asset.INTRINSICS_COLOR):
             return sd / self._calibration_subdir / self._calibration_filename
         raise NotSupportedError(f"eth3d: asset_path({asset}) not implemented")
 
@@ -273,6 +273,9 @@ class ETH3DAdapter(DatasetAdapter):
         return depth_raw.astype(np.float32)
 
     def load_intrinsics(self, scene_id: str) -> np.ndarray:
+        return self.load_intrinsics_depth(scene_id)
+
+    def load_intrinsics_depth(self, scene_id: str) -> np.ndarray:
         calibration_dir = self._scene_dir(scene_id) / self._calibration_subdir
         # Try COLMAP cameras.txt first.
         cameras_txt = calibration_dir / "cameras.txt"
@@ -292,6 +295,9 @@ class ETH3DAdapter(DatasetAdapter):
             f"ETH3D: intrinsics not found in {calibration_dir}. "
             f"Pass calibration_subdir=... or calibration_filename=..."
         )
+
+    def load_intrinsics_color(self, scene_id: str) -> np.ndarray:
+        return self.load_intrinsics_depth(scene_id)
 
     def load_poses(self, scene_id: str) -> Trajectory:
         images_txt = self.asset_path(scene_id, Asset.POSES)

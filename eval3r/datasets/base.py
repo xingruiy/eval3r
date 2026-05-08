@@ -22,6 +22,8 @@ class Asset(str, Enum):
     DEPTH = "depth"
     COLOR = "color"
     INTRINSICS = "intrinsics"
+    INTRINSICS_DEPTH = "intrinsics_depth"
+    INTRINSICS_COLOR = "intrinsics_color"
     POSES = "poses"
 
 
@@ -65,7 +67,8 @@ class DatasetAdapter(ABC):
             (Asset.POINT_CLOUD, self.load_point_cloud),
             (Asset.DEPTH, self.load_depth),
             (Asset.COLOR, self.load_color),
-            (Asset.INTRINSICS, self.load_intrinsics),
+            (Asset.INTRINSICS_DEPTH, self.load_intrinsics_depth),
+            (Asset.INTRINSICS_COLOR, self.load_intrinsics_color),
             (Asset.POSES, self.load_poses),
         ):
             base = getattr(DatasetAdapter, fn.__name__)
@@ -93,7 +96,13 @@ class DatasetAdapter(ABC):
         raise NotSupportedError(f"{self.name}: load_color not supported")
 
     def load_intrinsics(self, scene_id: str) -> np.ndarray:
-        raise NotSupportedError(f"{self.name}: load_intrinsics not supported")
+        return self.load_intrinsics_depth(scene_id)
+
+    def load_intrinsics_depth(self, scene_id: str) -> np.ndarray:
+        raise NotSupportedError(f"{self.name}: load_intrinsics_depth not supported")
+
+    def load_intrinsics_color(self, scene_id: str) -> np.ndarray:
+        raise NotSupportedError(f"{self.name}: load_intrinsics_color not supported")
 
     def load_poses(self, scene_id: str) -> Trajectory:
         raise NotSupportedError(f"{self.name}: load_poses not supported")
@@ -133,6 +142,10 @@ class DatasetAdapter(ABC):
             self.load_point_cloud(scene_id)
         elif asset is Asset.INTRINSICS:
             self.load_intrinsics(scene_id)
+        elif asset is Asset.INTRINSICS_DEPTH:
+            self.load_intrinsics_depth(scene_id)
+        elif asset is Asset.INTRINSICS_COLOR:
+            self.load_intrinsics_color(scene_id)
         elif asset is Asset.POSES:
             self.load_poses(scene_id)
         elif asset is Asset.DEPTH:

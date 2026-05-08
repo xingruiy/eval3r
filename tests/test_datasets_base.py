@@ -49,6 +49,8 @@ def test_default_loaders_raise_not_supported() -> None:
         lambda: ds.load_depth("x", 0),
         lambda: ds.load_color("x", 0),
         lambda: ds.load_intrinsics("x"),
+        lambda: ds.load_intrinsics_depth("x"),
+        lambda: ds.load_intrinsics_color("x"),
         lambda: ds.load_poses("x"),
     ):
         with pytest.raises(NotSupportedError):

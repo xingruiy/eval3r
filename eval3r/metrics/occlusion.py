@@ -63,6 +63,36 @@ def load_occlusion_mask(
     )
 
 
+def save_occlusion_mask(
+    mask: OcclusionMask,
+    out_dir: str | Path,
+    *,
+    mask_name: str = "occlusion_mask.npy",
+    t_mask_scene_name: str = "T_mask_scene.txt",
+) -> tuple[Path, Path]:
+    """Save an occlusion mask to ``out_dir`` as a ``.npy`` + ``.txt`` pair.
+
+    Mirrors the layout :func:`load_occlusion_mask` reads. Creates ``out_dir``
+    if it does not already exist.
+
+    Returns:
+        ``(mask_path, T_mask_scene_path)``.
+    """
+    out = Path(out_dir)
+    out.mkdir(parents=True, exist_ok=True)
+    grid = np.asarray(mask.grid, dtype=np.float64)
+    if grid.ndim != 3:
+        raise ValueError(f"Occlusion mask must be 3D, got shape {grid.shape}")
+    T = np.asarray(mask.T_mask_scene, dtype=np.float64)
+    if T.shape != (4, 4):
+        raise ValueError(f"T_mask_scene must be 4×4, got shape {T.shape}")
+    mask_path = out / mask_name
+    t_path = out / t_mask_scene_name
+    np.save(mask_path, grid)
+    np.savetxt(t_path, T)
+    return mask_path, t_path
+
+
 def filter_visible_points(
     points: Points,
     mask: OcclusionMask,

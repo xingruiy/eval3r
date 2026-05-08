@@ -40,10 +40,10 @@ CUBE_FACES = np.array(
 )
 
 
-def write_intrinsics(path: Path) -> None:
+def write_intrinsics(path: Path, fx: float = 500.0) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     K = np.array(
-        [[500.0, 0.0, 320.0, 0.0], [0.0, 500.0, 240.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0, 0, 0, 1]]
+        [[fx, 0.0, 320.0, 0.0], [0.0, fx, 240.0, 0.0], [0.0, 0.0, 1.0, 0.0], [0, 0, 0, 1]]
     )
     np.savetxt(path, K, fmt="%.6f")
 
@@ -64,11 +64,12 @@ def write_depth(path: Path) -> None:
     imageio.imwrite(path, arr)
 
 
-def write_color(path: Path) -> None:
+def write_color(path: Path, shape: tuple[int, int] = (4, 4)) -> None:
     import imageio.v3 as imageio
 
     path.parent.mkdir(parents=True, exist_ok=True)
-    arr = (np.ones((4, 4, 3)) * 128).astype(np.uint8)
+    h, w = shape
+    arr = (np.ones((h, w, 3)) * 128).astype(np.uint8)
     imageio.imwrite(path, arr)
 
 
@@ -81,6 +82,7 @@ def make_scene(
     depth_subdir: str = "depth",
     pose_subdir: str = "pose",
     intrinsics_subdir: str = "intrinsic",
+    color_shape: tuple[int, int] = (4, 4),
     mesh_filename: str | None = None,
 ) -> Path:
     sd = root / "scans" / scene_id
@@ -89,8 +91,9 @@ def make_scene(
     for i in range(n_frames):
         write_pose(sd / pose_subdir / f"{i}.txt", i)
         write_depth(sd / depth_subdir / f"{i}.png")
-        write_color(sd / color_subdir / f"{i}.jpg")
-    write_intrinsics(sd / intrinsics_subdir / "intrinsic_color.txt")
+        write_color(sd / color_subdir / f"{i}.jpg", color_shape)
+    write_intrinsics(sd / intrinsics_subdir / "intrinsic_depth.txt", fx=500.0)
+    write_intrinsics(sd / intrinsics_subdir / "intrinsic_color.txt", fx=700.0)
     return sd
 
 
