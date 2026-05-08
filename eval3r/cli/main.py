@@ -18,6 +18,7 @@ app = typer.Typer(
     help="Handy toolkit for saving, evaluating, and visualizing 3D reconstruction predictions.",
     no_args_is_help=True,
     add_completion=False,
+    context_settings={"help_option_names": ["-h", "--help"]},
 )
 
 app.add_typer(metric_cmd.app, name="metric", help="Compute geometry metrics.")

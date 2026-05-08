@@ -8,7 +8,11 @@ from rich.table import Table
 
 from eval3r.datasets import get_dataset, list_datasets
 
-app = typer.Typer(no_args_is_help=True, add_completion=False)
+app = typer.Typer(
+    no_args_is_help=True,
+    add_completion=False,
+    context_settings={"help_option_names": ["-h", "--help"]},
+)
 
 
 @app.command("list")

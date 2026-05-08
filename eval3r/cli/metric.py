@@ -26,7 +26,11 @@ from eval3r.report.table import print_depth_result, print_geometry_result
 from eval3r.utils.errors import MissingArtifactError, NotSupportedError
 from eval3r.utils.optional import optional_import
 
-app = typer.Typer(no_args_is_help=True, add_completion=False)
+app = typer.Typer(
+    no_args_is_help=True,
+    add_completion=False,
+    context_settings={"help_option_names": ["-h", "--help"]},
+)
 
 
 def _load_depth_image(path: str, scale: float = 1.0) -> np.ndarray:
