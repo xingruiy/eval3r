@@ -20,6 +20,7 @@ from eval3r.datasets.replica import ReplicaAdapter
 from eval3r.datasets.dtu import DTUAdapter
 from eval3r.datasets.eth3d import ETH3DAdapter
 from eval3r.datasets.tanks_temples import TanksTemplesAdapter
+from eval3r.datasets.generic import GenericAdapter
 
 _REGISTRY: dict[str, Type[DatasetAdapter]] = {}
 
@@ -50,6 +51,7 @@ register_dataset(ReplicaAdapter)
 register_dataset(DTUAdapter)
 register_dataset(ETH3DAdapter)
 register_dataset(TanksTemplesAdapter)
+register_dataset(GenericAdapter)
 
 
 __all__ = [
@@ -62,6 +64,7 @@ __all__ = [
     "DTUAdapter",
     "ETH3DAdapter",
     "TanksTemplesAdapter",
+    "GenericAdapter",
     "LayoutEntry",
     "format_path",
     "raise_missing",
