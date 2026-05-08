@@ -32,6 +32,10 @@ _LAYOUT: list[LayoutEntry] = [
         overrides=("pose_subdir", "pose_format"),
     ),
     LayoutEntry(
+        path="<root>/<scene_subdir>/intrinsic/intrinsic_depth.txt",
+        overrides=("intrinsics_subdir", "intrinsics_depth_filename"),
+    ),
+    LayoutEntry(
         path="<root>/<scene_subdir>/intrinsic/intrinsic_color.txt",
         overrides=("intrinsics_subdir", "intrinsics_color_filename"),
     ),
@@ -59,10 +63,11 @@ class ScanNetAdapter(DatasetAdapter):
         color_format: str = "{frame}.jpg",
         depth_subdir: str = "depth",
         depth_format: str = "{frame}.png",
-        depth_scale_mm: float = 1000.0,
+        depth_scale: float = 1000.0,
         pose_subdir: str = "pose",
         pose_format: str = "{frame}.txt",
         intrinsics_subdir: str = "intrinsic",
+        intrinsics_depth_filename: str = "intrinsic_depth.txt",
         intrinsics_color_filename: str = "intrinsic_color.txt",
         mesh_filename: str = "{scene_id}_vh_clean_2.ply",
         validate_on_init: bool = True,
@@ -76,10 +81,11 @@ class ScanNetAdapter(DatasetAdapter):
         self._color_format = color_format
         self._depth_subdir = depth_subdir
         self._depth_format = depth_format
-        self._depth_scale_mm = depth_scale_mm
+        self._depth_scale = depth_scale
         self._pose_subdir = pose_subdir
         self._pose_format = pose_format
         self._intrinsics_subdir = intrinsics_subdir
+        self._intrinsics_depth_filename = intrinsics_depth_filename
         self._intrinsics_color_filename = intrinsics_color_filename
         self._mesh_filename = mesh_filename
 
@@ -147,7 +153,9 @@ class ScanNetAdapter(DatasetAdapter):
             )
         if asset is Asset.POSES:
             return sd / self._pose_subdir
-        if asset is Asset.INTRINSICS:
+        if asset in (Asset.INTRINSICS, Asset.INTRINSICS_DEPTH):
+            return sd / self._intrinsics_subdir / self._intrinsics_depth_filename
+        if asset is Asset.INTRINSICS_COLOR:
             return sd / self._intrinsics_subdir / self._intrinsics_color_filename
         raise NotSupportedError(f"scannet: asset_path({asset}) not implemented")
 
@@ -197,7 +205,7 @@ class ScanNetAdapter(DatasetAdapter):
 
         imageio = optional_import("imageio.v3", extra="render")
         depth_mm = imageio.imread(path)
-        return (depth_mm.astype(np.float32) / float(self._depth_scale_mm))
+        return (depth_mm.astype(np.float32) / float(self._depth_scale))
 
     def load_color(self, scene_id: str, frame: int) -> np.ndarray:
         path = self.asset_path(scene_id, Asset.COLOR, frame=frame)
@@ -214,14 +222,20 @@ class ScanNetAdapter(DatasetAdapter):
         imageio = optional_import("imageio.v3", extra="render")
         return np.asarray(imageio.imread(path))
 
-    def load_intrinsics(self, scene_id: str) -> np.ndarray:
-        path = self.asset_path(scene_id, Asset.INTRINSICS)
+    def _load_intrinsics_file(
+        self,
+        scene_id: str,
+        asset: Asset,
+        *,
+        override: str,
+    ) -> np.ndarray:
+        path = self.asset_path(scene_id, asset)
         if not path.exists():
             raise_missing(
                 dataset="ScanNet",
                 asset="intrinsics",
                 tried=path,
-                overrides=("intrinsics_subdir", "intrinsics_color_filename"),
+                overrides=("intrinsics_subdir", override),
                 layout=_LAYOUT,
             )
         K4 = np.loadtxt(path)
@@ -231,6 +245,23 @@ class ScanNetAdapter(DatasetAdapter):
             return K4.astype(np.float64)
         raise MissingArtifactError(
             f"ScanNet: intrinsics at {path} expected 3x3 or 4x4 matrix, got shape {K4.shape}"
+        )
+
+    def load_intrinsics(self, scene_id: str) -> np.ndarray:
+        return self.load_intrinsics_depth(scene_id)
+
+    def load_intrinsics_depth(self, scene_id: str) -> np.ndarray:
+        return self._load_intrinsics_file(
+            scene_id,
+            Asset.INTRINSICS_DEPTH,
+            override="intrinsics_depth_filename",
+        )
+
+    def load_intrinsics_color(self, scene_id: str) -> np.ndarray:
+        return self._load_intrinsics_file(
+            scene_id,
+            Asset.INTRINSICS_COLOR,
+            override="intrinsics_color_filename",
         )
 
     def load_poses(self, scene_id: str) -> Trajectory:

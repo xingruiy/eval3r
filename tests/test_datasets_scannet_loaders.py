@@ -5,7 +5,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from eval3r.datasets import ScanNetAdapter
+from eval3r.datasets import Asset, ScanNetAdapter
 from eval3r.utils.errors import MissingArtifactError
 
 from ._fake_scannet import make_scannet_root
@@ -35,10 +35,52 @@ def test_load_depth_converts_mm_to_metres(adapter: ScanNetAdapter) -> None:
     assert np.allclose(d, 1.0)
 
 
+def test_load_depth_uses_depth_scale_option(tmp_path: Path) -> None:
+    split = make_scannet_root(tmp_path, ["scene_a"])
+    ds = ScanNetAdapter(
+        tmp_path, split=split, depth_scale=500.0, validate_on_init=False
+    )
+
+    d = ds.load_depth("scene_a", 0)
+
+    assert np.allclose(d, 2.0)
+
+
+def test_depth_scale_mm_option_is_not_supported(tmp_path: Path) -> None:
+    split = make_scannet_root(tmp_path, ["scene_a"])
+
+    with pytest.raises(TypeError):
+        ScanNetAdapter(
+            tmp_path, split=split, depth_scale_mm=1000.0, validate_on_init=False
+        )
+
+
 def test_load_intrinsics_returns_3x3(adapter: ScanNetAdapter) -> None:
     K = adapter.load_intrinsics("scene_a")
     assert K.shape == (3, 3)
     assert K[0, 0] == pytest.approx(500.0)
+
+
+def test_load_intrinsics_depth_and_color(adapter: ScanNetAdapter) -> None:
+    K_depth = adapter.load_intrinsics_depth("scene_a")
+    K_color = adapter.load_intrinsics_color("scene_a")
+
+    np.testing.assert_allclose(adapter.load_intrinsics("scene_a"), K_depth)
+    assert K_depth[0, 0] == pytest.approx(500.0)
+    assert K_color[0, 0] == pytest.approx(700.0)
+    assert adapter.asset_path("scene_a", Asset.INTRINSICS_DEPTH).name == "intrinsic_depth.txt"
+    assert adapter.asset_path("scene_a", Asset.INTRINSICS_COLOR).name == "intrinsic_color.txt"
+
+
+def test_load_color_preserves_image_shape(tmp_path: Path) -> None:
+    split = make_scannet_root(tmp_path, ["scene_a"], color_shape=(8, 6))
+    ds = ScanNetAdapter(tmp_path, split=split, validate_on_init=False)
+
+    color = ds.load_color("scene_a", 0)
+    depth = ds.load_depth("scene_a", 0)
+
+    assert depth.shape == (4, 4)
+    assert color.shape == (8, 6, 3)
 
 
 def test_load_poses_returns_trajectory(adapter: ScanNetAdapter) -> None:

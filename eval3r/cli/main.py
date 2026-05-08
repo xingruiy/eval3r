@@ -8,6 +8,7 @@ from eval3r._version import __version__
 from eval3r.cli import benchmark as benchmark_cmd
 from eval3r.cli import datasets as datasets_cmd
 from eval3r.cli import inspect as inspect_cmd
+from eval3r.cli import mask as mask_cmd
 from eval3r.cli import metric as metric_cmd
 from eval3r.cli import preset as preset_cmd
 from eval3r.cli import render as render_cmd
@@ -23,6 +24,7 @@ app = typer.Typer(
 
 app.add_typer(metric_cmd.app, name="metric", help="Compute geometry metrics.")
 app.add_typer(render_cmd.app, name="render", help="Render mesh / point cloud / comparisons.")
+app.add_typer(mask_cmd.app, name="mask", help="Generate / inspect occlusion masks.")
 app.add_typer(preset_cmd.app, name="preset", help="Inspect dataset presets.")
 app.add_typer(datasets_cmd.app, name="datasets", help="Inspect / validate dataset adapters.")
 app.command(

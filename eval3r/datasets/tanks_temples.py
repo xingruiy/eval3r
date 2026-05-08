@@ -150,7 +150,7 @@ class TanksTemplesAdapter(DatasetAdapter):
             return sd / self._pose_subdir / format_path(
                 self._pose_format, frame=int(kw["frame"])  # type: ignore[arg-type]
             )
-        if asset is Asset.INTRINSICS:
+        if asset in (Asset.INTRINSICS, Asset.INTRINSICS_DEPTH, Asset.INTRINSICS_COLOR):
             return sd / self._intrinsics_filename
         raise NotSupportedError(f"tanks_temples: asset_path({asset}) not implemented")
 
@@ -212,7 +212,10 @@ class TanksTemplesAdapter(DatasetAdapter):
         return depth_raw.astype(np.float32)
 
     def load_intrinsics(self, scene_id: str) -> np.ndarray:
-        path = self.asset_path(scene_id, Asset.INTRINSICS)
+        return self.load_intrinsics_depth(scene_id)
+
+    def load_intrinsics_depth(self, scene_id: str) -> np.ndarray:
+        path = self.asset_path(scene_id, Asset.INTRINSICS_DEPTH)
         if path.exists():
             K4 = np.loadtxt(path)
             if K4.shape == (4, 4):
@@ -223,6 +226,9 @@ class TanksTemplesAdapter(DatasetAdapter):
             f"Tanks & Temples: intrinsics not found at {path}. "
             f"Pass intrinsics_fx=... to the adapter if intrinsics are known."
         )
+
+    def load_intrinsics_color(self, scene_id: str) -> np.ndarray:
+        return self.load_intrinsics_depth(scene_id)
 
     def load_poses(self, scene_id: str) -> Trajectory:
         pose_dir = self._scene_dir(scene_id) / self._pose_subdir

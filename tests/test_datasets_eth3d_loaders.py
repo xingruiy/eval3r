@@ -47,6 +47,8 @@ def test_load_intrinsics_colmap(adapter: ETH3DAdapter) -> None:
     K = adapter.load_intrinsics("courtyard")
     assert K.shape == (3, 3)
     assert K[0, 0] == 500.0
+    np.testing.assert_allclose(adapter.load_intrinsics_depth("courtyard"), K)
+    np.testing.assert_allclose(adapter.load_intrinsics_color("courtyard"), K)
 
 
 def test_load_poses_colmap(adapter: ETH3DAdapter) -> None:
@@ -60,7 +62,8 @@ def test_supported_assets(adapter: ETH3DAdapter) -> None:
     assets = {a.value for a in adapter.supported_assets}
     assert "mesh" in assets
     assert "point_cloud" in assets
-    assert "intrinsics" in assets
+    assert "intrinsics_depth" in assets
+    assert "intrinsics_color" in assets
     assert "poses" in assets
 
 

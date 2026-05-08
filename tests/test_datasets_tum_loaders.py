@@ -62,6 +62,8 @@ def test_load_intrinsics_fr1(adapter: TumRGBDAdapter) -> None:
     K = adapter.load_intrinsics("fr1_desk")
     assert K.shape == (3, 3)
     assert K[0, 0] == pytest.approx(517.3)
+    np.testing.assert_allclose(adapter.load_intrinsics_depth("fr1_desk"), K)
+    np.testing.assert_allclose(adapter.load_intrinsics_color("fr1_desk"), K)
 
 
 def test_load_intrinsics_fr3(tmp_path: Path) -> None:
@@ -107,7 +109,8 @@ def test_supported_assets(adapter: TumRGBDAdapter) -> None:
     assert "depth" in assets
     assert "color" in assets
     assert "poses" in assets
-    assert "intrinsics" in assets
+    assert "intrinsics_depth" in assets
+    assert "intrinsics_color" in assets
     assert "mesh" not in assets
 
 

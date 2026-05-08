@@ -154,7 +154,7 @@ class DTUAdapter(DatasetAdapter):
             )
         if asset is Asset.POSES:
             return self.root / self._cameras_subdir / _scan_dir_name(scene_id) / self._pose_filename
-        if asset is Asset.INTRINSICS:
+        if asset in (Asset.INTRINSICS, Asset.INTRINSICS_DEPTH, Asset.INTRINSICS_COLOR):
             return self.root / self._cameras_subdir / _scan_dir_name(scene_id) / "intrinsics.txt"
         raise NotSupportedError(f"dtu: asset_path({asset}) not implemented")
 
@@ -216,9 +216,12 @@ class DTUAdapter(DatasetAdapter):
         return depth_raw.astype(np.float32)
 
     def load_intrinsics(self, scene_id: str) -> np.ndarray:
+        return self.load_intrinsics_depth(scene_id)
+
+    def load_intrinsics_depth(self, scene_id: str) -> np.ndarray:
         # DTU uses a known intrinsics matrix (standard DTU camera).
         # Focal length varies slightly per scan but defaults to ~2892 pixels.
-        path = self.asset_path(scene_id, Asset.INTRINSICS)
+        path = self.asset_path(scene_id, Asset.INTRINSICS_DEPTH)
         if path.exists():
             K4 = np.loadtxt(path)
             if K4.shape == (4, 4):
@@ -233,6 +236,9 @@ class DTUAdapter(DatasetAdapter):
         return np.array(
             [[fx, 0, cx], [0, fy, cy], [0, 0, 1]], dtype=np.float64
         )
+
+    def load_intrinsics_color(self, scene_id: str) -> np.ndarray:
+        return self.load_intrinsics_depth(scene_id)
 
     def load_poses(self, scene_id: str) -> Trajectory:
         path = self.asset_path(scene_id, Asset.POSES)

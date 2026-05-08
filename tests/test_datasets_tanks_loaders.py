@@ -48,6 +48,8 @@ def test_load_point_cloud(adapter: TanksTemplesAdapter) -> None:
 def test_load_intrinsics(adapter: TanksTemplesAdapter) -> None:
     K = adapter.load_intrinsics("Barn")
     assert K.shape == (3, 3)
+    np.testing.assert_allclose(adapter.load_intrinsics_depth("Barn"), K)
+    np.testing.assert_allclose(adapter.load_intrinsics_color("Barn"), K)
 
 
 def test_load_poses(adapter: TanksTemplesAdapter) -> None:
@@ -66,6 +68,8 @@ def test_supported_assets(adapter: TanksTemplesAdapter) -> None:
     assets = {a.value for a in adapter.supported_assets}
     assert "point_cloud" in assets
     assert "mesh" not in assets
+    assert "intrinsics_depth" in assets
+    assert "intrinsics_color" in assets
 
 
 def test_missing_point_cloud_raises(tmp_path: Path) -> None:

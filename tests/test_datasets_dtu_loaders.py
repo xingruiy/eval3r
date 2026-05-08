@@ -47,6 +47,8 @@ def test_load_intrinsics(adapter: DTUAdapter) -> None:
     K = adapter.load_intrinsics("1")
     assert K.shape == (3, 3)
     assert K[2, 2] == 1.0
+    np.testing.assert_allclose(adapter.load_intrinsics_depth("1"), K)
+    np.testing.assert_allclose(adapter.load_intrinsics_color("1"), K)
 
 
 def test_no_mesh_support(adapter: DTUAdapter) -> None:
@@ -58,6 +60,8 @@ def test_supported_assets(adapter: DTUAdapter) -> None:
     assets = {a.value for a in adapter.supported_assets}
     assert "point_cloud" in assets
     assert "mesh" not in assets
+    assert "intrinsics_depth" in assets
+    assert "intrinsics_color" in assets
 
 
 def test_missing_point_cloud_raises(tmp_path: Path) -> None:

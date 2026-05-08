@@ -142,7 +142,7 @@ class TumRGBDAdapter(DatasetAdapter):
             )
         if asset is Asset.POSES:
             return sd / self._pose_filename
-        if asset is Asset.INTRINSICS:
+        if asset in (Asset.INTRINSICS, Asset.INTRINSICS_DEPTH, Asset.INTRINSICS_COLOR):
             return sd / "intrinsics.txt"
         raise NotSupportedError(f"tum_rgbd: asset_path({asset}) not implemented")
 
@@ -193,6 +193,9 @@ class TumRGBDAdapter(DatasetAdapter):
         return np.asarray(imageio.imread(path))
 
     def load_intrinsics(self, scene_id: str) -> np.ndarray:
+        return self.load_intrinsics_depth(scene_id)
+
+    def load_intrinsics_depth(self, scene_id: str) -> np.ndarray:
         if self._intrinsics_fx is not None:
             fx = self._intrinsics_fx
             fy = self._intrinsics_fy if self._intrinsics_fy is not None else fx
@@ -209,6 +212,9 @@ class TumRGBDAdapter(DatasetAdapter):
             f"Pass `intrinsics_fx=` (and optionally fy, cx, cy) or use a "
             f"known sequence prefix (fr1/fr2/fr3)."
         )
+
+    def load_intrinsics_color(self, scene_id: str) -> np.ndarray:
+        return self.load_intrinsics_depth(scene_id)
 
     def load_poses(self, scene_id: str) -> Trajectory:
         path = self.asset_path(scene_id, Asset.POSES)
