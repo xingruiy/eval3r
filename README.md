@@ -1,85 +1,107 @@
-# Eval3r: 3D reconstruction evaluation, made explicit
+# eval3r
 
 [![PyPI version](https://img.shields.io/pypi/v/eval3r.svg)](https://pypi.org/project/eval3r/)
 [![Python versions](https://img.shields.io/pypi/pyversions/eval3r.svg)](https://pypi.org/project/eval3r/)
 [![Documentation Status](https://readthedocs.org/projects/eval3r/badge/?version=latest)](https://eval3r.readthedocs.io/en/latest/?badge=latest)
 [![CI](https://github.com/xingruiy/eval3r/actions/workflows/ci.yml/badge.svg)](https://github.com/xingruiy/eval3r/actions/workflows/ci.yml)
 
-> [!NOTE]
-> Eval3r is a research-oriented project and is under active development, we strive to make it more useful for the research community. Please don't hesitate to open an issue or submit a pull request with feedback, suggestions, or improvements.
+`eval3r` is a Python toolkit for **saving, validating, benchmarking, and visualizing 3D reconstruction results** with explicit assumptions and reproducible workflows.
 
-## Overview
+It is designed for research and engineering settings where evaluation details matter:
 
-Eval3r focuses on a small, explicit core:
+- no hidden alignment behavior,
+- no implicit pose convention conversions,
+- no silent unit guessing,
+- and a stable, inspectable prediction format.
 
-- A handy CLI for 3D reconstruction evaluation and visualization.
-- A stable on-disk **prediction format** (manifest + geometry + trajectory + cameras)
+## Why eval3r exists
 
-The goals are reproducibility and explicit assumptions: no silent alignment, no silent unit conversion, no hidden default for pose conventions.
+Many reconstruction pipelines fail at the "last mile": prediction artifacts are hard to compare, evaluation settings are underspecified, and reproducing numbers from papers can be difficult.
 
-## Install
+`eval3r` addresses this with:
 
-Base install:
+- a practical CLI (`e3r`) for everyday evaluation tasks,
+- strongly typed I/O for predictions and trajectories,
+- dataset adapters and presets,
+- geometry + trajectory metrics,
+- optional rendering and debug visualization,
+- and end-to-end benchmark utilities.
+
+## Installation
+
+### Base package
 
 ```bash
 pip install eval3r
 ```
 
-Optional extras:
+### Optional extras
 
 ```bash
-pip install eval3r[render]   # pyrender + pillow + imageio
-pip install eval3r[dev]      # pytest + ruff + mypy + pre-commit
+pip install eval3r[render]   # rendering and plotting extras
+pip install eval3r[traj]     # trajectory evaluation helpers
+pip install eval3r[torch]    # torch-dependent workflows
+pip install eval3r[dev]      # tests, lint, type-check, pre-commit
 ```
 
-## Quick start
-Suppose you have two mesh/point cloud files:
+## Command-line overview
+
+After installation, `eval3r` exposes the `e3r` command.
+
+```bash
+e3r --help
+```
+
+Primary commands:
+
+- `e3r metric ...` — compute geometry metrics for a prediction/GT pair
+- `e3r benchmark ...` — evaluate many scenes and aggregate split-level metrics
+- `e3r render ...` — render geometry and comparison outputs
+- `e3r mask ...` — generate/inspect occlusion masks
+- `e3r validate <prediction_dir>` — validate a prediction directory against manifest rules
+- `e3r inspect <prediction_dir>` — inspect a prediction directory summary
+- `e3r datasets ...` and `e3r preset ...` — inspect adapters and presets
+
+## Quickstart: single-scene geometry evaluation
+
+Assume:
 
 ```text
-pred.ply   # your reconstruction
+pred.ply   # prediction
 gt.ply     # ground truth
-````
+```
 
-You want to know: **how good is the reconstruction?**
-
-### Run geometry metrics
+### 1) Compute metrics
 
 ```bash
 e3r metric all pred.ply --gt gt.ply
 ```
 
-This reports Chamfer distance, accuracy, completeness, precision, recall, and F-score.
-Use this when both point clouds are already in the same coordinate frame.
+Typical outputs include Chamfer distance, accuracy/completeness, and thresholded precision/recall/F-score.
 
-### Visualize before trusting numbers
+### 2) Always inspect overlap
 
 ```bash
 e3r metric all pred.ply --gt gt.ply --debug-plot
 ```
 
-Check whether the two point clouds overlap.
-If they are shifted, rotated, or scaled differently, raw metrics may look bad even when the shape is reasonable.
+If overlap is poor due to coordinate mismatch, metrics are not meaningful yet.
 
+### 3) Select alignment intentionally
 
-### Align before evaluation
-
-#### Rigid alignment:
+Use rigid alignment when scale is trustworthy:
 
 ```bash
 e3r metric all pred.ply --gt gt.ply --align icp --debug-plot
 ```
 
-Use this when the prediction has correct scale but may be rotated or translated.
-
-#### Similarity alignment:
+Use similarity alignment when scale may drift (common in monocular systems):
 
 ```bash
 e3r metric all pred.ply --gt gt.ply --align sim3 --debug-plot
 ```
 
-Use this when the prediction may have unknown scale, such as monocular reconstruction.
-
-#### Trajectory-based alignment:
+Use trajectory-driven alignment when poses are available:
 
 ```bash
 e3r metric all pred.ply --gt gt.ply \
@@ -89,11 +111,9 @@ e3r metric all pred.ply --gt gt.ply \
   --debug-plot
 ```
 
-Use this when the method also predicts camera poses.
+## Quickstart: benchmark a dataset split
 
-### Benchmark a dataset split
-
-For a full dataset benchmark, organize predictions by scene:
+Expected prediction layout example:
 
 ```text
 preds_root/
@@ -101,9 +121,9 @@ preds_root/
     mesh.ply
   scene0001_00/
     mesh.ply
-````
+```
 
-Then run:
+Run benchmark:
 
 ```bash
 e3r benchmark preds_root \
@@ -111,37 +131,19 @@ e3r benchmark preds_root \
   --root /path/to/scannet \
   --split split.txt \
   --align sim3 \
-  --debug-plot \
+  --workers 8 \
   --out results.json \
   --csv results.csv
 ```
 
-This evaluates all scenes in the split and reports dataset-level summary statistics.
-
 Useful options:
 
-```bash
---align sim3              # alignment mode
---samples 200000          # points sampled per scene
---thresholds 0.05         # F-score threshold
---workers 8               # parallel workers
---debug-plot              # save per-scene visualization
---out results.json        # full benchmark result
---csv results.csv         # per-scene table
-```
+- `--samples 200000` points sampled per scene
+- `--thresholds 0.05` threshold(s) for F-score-like metrics
+- `--debug-plot` to save visual diagnostics
+- `--pred-filename` to map custom prediction filenames
 
-For custom prediction filenames:
-
-```bash
-e3r benchmark run scannet preds_root \
-  --root /path/to/scannet \
-  --split split.txt \
-  --pred-filename "{scene_id}/mesh.ply" \
-  --align sim3 \
-  --csv results.csv
-```
-
-For trajectory-based alignment:
+Trajectory-based benchmark alignment example:
 
 ```bash
 e3r benchmark run scannet preds_root \
@@ -150,19 +152,16 @@ e3r benchmark run scannet preds_root \
   --align traj_sim3 \
   --pred-pose-dir pred_poses \
   --pred-pose-file "{scene_id}.txt" \
-  --pred-pose-convention T_wc \
-  --csv results.csv
+  --pred-pose-convention T_wc
 ```
 
-Use `e3r metric` for one pair of geometries.
-Use `e3r benchmark run` for dataset-level evaluation.
+## Prediction format and Python API
 
-### Saving a prediction
+`eval3r` includes a manifest-driven prediction format so files are portable and self-described.
 
-If you want to save your method's output in Eval3r's format for downstream evaluation, use `PredictionWriter`:
+Minimal writer example:
 
 ```python
-import numpy as np
 import eval3r as e3r
 
 with e3r.PredictionWriter(
@@ -180,21 +179,29 @@ with e3r.PredictionWriter(
     pred.save_metadata({"checkpoint": "ckpt.pth"})
 ```
 
-The writer warns if `unit`, `coordinate_system`, or `pose_convention` is left
-unspecified — the manifest will record `"unspecified"` so downstream evaluation
-can flag the ambiguity instead of guessing.
+When key metadata is missing, the writer records explicit placeholders instead of guessing, enabling downstream validation and auditability.
 
-### Document
+## Supported workflows
 
-For monocular or feedforward methods, `sim3` is often a good default.
-For SLAM or pose-producing methods, prefer `traj_se3` or `traj_sim3`.
+- Scene-level metric inspection during model development.
+- Dataset-level benchmark reporting for ablations and papers.
+- Reproducible artifact exchange between teams using manifest-backed prediction directories.
+- Alignment experiments (`icp`, `sim3`, trajectory-driven variants) with debug plots.
 
-For more update-to-date examples, see the [docs](https://eval3r.readthedocs.io/en/latest/).
+## Documentation
 
-## License
+- Docs site: https://eval3r.readthedocs.io/
+- Repository: https://github.com/xingruiy/eval3r
 
-Eval3r is released under the MIT License. See `pyproject.toml` for the canonical metadata.
+## Development
 
-## Disclaimer
+```bash
+pip install -e .[dev]
+pytest
+```
 
-Eval3r does **not** redistribute any third-party datasets. Datasets (ScanNet, Replica, DTU, ETH3D, Tanks & Temples, TUM RGB-D) remain under their original licenses; you must obtain them from their respective sources and abide by those terms. Adapter code in `eval3r/datasets/` only describes filesystem layouts — no dataset contents.
+## License and dataset disclaimer
+
+`eval3r` is released under the MIT License.
+
+This project does **not** redistribute third-party datasets such as ScanNet, Replica, DTU, ETH3D, Tanks & Temples, or TUM RGB-D. You must obtain and use those datasets under their original licenses.
