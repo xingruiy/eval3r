@@ -240,16 +240,16 @@ def gen_cmd(
     ),
     # --- carving knobs ---
     voxel_size: float = typer.Option(0.02, "--voxel-size"),
-    margin: float = typer.Option(0.05, "--margin"),
+    margin: float = typer.Option(0.1, "--margin"),
     max_depth: float = typer.Option(
         3.5, "--max-depth",
         help=(
-            "Maximum depth in metres. Used as the frustum far plane and to "
-            "discard observed depth pixels farther than this. Default: 3.5."
+            "Maximum depth in metres. Discards observed depth pixels farther "
+            "than this and bounds carving/projection. Default: 3.5."
         ),
     ),
     near: float = typer.Option(
-        0.05, "--near", help="Frustum near plane (metres)."
+        0.1, "--near", help="Frustum near plane (metres)."
     ),
     truncation: float | None = typer.Option(
         None, "--truncation",
@@ -264,8 +264,8 @@ def gen_cmd(
         None, "--frames-file", help="Path to a text file with one frame id per line."
     ),
     frame_stride: int = typer.Option(
-        10, "--frame-stride",
-        help="Process every Nth frame (default 10).",
+        5, "--frame-stride",
+        help="Process every Nth frame (default 5).",
     ),
     max_frames: int | None = typer.Option(None, "--max-frames"),
 ) -> None:
@@ -521,25 +521,28 @@ def _gen_from_depth_paths(
         if used_convention in ("T_cw", "T_wc")
         else pose_convention
     )
-    return from_depth(
-        depth_maps,
-        poses,
-        K,
-        voxel_size=voxel_size,
-        margin=margin,
-        pose_convention=convention,  # type: ignore[arg-type]
-        camera_frame=camera_frame,  # type: ignore[arg-type]
-        depth_scale=depth_scale,
-        depth_max=max_depth,
-        max_depth=max_depth,
-        near=near,
-        truncation=truncation,
-        frames=frames,
-        frames_file=frames_file,
-        frame_stride=frame_stride,
-        max_frames=max_frames,
-        dilation=dilation,
-    )
+    try:
+        return from_depth(
+            depth_maps,
+            poses,
+            K,
+            voxel_size=voxel_size,
+            margin=margin,
+            pose_convention=convention,  # type: ignore[arg-type]
+            camera_frame=camera_frame,  # type: ignore[arg-type]
+            depth_scale=depth_scale,
+            depth_max=max_depth,
+            max_depth=max_depth,
+            near=near,
+            truncation=truncation,
+            frames=frames,
+            frames_file=frames_file,
+            frame_stride=frame_stride,
+            max_frames=max_frames,
+            dilation=dilation,
+        )
+    except ValueError as exc:
+        raise typer.BadParameter(str(exc)) from exc
 
 
 def _gen_from_mesh_paths(
