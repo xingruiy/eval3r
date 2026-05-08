@@ -106,7 +106,8 @@ preds_root/
 Then run:
 
 ```bash
-e3r benchmark run scannet preds_root \
+e3r benchmark preds_root \
+  --dataset scannet \
   --root /path/to/scannet \
   --split split.txt \
   --align sim3 \
