@@ -116,26 +116,40 @@ e3r datasets validate scannet --root /data/scannet \
     --split /data/scannet/splits/scannetv2_test.txt
 e3r datasets validate dtu --root /data/dtu
 ```
-Run a method's predictions across a full split (generic command).
+Run a method's predictions across a full split.
 ```bash
-e3r benchmark run scannet outputs/scannet \
+e3r benchmark outputs/scannet \
+    --dataset scannet \
     --root /data/scannet \
     --split /data/scannet/splits/scannetv2_test.txt \
     --thresholds 0.05 --workers 8 \
     --out results.json --csv results.csv
 ```
-Run against datasets with non-default layout via adapter opts.
+Pass adapter-specific overrides with `-o key=value`.
 ```bash
-e3r benchmark run eth3d outputs/eth3d \
-    --root /data/eth3d --track dslr
-e3r benchmark run tanks_temples outputs/tnt \
-    --root /data/tnt --subset training
-```
-Pass adapter-specific overrides with -o key=value.
-```bash
-e3r benchmark run tum_rgbd outputs/tum \
+e3r benchmark outputs/eth3d --dataset eth3d \
+    --root /data/eth3d -o track=dslr
+e3r benchmark outputs/tnt --dataset tanks_temples \
+    --root /data/tnt -o subset=training
+e3r benchmark outputs/tum --dataset tum_rgbd \
     --root /data/tum -o intrinsics_fx=535.4 -o intrinsics_cx=320.1
 ```
+
+### Custom dataset (no adapter)
+
+If your data doesn't match a registered adapter, omit `--dataset` and point at the
+ground truth via a `{scene_id}` template. No Python required:
+
+```bash
+e3r benchmark outputs/mine \
+    --root /data/mydataset \
+    --gt-path '{scene_id}/gt.ply' \
+    --scenes-file splits/val.txt \
+    --thresholds 0.05 --align none
+```
+
+Use `--scenes 's1,s2,s3'` for an inline list. The GT file may be a mesh or a
+point cloud; eval3r auto-detects which.
 
 The benchmark reports two summaries: 
 

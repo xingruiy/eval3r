@@ -63,7 +63,8 @@ e3r metric all outputs/scannet/scene0001_00 \
 Use the same options:
 
 ```bash
-e3r benchmark run scannet outputs/scannet \
+e3r benchmark outputs/scannet \
+  --dataset scannet \
   --root /data/scannet \
   --mask-dir /data/scannet_masks \
   --t-mask-scene-name T_mask_scene.txt \

@@ -14,13 +14,11 @@ from rich.table import Table
 from eval3r.align import AlignMode
 from eval3r.benchmark import BenchmarkConfig, run_benchmark
 from eval3r.datasets import get_dataset
-from eval3r.datasets.base import Asset
+from eval3r.datasets.base import Asset, DatasetAdapter
+from eval3r.datasets.generic import GenericAdapter
 from eval3r.metrics.geometry import ChamferVariant, MaskMode
 from eval3r.prediction.discovery import PredictionLocator
 from eval3r.presets import PRESETS
-from eval3r.presets.scannet import SCANNET_PRESET
-
-app = typer.Typer(no_args_is_help=True, add_completion=False)
 
 
 def _summary_table(
@@ -65,8 +63,63 @@ def _parse_adapter_opts(raw: list[str]) -> dict[str, str]:
     return result
 
 
+def _parse_scenes(raw: str | None) -> list[str] | None:
+    if raw is None:
+        return None
+    items = [s.strip() for s in raw.split(",") if s.strip()]
+    return items or None
+
+
+def _resolve_adapter(
+    *,
+    dataset: str | None,
+    root: str,
+    split: str | None,
+    adapter_kwargs: dict[str, str],
+    gt_path: str | None,
+    scenes_file: str | None,
+    scenes: list[str] | None,
+) -> DatasetAdapter:
+    """Build the right adapter for either registered or manual mode."""
+    if dataset is not None:
+        try:
+            cls = get_dataset(dataset)
+        except KeyError as e:
+            raise typer.BadParameter(str(e)) from e
+        return cls(
+            root,
+            split=split,
+            validate_on_init=False,
+            **adapter_kwargs,
+        )  # type: ignore[arg-type]
+
+    if not gt_path:
+        raise typer.BadParameter(
+            "Either pass --dataset <name> or --gt-path '<template>' for "
+            "manual mode (e.g. --gt-path '{scene_id}/gt.ply')."
+        )
+    if scenes is None and scenes_file is None and split is None:
+        raise typer.BadParameter(
+            "Manual mode needs a scene source: pass --scenes 'id1,id2' or "
+            "--scenes-file <path> or --split <path>."
+        )
+    if adapter_kwargs:
+        raise typer.BadParameter(
+            "Adapter -o overrides require --dataset; the manual-mode "
+            "adapter is configured through --gt-path / --scenes."
+        )
+    return GenericAdapter(
+        root,
+        gt_path=gt_path,
+        scenes_file=scenes_file,
+        scenes_list=scenes,
+        split=split,
+        validate_on_init=False,
+    )
+
+
 def _build_config(
-    preset: dict,
+    preset: dict | None,
     *,
     samples: int | None,
     seed: int | None,
@@ -89,9 +142,29 @@ def _build_config(
     t_mask_scene_name: str,
     mask_mode: str,
 ) -> BenchmarkConfig:
-    """Merge CLI options with preset defaults into a BenchmarkConfig."""
-    align_value = align or preset["align"]
-    chamfer_value = chamfer_variant or preset["chamfer_variant"]
+    """Merge CLI options with preset defaults into a BenchmarkConfig.
+
+    When ``preset`` is None (manual mode), fall back to the literal
+    ``BenchmarkConfig`` defaults but require ``thresholds`` to be set
+    explicitly so the user picks an evaluation policy on purpose.
+    """
+    if preset is None:
+        if not thresholds:
+            raise typer.BadParameter(
+                "--thresholds is required in manual mode (no preset to fall "
+                "back to). Example: --thresholds 0.05"
+            )
+        defaults: dict = {
+            "align": "none",
+            "chamfer_variant": "l1_mean_bidirectional",
+            "samples": 200_000,
+            "seed": 42,
+        }
+    else:
+        defaults = preset
+
+    align_value = align or defaults["align"]
+    chamfer_value = chamfer_variant or defaults["chamfer_variant"]
     if align_value not in get_args(AlignMode):
         raise typer.BadParameter(f"--align must be one of {get_args(AlignMode)}")
     if chamfer_value not in get_args(ChamferVariant):
@@ -99,10 +172,10 @@ def _build_config(
     if mask_mode not in get_args(MaskMode):
         raise typer.BadParameter(f"--mask-mode must be one of {get_args(MaskMode)}")
     return BenchmarkConfig(
-        samples=samples if samples is not None else preset["samples"],
-        seed=seed if seed is not None else preset["seed"],
+        samples=samples if samples is not None else defaults["samples"],
+        seed=seed if seed is not None else defaults["seed"],
         align=align_value,  # type: ignore[arg-type]
-        thresholds=tuple(thresholds) if thresholds else tuple(preset["thresholds"]),
+        thresholds=tuple(thresholds) if thresholds else tuple(defaults["thresholds"]),
         chamfer_variant=chamfer_value,  # type: ignore[arg-type]
         crop_to_gt_bbox=crop,
         bbox_margin=crop_margin,
@@ -122,15 +195,19 @@ def _build_config(
     )
 
 
-@app.command("run")
 def run_cmd(
-    dataset: str = typer.Argument(..., help="Dataset name (e.g., scannet, replica, dtu)."),
     preds_root: str = typer.Argument(..., help="Predictions root (one subdir per scene)."),
+    dataset: str | None = typer.Option(
+        None,
+        "--dataset",
+        help="Registered dataset name (e.g. scannet, replica, dtu). "
+             "Omit to use --gt-path manually.",
+    ),
     root: str = typer.Option(..., "--root", help="Dataset filesystem root."),
     split: str | None = typer.Option(
         None,
         "--split",
-        help="Path to a split file (one scene id per line). Omit to auto-discover scenes.",
+        help="Path to a split file (one scene id per line). Omit to auto-discover.",
     ),
     samples: int | None = typer.Option(None, help="Samples per scene; default from preset."),
     seed: int | None = typer.Option(None, help="Sampling seed; default from preset."),
@@ -153,7 +230,6 @@ def run_cmd(
     pred_filename: list[str] = typer.Option(
         [],
         "--pred-filename",
-        "--geometry-pattern",
         help=(
             "Custom prediction filename patterns (repeatable, prepended to defaults). "
             "Use {scene_id} in the pattern, e.g. '{scene_id}/mesh.ply' or "
@@ -163,7 +239,20 @@ def run_cmd(
     adapter_opt: list[str] = typer.Option(
         [], "-o", "--adapter-opt",
         help="Adapter-specific override in key=value form (repeatable). "
-             "e.g. -o depth_scale=5000 -o mesh_filename=mesh.ply",
+             "Only valid with --dataset. e.g. -o depth_scale=5000 -o mesh_filename=mesh.ply",
+    ),
+    gt_path: str | None = typer.Option(
+        None, "--gt-path",
+        help="Manual mode: path template for ground-truth geometry, relative "
+             "to --root. Supports {scene_id}. e.g. '{scene_id}/gt.ply'.",
+    ),
+    scenes_file: str | None = typer.Option(
+        None, "--scenes-file",
+        help="Manual mode: text file with one scene id per line.",
+    ),
+    scenes: str | None = typer.Option(
+        None, "--scenes",
+        help="Manual mode: comma-separated scene ids, e.g. 's1,s2,s3'.",
     ),
     fail_on_missing: bool = typer.Option(False, "--fail-on-missing"),
     debug_plot: bool = typer.Option(
@@ -207,14 +296,32 @@ def run_cmd(
     ),
     mask_mode: str = typer.Option("pred", "--mask-mode", help="pred | gt | both"),
 ) -> None:
-    """Run a geometry benchmark against a registered dataset."""
-    cls = get_dataset(dataset)
-    preset = PRESETS.get(dataset, SCANNET_PRESET)
+    """Run a geometry benchmark.
 
-    # Parse adapter kwargs from -o key=value pairs.
+    Two modes:
+
+    - Registered: pass --dataset <name>. The matching adapter handles GT
+      layout. Use -o key=value for per-adapter overrides. Preset values supply
+      sensible thresholds / sampling defaults.
+
+    - Manual: omit --dataset and pass --gt-path '<template>' plus a scene
+      source (--scenes / --scenes-file / --split). No preset is applied;
+      --thresholds is required.
+    """
+    preset = PRESETS.get(dataset) if dataset else None
     adapter_kwargs = _parse_adapter_opts(adapter_opt)
+    scenes_list = _parse_scenes(scenes)
 
-    # Build config from CLI + preset.
+    ds = _resolve_adapter(
+        dataset=dataset,
+        root=root,
+        split=split,
+        adapter_kwargs=adapter_kwargs,
+        gt_path=gt_path,
+        scenes_file=scenes_file,
+        scenes=scenes_list,
+    )
+
     cfg = _build_config(
         preset,
         samples=samples,
@@ -239,12 +346,9 @@ def run_cmd(
         mask_mode=mask_mode,
     )
 
-    ds = cls(root, split=split, validate_on_init=False, **adapter_kwargs)  # type: ignore[arg-type]
-
-    # Verify the adapter provides geometry GT.
     if not (ds.supports(Asset.MESH) or ds.supports(Asset.POINT_CLOUD)):
         typer.secho(
-            f"Error: dataset {dataset!r} supports neither mesh nor point_cloud GT. "
+            f"Error: dataset {ds.name!r} supports neither mesh nor point_cloud GT. "
             f"Supported assets: {sorted(a.value for a in ds.supported_assets)}",
             fg=typer.colors.RED,
             err=True,
@@ -288,128 +392,6 @@ def run_cmd(
                     ),
                 )
             )
-
-
-@app.command("scannet", hidden=True)
-def scannet_cmd(
-    preds_root: str = typer.Argument(..., help="Predictions root (one subdir per scene)."),
-    root: str = typer.Option(..., "--root", help="ScanNet filesystem root."),
-    split: str | None = typer.Option(
-        None,
-        "--split",
-        help="Path to a split file (one scene id per line). Omit to auto-discover scenes.",
-    ),
-    samples: int | None = typer.Option(None, help="Samples per scene; default from preset."),
-    seed: int | None = typer.Option(None, help="Sampling seed; default from preset."),
-    align: str | None = typer.Option(None, help="Alignment mode: " + " | ".join(get_args(AlignMode))),
-    thresholds: list[float] | None = typer.Option(None, "--thresholds"),
-    chamfer_variant: str | None = typer.Option(None, "--chamfer-variant"),
-    crop: bool = typer.Option(False, "--crop/--no-crop", help="Crop pred to GT bbox."),
-    crop_margin: float = typer.Option(0.10, help="Bbox crop margin in metres."),
-    workers: int | None = typer.Option(None, help="Process workers; default min(8, ncpu)."),
-    missing_distance_default: float = typer.Option(
-        1.0,
-        "--missing-distance-default",
-        help="Penalty in metres applied to chamfer/accuracy/completeness for missing or failed scenes (used in summary_all).",
-    ),
-    missing_fscore_default: float = typer.Option(
-        0.0,
-        "--missing-fscore-default",
-        help="Default applied to f-score / precision / recall for missing or failed scenes (used in summary_all).",
-    ),
-    pred_filename: list[str] = typer.Option(
-        [],
-        "--pred-filename",
-        help=(
-            "Custom prediction filename patterns (repeatable, prepended to defaults). "
-            "Use {scene_id} in the pattern, e.g. '{scene_id}/mesh.ply' or "
-            "'predictions/{scene_id}.ply'."
-        ),
-    ),
-    color_subdir: str | None = typer.Option(None, "--color-subdir"),
-    depth_subdir: str | None = typer.Option(None, "--depth-subdir"),
-    mesh_filename: str | None = typer.Option(None, "--mesh-filename"),
-    fail_on_missing: bool = typer.Option(False, "--fail-on-missing"),
-    debug_plot: bool = typer.Option(
-        False,
-        "--debug-plot",
-        help="Export a 3D scatter plot of aligned point clouds per scene.",
-    ),
-    out: str | None = typer.Option(None, "--out", help="Write full result JSON to this path."),
-    csv: str | None = typer.Option(None, "--csv", help="Write per-scene CSV to this path."),
-    json_out: bool = typer.Option(False, "--json", help="Emit JSON to stdout (no table)."),
-    pred_pose_dir: str | None = typer.Option(
-        None,
-        "--pred-pose-dir",
-        help="Directory containing per-scene pose files for non-manifest predictions.",
-    ),
-    pred_pose_file: str = typer.Option(
-        "{scene_id}.txt",
-        "--pred-pose-file",
-        help="Pose filename pattern (supports {scene_id}) within --pred-pose-dir.",
-    ),
-    pred_pose_convention: str = typer.Option(
-        "unspecified",
-        "--pred-pose-convention",
-        help="Pose convention for external poses (T_wc or T_cw).",
-    ),
-    verbose: bool = typer.Option(
-        False, "--verbose", "-v",
-        help="Show error details for failed scenes.",
-    ),
-    mask_dir: str | None = typer.Option(
-        None, "--mask-dir",
-        help="Directory with per-scene subdirs containing occlusion_mask.npy + T_mask_scene.txt.",
-    ),
-    mask_name: str = typer.Option(
-        "occlusion_mask.npy", "--mask-name",
-        help="Filename of the occlusion mask .npy file within each scene subdir.",
-    ),
-    t_mask_scene_name: str = typer.Option(
-        "T_mask_scene.txt", "--t-mask-scene-name",
-        help="Filename of the T_mask_scene .txt file within each scene subdir.",
-    ),
-    mask_mode: str = typer.Option("pred", "--mask-mode", help="pred | gt | both"),
-) -> None:
-    """Run the ScanNet benchmark (backward-compatible alias for `e3r benchmark run scannet`)."""
-    adapter_opts = []
-    if color_subdir is not None:
-        adapter_opts.append(f"color_subdir={color_subdir}")
-    if depth_subdir is not None:
-        adapter_opts.append(f"depth_subdir={depth_subdir}")
-    if mesh_filename is not None:
-        adapter_opts.append(f"mesh_filename={mesh_filename}")
-    run_cmd(
-        dataset="scannet",
-        preds_root=preds_root,
-        root=root,
-        split=split,
-        samples=samples,
-        seed=seed,
-        align=align,
-        thresholds=thresholds,
-        chamfer_variant=chamfer_variant,
-        crop=crop,
-        crop_margin=crop_margin,
-        workers=workers,
-        missing_distance_default=missing_distance_default,
-        missing_fscore_default=missing_fscore_default,
-        pred_filename=pred_filename,
-        adapter_opt=adapter_opts,
-        fail_on_missing=fail_on_missing,
-        debug_plot=debug_plot,
-        out=out,
-        csv=csv,
-        json_out=json_out,
-        pred_pose_dir=pred_pose_dir,
-        pred_pose_file=pred_pose_file,
-        pred_pose_convention=pred_pose_convention,
-        verbose=verbose,
-        mask_dir=mask_dir,
-        mask_name=mask_name,
-        t_mask_scene_name=t_mask_scene_name,
-        mask_mode=mask_mode,
-    )
 
 
 def _write_csv(path: Path, payload: dict) -> None:

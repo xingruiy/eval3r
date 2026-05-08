@@ -14,7 +14,7 @@ from eval3r.utils.errors import NotSupportedError
 
 def test_registry_contains_all_datasets() -> None:
     assert list_datasets() == [
-        "dtu", "eth3d", "replica", "scannet", "tanks_temples", "tum_rgbd",
+        "dtu", "eth3d", "generic", "replica", "scannet", "tanks_temples", "tum_rgbd",
     ]
     for name in list_datasets():
         cls = get_dataset(name)

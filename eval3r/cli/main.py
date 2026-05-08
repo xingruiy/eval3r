@@ -24,7 +24,10 @@ app.add_typer(metric_cmd.app, name="metric", help="Compute geometry metrics.")
 app.add_typer(render_cmd.app, name="render", help="Render mesh / point cloud / comparisons.")
 app.add_typer(preset_cmd.app, name="preset", help="Inspect dataset presets.")
 app.add_typer(datasets_cmd.app, name="datasets", help="Inspect / validate dataset adapters.")
-app.add_typer(benchmark_cmd.app, name="benchmark", help="Run a method against a dataset split.")
+app.command(
+    name="benchmark",
+    help="Run a method against a dataset split (registered or manual layout).",
+)(benchmark_cmd.run_cmd)
 
 
 @app.command()

@@ -32,7 +32,8 @@ def test_benchmark_scannet_json_out(tmp_path: Path) -> None:
     result = runner.invoke(
         app,
         [
-            "benchmark", "scannet", str(preds),
+            "benchmark", str(preds),
+            "--dataset", "scannet",
             "--root", str(ds_root),
             "--split", str(split),
             "--samples", "2048",
@@ -95,7 +96,8 @@ def test_benchmark_json_marks_missing_scene_mask(tmp_path: Path) -> None:
     result = runner.invoke(
         app,
         [
-            "benchmark", "scannet", str(preds),
+            "benchmark", str(preds),
+            "--dataset", "scannet",
             "--root", str(ds_root),
             "--split", str(split),
             "--samples", "2048",
@@ -112,3 +114,68 @@ def test_benchmark_json_marks_missing_scene_mask(tmp_path: Path) -> None:
     by_scene = {s["scene_id"]: s for s in payload["scenes"]}
     assert by_scene["s1"]["mask_missing"] is False
     assert by_scene["s2"]["mask_missing"] is True
+
+
+def test_benchmark_manual_mode(tmp_path: Path) -> None:
+    """Omitting --dataset enters manual mode via GenericAdapter + --gt-path."""
+    gt_root = tmp_path / "ds"
+    save_mesh_ply(gt_root / "s1" / "gt.ply", CUBE_VERTS, CUBE_FACES)
+    save_mesh_ply(gt_root / "s2" / "gt.ply", CUBE_VERTS, CUBE_FACES)
+
+    preds = tmp_path / "preds"
+    save_mesh_ply(preds / "s1" / "mesh.ply", CUBE_VERTS, CUBE_FACES)
+    save_mesh_ply(preds / "s2" / "mesh.ply", CUBE_VERTS, CUBE_FACES)
+
+    out = tmp_path / "manual.json"
+    result = runner.invoke(
+        app,
+        [
+            "benchmark", str(preds),
+            "--root", str(gt_root),
+            "--gt-path", "{scene_id}/gt.ply",
+            "--scenes", "s1,s2",
+            "--samples", "2048",
+            "--seed", "0",
+            "--workers", "1",
+            "--thresholds", "0.05",
+            "--out", str(out),
+            "--json",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(out.read_text())
+    assert payload["dataset"] == "generic"
+    assert payload["coverage"]["n_evaluated"] == 2
+
+
+def test_benchmark_manual_mode_requires_thresholds(tmp_path: Path) -> None:
+    """Manual mode without --thresholds errors out (no preset to fall back on)."""
+    gt_root = tmp_path / "ds"
+    save_mesh_ply(gt_root / "s1" / "gt.ply", CUBE_VERTS, CUBE_FACES)
+    preds = tmp_path / "preds"
+    save_mesh_ply(preds / "s1" / "mesh.ply", CUBE_VERTS, CUBE_FACES)
+
+    result = runner.invoke(
+        app,
+        [
+            "benchmark", str(preds),
+            "--root", str(gt_root),
+            "--gt-path", "{scene_id}/gt.ply",
+            "--scenes", "s1",
+        ],
+    )
+    assert result.exit_code != 0
+    assert "thresholds" in result.stdout.lower() or "thresholds" in (result.stderr or "").lower()
+
+
+def test_benchmark_unknown_dataset_errors(tmp_path: Path) -> None:
+    """Unknown --dataset name surfaces as a hard error, no silent fallback."""
+    result = runner.invoke(
+        app,
+        [
+            "benchmark", str(tmp_path),
+            "--dataset", "definitely_not_a_dataset",
+            "--root", str(tmp_path),
+        ],
+    )
+    assert result.exit_code != 0
