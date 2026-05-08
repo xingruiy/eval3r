@@ -182,9 +182,9 @@ def test_from_depth_carves_free_space_and_occludes_behind_surface() -> None:
         dilation=0,
     )
 
-    free_space = np.array([[0.0, 0.0, 0.5]])  # halfway to the wall.
+    free_space = np.array([[0.0, 0.0, 0.97]])  # just in front of the wall.
     kept, _, _ = filter_visible_points(free_space, mask)
-    assert len(kept) == 1, "voxel between camera and surface must be visible"
+    assert len(kept) == 1, "voxel near the observed surface must be visible"
 
     near_band = np.array([[0.0, 0.0, 1.02]])  # within truncation past surface.
     kept, _, _ = filter_visible_points(near_band, mask)
@@ -213,28 +213,215 @@ def test_from_depth_rejects_outside_frustum() -> None:
         filter_visible_points(far_off_axis, mask)
 
 
-def test_from_depth_volumetric_visibility_count_exceeds_surface_shell() -> None:
-    """Carving fills a frustum cone, not just a thin surface slice."""
-    # Wide-FOV camera (focal=20, 32×32) so the frustum at z=1 is ~1.6 m wide
-    # and the carved cone has order(thousands) of voxels at vs=0.05.
+def test_from_depth_bbox_tracks_observed_samples_plus_margin() -> None:
+    """Depth-derived bbox is tight around observed samples plus margin."""
     H, W = 32, 32
-    focal = 20.0
+    focal = 200.0
     K = _identity_intrinsics(W, H, focal)
     depth = np.full((H, W), 1.0, dtype=np.float32)
     poses = np.eye(4)[None, :, :]
+    voxel_size = 0.05
+    margin = 0.05
     mask = from_depth(
         [depth], poses, K,
-        voxel_size=0.05, margin=0.05,
+        voxel_size=voxel_size, margin=margin,
         pose_convention="T_cw", camera_frame="opencv",
         max_depth=2.0, near=0.05, truncation=0.05,
         frame_stride=1, dilation=0,
     )
-    visible = int((mask.grid < 0.5).sum())
-    # Cone volume from z≈0 to z=1, base ≈ 1.6 × 1.6 m → ~6.8 k voxels at vs=0.05.
-    # Far more than any surface shell (≤ a single 32×32 = 1024-voxel slice).
-    assert visible > 2_000, (
-        f"only {visible} visible voxels — carving collapsed back to a shell"
+
+    bbox_min = -mask.T_mask_scene[:3, 3] / np.diag(mask.T_mask_scene)[:3]
+    x_samples = (np.arange(W) - W / 2) / focal
+    y_samples = (np.arange(H) - H / 2) / focal
+    expected_min = np.array([x_samples.min(), y_samples.min(), 1.0]) - margin
+    np.testing.assert_allclose(bbox_min, expected_min, atol=1e-9)
+
+    expected_max = np.array([x_samples.max(), y_samples.max(), 1.0]) + margin
+    expected_extent = expected_max - expected_min
+    expected_dims = np.maximum(np.ceil(expected_extent / voxel_size).astype(int), 1)
+    assert mask.grid.shape == tuple(expected_dims)
+
+
+def test_from_depth_ignores_far_pixels_when_building_bbox() -> None:
+    H, W = 8, 8
+    K = _identity_intrinsics(W, H, 50.0)
+    depth = np.full((H, W), 4.0, dtype=np.float32)
+    depth[3, 3] = 1.0
+    poses = np.eye(4)[None, :, :]
+
+    mask = from_depth(
+        [depth], poses, K,
+        voxel_size=0.05, margin=0.05,
+        pose_convention="T_cw", camera_frame="opencv",
+        max_depth=2.0, frame_stride=1, dilation=0,
     )
+
+    bbox_min = -mask.T_mask_scene[:3, 3] / np.diag(mask.T_mask_scene)[:3]
+    expected_point = np.array([(3 - W / 2) / 50.0, (3 - H / 2) / 50.0, 1.0])
+    np.testing.assert_allclose(bbox_min, expected_point - 0.05, atol=1e-9)
+
+
+def test_from_depth_all_invalid_bbox_pixels_raise() -> None:
+    K = _identity_intrinsics(8, 8, 50.0)
+    depth = np.full((8, 8), 4.0, dtype=np.float32)
+    poses = np.eye(4)[None, :, :]
+
+    with pytest.raises(ValueError, match="depth-derived bbox"):
+        from_depth(
+            [depth], poses, K,
+            voxel_size=0.05, margin=0.05,
+            pose_convention="T_cw", camera_frame="opencv",
+            max_depth=2.0, frame_stride=1, dilation=0,
+        )
+
+
+def _carve_visible_grid_reference(
+    *,
+    idx,
+    depth_maps,
+    Ks,
+    poses,
+    pose_convention,
+    camera_frame,
+    bbox_min,
+    dims,
+    voxel_size,
+    near,
+    max_depth,
+    truncation,
+    depth_scale,
+    depth_max,
+    chunk_size=1_000_000,
+):
+    """Pre-acceleration reference: chunks-outside, frames-inside, full grid."""
+    visible = np.zeros(tuple(int(d) for d in dims), dtype=bool)
+    total = int(np.prod(dims))
+    if total == 0:
+        return visible
+
+    T_cw_list = [_to_T_cw(poses[i], pose_convention) for i in idx]
+
+    depth_cache: dict[int, np.ndarray] = {}
+
+    def get_depth(frame_idx: int) -> np.ndarray:
+        cached = depth_cache.get(frame_idx)
+        if cached is not None:
+            return cached
+        d = np.asarray(depth_maps[frame_idx], dtype=np.float64)
+        if depth_scale != 1.0:
+            d = d / float(depth_scale)
+        depth_cache[frame_idx] = d
+        return d
+
+    flip_yz = camera_frame == "opengl"
+
+    for chunk_start in range(0, total, chunk_size):
+        chunk_end = min(chunk_start + chunk_size, total)
+        flat = np.arange(chunk_start, chunk_end)
+        i_idx, j_idx, k_idx = np.unravel_index(flat, tuple(dims))
+        centers = (
+            bbox_min[None, :]
+            + np.stack([i_idx, j_idx, k_idx], axis=1).astype(np.float64) * voxel_size
+        )
+        centers_h = np.column_stack([centers, np.ones(len(flat), dtype=np.float64)])
+
+        chunk_visible = np.zeros(len(flat), dtype=bool)
+        for n, frame_idx in enumerate(idx):
+            T_cw = T_cw_list[n]
+            K_i = Ks[n]
+            depth_i = get_depth(int(frame_idx))
+            H, W = depth_i.shape
+
+            cam = (T_cw @ centers_h.T).T[:, :3]
+            if flip_yz:
+                cam = cam * np.array([1.0, -1.0, -1.0])
+            z = cam[:, 2]
+            in_z = (z >= near) & (z <= max_depth)
+            z_safe = np.where(in_z, z, 1.0)
+            u = K_i[0, 0] * cam[:, 0] / z_safe + K_i[0, 2]
+            v = K_i[1, 1] * cam[:, 1] / z_safe + K_i[1, 2]
+            in_image = (u >= 0) & (u < W) & (v >= 0) & (v < H)
+
+            ui = np.clip(np.floor(u).astype(np.int64), 0, W - 1)
+            vi = np.clip(np.floor(v).astype(np.int64), 0, H - 1)
+            d_pix = depth_i[vi, ui]
+            valid_d = np.isfinite(d_pix) & (d_pix > 0)
+            if depth_max is not None:
+                valid_d &= d_pix <= float(depth_max)
+
+            in_front = z <= d_pix + truncation
+            chunk_visible |= in_z & in_image & valid_d & in_front
+
+        visible.flat[chunk_start:chunk_end] = chunk_visible
+
+    return visible
+
+
+def test_carve_visible_grid_matches_reference_implementation() -> None:
+    """The accelerated carve produces the same visible grid as the pre-AABB reference."""
+    from eval3r.masks.generate import _carve_visible_grid
+
+    rng = np.random.default_rng(0)
+    H, W = 32, 32
+    focal = 40.0
+    K = _identity_intrinsics(W, H, focal)
+
+    # 4 cameras placed around a plane at z=1, looking down +Z (OpenCV).
+    poses = []
+    depth_maps = []
+    for dx, dy in [(0.0, 0.0), (0.3, -0.2), (-0.4, 0.1), (0.1, 0.4)]:
+        T_wc = np.eye(4)
+        T_wc[:3, 3] = [dx, dy, 0.0]
+        # T_cw = inv(T_wc): camera looking down +Z from offset.
+        poses.append(np.linalg.inv(T_wc))
+        # Synthetic depth: plane at z=1 plus mild jitter.
+        depth = np.full((H, W), 1.0, dtype=np.float64)
+        depth += 0.02 * rng.standard_normal((H, W))
+        depth_maps.append(depth.astype(np.float32))
+    poses_arr = np.stack(poses, axis=0)
+
+    voxel_size = 0.05
+    near, max_depth, truncation = 0.05, 2.0, 0.05
+    bbox_min = np.array([-0.7, -0.7, -0.05])
+    bbox_max = np.array([0.7, 0.7, 1.10])
+    dims = np.maximum(np.ceil((bbox_max - bbox_min) / voxel_size).astype(int), 1)
+
+    idx = np.arange(len(poses_arr), dtype=np.int64)
+    Ks = [K for _ in idx]
+
+    new = _carve_visible_grid(
+        idx=idx,
+        depth_maps=depth_maps,
+        Ks=Ks,
+        poses=poses_arr,
+        pose_convention="T_cw",
+        camera_frame="opencv",
+        bbox_min=bbox_min,
+        dims=dims,
+        voxel_size=voxel_size,
+        near=near,
+        max_depth=max_depth,
+        truncation=truncation,
+        depth_scale=1.0,
+        depth_max=None,
+    )
+    ref = _carve_visible_grid_reference(
+        idx=idx,
+        depth_maps=depth_maps,
+        Ks=Ks,
+        poses=poses_arr,
+        pose_convention="T_cw",
+        camera_frame="opencv",
+        bbox_min=bbox_min,
+        dims=dims,
+        voxel_size=voxel_size,
+        near=near,
+        max_depth=max_depth,
+        truncation=truncation,
+        depth_scale=1.0,
+        depth_max=None,
+    )
+    np.testing.assert_array_equal(new, ref)
 
 
 def test_from_depth_pose_count_mismatch_raises() -> None:
@@ -308,8 +495,8 @@ def test_cli_gen_manual_depth_with_pattern(tmp_path: Path) -> None:
     mask = load_occlusion_mask(
         out_dir / "occlusion_mask.npy", out_dir / "T_mask_scene.txt"
     )
-    free_space = np.array([[0.0, 0.0, 0.5]])
-    kept, _, _ = filter_visible_points(free_space, mask)
+    surface = np.array([[0.0, 0.0, 1.0]])
+    kept, _, _ = filter_visible_points(surface, mask)
     assert len(kept) == 1
 
 
@@ -396,11 +583,12 @@ def test_cli_gen_help_uses_single_max_depth_option() -> None:
     assert "--max-depth" in result.output
     assert "--depth-max" not in result.output
     assert "Default: 3.5" in result.output
-    assert "frustum far" in result.output
-    assert "discard" in result.output
+    assert "bounds" in result.output
+    assert "carving" in result.output
+    assert "discard" in result.output.lower()
 
 
-def test_cli_gen_max_depth_discards_far_depth_pixels_by_default(tmp_path: Path) -> None:
+def test_cli_gen_max_depth_requires_at_least_one_valid_bbox_pixel(tmp_path: Path) -> None:
     imageio = pytest.importorskip("imageio.v3")
 
     H, W = 8, 8
@@ -430,11 +618,8 @@ def test_cli_gen_max_depth_discards_far_depth_pixels_by_default(tmp_path: Path) 
         ],
         env={"NO_COLOR": "1", "TERM": "dumb"},
     )
-    assert result.exit_code == 0, result.stdout
-    mask = load_occlusion_mask(
-        out_dir / "occlusion_mask.npy", out_dir / "T_mask_scene.txt"
-    )
-    assert int((mask.grid < 0.5).sum()) == 0
+    assert result.exit_code != 0
+    assert "depth-derived bbox" in result.output
 
 
 def test_cli_gen_preset_requires_root_and_scene(tmp_path: Path) -> None:
@@ -516,7 +701,7 @@ def test_cli_mask_visualize_exports_overview_and_point_cloud(tmp_path: Path) -> 
 # ---------------------------------------------------------------------------
 
 
-def test_from_rendered_carves_volume() -> None:
+def test_from_rendered_carves_observed_surface_volume() -> None:
     pytest.importorskip("pyrender")
     from eval3r.masks.generate import from_rendered
 
@@ -557,9 +742,10 @@ def test_from_rendered_carves_volume() -> None:
         headless=True,
     )
 
-    # The space between cameras and sphere surface is free → visible.
-    midway = np.array([[1.0, 0.0, 0.0]])  # 1m from origin, between cam & sphere.
-    kept, _, _ = filter_visible_points(midway, mask)
+    # The depth-derived bbox is tight around observed geometry; use a surface
+    # point rather than camera-to-surface free space.
+    surface = np.array([[0.5, 0.0, 0.0]])
+    kept, _, _ = filter_visible_points(surface, mask)
     assert len(kept) == 1
 
     # A point well outside any frustum (far above the orbit plane) → occluded.

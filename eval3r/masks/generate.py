@@ -7,10 +7,10 @@ Two pluggable methods produce the same :class:`OcclusionMask` format:
 
 Both share a two-stage core:
 
-1. **Bbox** — the union of camera frustum corners (image bounds × `[near, max_depth]`)
-   in world space, padded by ``margin``. Inspired by NeuralRecon's
-   ``tools/tsdf_fusion/generate_gt.py``: no depth I/O, constant per-frame cost,
-   robust against depth holes.
+1. **Bbox** — selected valid depth pixels are back-projected to world space,
+   then their bounds are padded by ``margin``. This keeps generated masks
+   tight around observed geometry instead of allocating the whole camera
+   frustum out to ``max_depth``.
 2. **Carve** — project every voxel centre through ``T_cw`` and ``K`` to look up
    the observed depth at the projected pixel. The voxel is **visible** iff it
    sits in the camera frustum **and** its camera-frame Z is
@@ -241,6 +241,47 @@ def _frustum_corners_world(
     return (T_wc @ pts_h.T).T[:, :3]
 
 
+def _depth_bbox_world(
+    *,
+    idx: np.ndarray,
+    depth_maps: Sequence[np.ndarray],
+    Ks: list[np.ndarray],
+    poses: np.ndarray,
+    pose_convention: PoseFrame,
+    camera_frame: CameraFrame,
+    depth_scale: float,
+    depth_max: float | None,
+    margin: float,
+) -> tuple[np.ndarray, np.ndarray]:
+    """Return a padded world-space bbox from valid selected depth samples."""
+    bbox_min: np.ndarray | None = None
+    bbox_max: np.ndarray | None = None
+
+    for n, i in enumerate(idx):
+        pts = _backproject(
+            np.asarray(depth_maps[i]),
+            Ks[n],
+            _to_T_wc(poses[i], pose_convention),
+            camera_frame=camera_frame,
+            depth_scale=depth_scale,
+            depth_max=depth_max,
+        )
+        if len(pts) == 0:
+            continue
+        p_min = pts.min(axis=0)
+        p_max = pts.max(axis=0)
+        bbox_min = p_min if bbox_min is None else np.minimum(bbox_min, p_min)
+        bbox_max = p_max if bbox_max is None else np.maximum(bbox_max, p_max)
+
+    if bbox_min is None or bbox_max is None:
+        raise ValueError(
+            "Cannot build depth-derived bbox: selected depth maps contain no "
+            "finite positive pixels within the configured max_depth"
+        )
+
+    return bbox_min - float(margin), bbox_max + float(margin)
+
+
 def _carve_visible_grid(
     *,
     idx: np.ndarray,
@@ -261,18 +302,27 @@ def _carve_visible_grid(
 ) -> np.ndarray:
     """Project every voxel centre through each selected camera and TSDF-carve.
 
+    Loop is **frames outside, chunks inside**. For each frame we compute the
+    frustum's axis-aligned bounding box in voxel space and only iterate that
+    sub-grid; we also skip voxels already marked visible by an earlier frame.
+    Both optimisations are strict no-ops on visibility (a voxel outside a
+    camera's frustum AABB also fails ``in_image`` for that camera; an
+    already-visible voxel cannot be un-marked), so the output is identical
+    to a chunk-outer / frame-inner full-grid loop.
+
     Returns a boolean grid of shape ``dims`` where ``True`` = visible
     (free space + thin band past the observed surface).
     """
-    visible = np.zeros(tuple(dims), dtype=bool)
-    total = int(np.prod(dims))
+    dims_t = tuple(int(d) for d in dims)
+    visible = np.zeros(dims_t, dtype=bool)
+    total = int(np.prod(dims_t))
     if total == 0:
         return visible
 
     T_cw_list = [_to_T_cw(poses[i], pose_convention) for i in idx]
     K_list = list(Ks)
 
-    # Pre-cast depth maps once so the inner loop is cheap.
+    # Pre-cast depth maps once (float64 for stable division) per frame.
     depth_cache: dict[int, np.ndarray] = {}
 
     def get_depth(frame_idx: int) -> np.ndarray:
@@ -286,46 +336,104 @@ def _carve_visible_grid(
         return d
 
     flip_yz = camera_frame == "opengl"
+    bbox_min_f64 = bbox_min.astype(np.float64)
+    voxel_size_f64 = float(voxel_size)
+    near_f64 = float(near)
+    max_depth_f64_bounds = float(max_depth)
+    truncation_f64 = float(truncation)
+    depth_max_f64 = None if depth_max is None else float(depth_max)
+    dims_arr = np.asarray(dims_t, dtype=np.int64)
 
-    for chunk_start in range(0, total, chunk_size):
-        chunk_end = min(chunk_start + chunk_size, total)
-        flat = np.arange(chunk_start, chunk_end)
-        i_idx, j_idx, k_idx = np.unravel_index(flat, tuple(dims))
-        centers = (
-            bbox_min[None, :]
-            + np.stack([i_idx, j_idx, k_idx], axis=1).astype(np.float64) * voxel_size
+    for n, frame_idx in enumerate(idx):
+        T_cw = T_cw_list[n]
+        K_i = K_list[n]
+        depth_i = get_depth(int(frame_idx))
+        H, W = depth_i.shape
+
+        # (1) Per-frame frustum AABB in voxel-grid space. A voxel outside this
+        # AABB also fails the in_image / in_z gate, so skipping it is safe.
+        T_wc = np.linalg.inv(T_cw)
+        corners_world = _frustum_corners_world(
+            K_i,
+            T_wc,
+            image_size=(W, H),
+            near=near,
+            far=max_depth,
+            camera_frame=camera_frame,
         )
-        centers_h = np.column_stack([centers, np.ones(len(flat), dtype=np.float64)])
+        corners_v = (corners_world - bbox_min_f64) / voxel_size_f64
+        v_min = np.maximum(np.floor(corners_v.min(0)).astype(np.int64), 0)
+        v_max = np.minimum(
+            np.ceil(corners_v.max(0)).astype(np.int64) + 1, dims_arr
+        )
+        if (v_max <= v_min).any():
+            continue
 
-        chunk_visible = np.zeros(len(flat), dtype=bool)
-        for n, frame_idx in enumerate(idx):
-            T_cw = T_cw_list[n]
-            K_i = K_list[n]
-            depth_i = get_depth(int(frame_idx))
-            H, W = depth_i.shape
+        sub_dims = tuple(int(x) for x in (v_max - v_min))
+        sub_total = int(np.prod(sub_dims))
+        if sub_total == 0:
+            continue
 
-            cam = (T_cw @ centers_h.T).T[:, :3]
+        fx = K_i[0, 0]
+        fy = K_i[1, 1]
+        cx = K_i[0, 2]
+        cy = K_i[1, 2]
+
+        # (2) Iterate the sub-grid in chunks.
+        for chunk_start in range(0, sub_total, chunk_size):
+            chunk_end = min(chunk_start + chunk_size, sub_total)
+            flat_local = np.arange(chunk_start, chunk_end, dtype=np.int64)
+            li, lj, lk = np.unravel_index(flat_local, sub_dims)
+            gi = li + int(v_min[0])
+            gj = lj + int(v_min[1])
+            gk = lk + int(v_min[2])
+
+            # (3) Skip already-visible voxels in this chunk.
+            already = visible[gi, gj, gk]
+            if already.all():
+                continue
+            todo = ~already
+            gi = gi[todo]
+            gj = gj[todo]
+            gk = gk[todo]
+
+            # (4) World coords for the active subset only — float64 to match
+            # the chunk-outer / frame-inner reference exactly at boundary
+            # voxels (float32 introduced sub-pixel drift that flipped a
+            # handful of u, v lookups near image edges).
+            xs = bbox_min_f64[0] + gi.astype(np.float64) * voxel_size_f64
+            ys = bbox_min_f64[1] + gj.astype(np.float64) * voxel_size_f64
+            zs = bbox_min_f64[2] + gk.astype(np.float64) * voxel_size_f64
+            ones = np.ones_like(xs, dtype=np.float64)
+            centers_h = np.stack([xs, ys, zs, ones], axis=0)  # (4, M)
+
+            # (5) Project.
+            cam = T_cw @ centers_h  # (4, M)
+            x_cam = cam[0]
+            y_cam = cam[1]
+            z_cam = cam[2]
             if flip_yz:
-                cam = cam * np.array([1.0, -1.0, -1.0])
-            z = cam[:, 2]
-            in_z = (z >= near) & (z <= max_depth)
-            z_safe = np.where(in_z, z, 1.0)
-            u = K_i[0, 0] * cam[:, 0] / z_safe + K_i[0, 2]
-            v = K_i[1, 1] * cam[:, 1] / z_safe + K_i[1, 2]
-            in_image = (u >= 0) & (u < W) & (v >= 0) & (v < H)
+                y_cam = -y_cam
+                z_cam = -z_cam
+
+            in_z = (z_cam >= near_f64) & (z_cam <= max_depth_f64_bounds)
+            z_safe = np.where(in_z, z_cam, 1.0)
+            u = fx * x_cam / z_safe + cx
+            v_pix = fy * y_cam / z_safe + cy
+            in_image = (u >= 0) & (u < W) & (v_pix >= 0) & (v_pix < H)
 
             ui = np.clip(np.floor(u).astype(np.int64), 0, W - 1)
-            vi = np.clip(np.floor(v).astype(np.int64), 0, H - 1)
+            vi = np.clip(np.floor(v_pix).astype(np.int64), 0, H - 1)
             d_pix = depth_i[vi, ui]
-            valid_d = np.isfinite(d_pix) & (d_pix > 0)
-            if depth_max is not None:
-                valid_d &= d_pix <= float(depth_max)
+            valid_d = np.isfinite(d_pix) & (d_pix > 0.0)
+            if depth_max_f64 is not None:
+                valid_d &= d_pix <= depth_max_f64
 
-            in_front = z <= d_pix + truncation
+            in_front = z_cam <= d_pix + truncation_f64
 
-            chunk_visible |= in_z & in_image & valid_d & in_front
-
-        visible.flat[chunk_start:chunk_end] = chunk_visible
+            new_v = in_z & in_image & valid_d & in_front
+            if new_v.any():
+                visible[gi[new_v], gj[new_v], gk[new_v]] = True
 
     return visible
 
@@ -373,9 +481,9 @@ def from_depth(
 
     Two-stage TSDF-style carving:
 
-    1. Bbox = union of camera frustum corners across selected frames, padded
-       by ``margin``. ``near`` and ``max_depth`` set the frustum near / far
-       planes used for the corner construction.
+    1. Bbox = union of selected valid depth samples back-projected to world
+       space, padded by ``margin``. ``depth_max`` / ``max_depth`` discards
+       far samples before bbox construction.
     2. Each voxel centre is projected through every selected camera. The
        voxel is visible if it lands inside the frustum and its camera-frame
        Z is ``≤ depth_at_pixel + truncation``. ``truncation`` defaults to
@@ -403,24 +511,19 @@ def from_depth(
     )
     Ks = [Ks_full[i] for i in idx]
 
-    # Stage 1: bbox from frustum corners.
-    corner_chunks = []
-    for n, i in enumerate(idx):
-        T_wc = _to_T_wc(poses[i], pose_convention)
-        H, W = np.asarray(depth_maps[i]).shape
-        corner_chunks.append(
-            _frustum_corners_world(
-                Ks[n],
-                T_wc,
-                image_size=(W, H),
-                near=near,
-                far=max_depth,
-                camera_frame=camera_frame,
-            )
-        )
-    pts = np.concatenate(corner_chunks, axis=0)
-    bbox_min = pts.min(0) - margin
-    bbox_max = pts.max(0) + margin
+    # Stage 1: bbox from observed depth samples.
+    bbox_depth_max = float(depth_max) if depth_max is not None else float(max_depth)
+    bbox_min, bbox_max = _depth_bbox_world(
+        idx=idx,
+        depth_maps=depth_maps,
+        Ks=Ks,
+        poses=poses,
+        pose_convention=pose_convention,
+        camera_frame=camera_frame,
+        depth_scale=depth_scale,
+        depth_max=bbox_depth_max,
+        margin=margin,
+    )
     extent = bbox_max - bbox_min
     if (extent <= 0).any():
         raise ValueError(f"bbox has non-positive extent {extent}")
@@ -551,22 +654,18 @@ def from_rendered(
         # Easiest: pre-store the OpenGL T_wc, declare convention "T_wc"+frame "opengl".
         poses_for_carve[i] = pose_gl_list[n]
 
-    # Stage 1: bbox from frustum corners (using pyrender's OpenGL poses).
-    corner_chunks = []
-    for n, i in enumerate(idx):
-        corner_chunks.append(
-            _frustum_corners_world(
-                Ks[n],
-                pose_gl_list[n],
-                image_size=(W, H),
-                near=near,
-                far=max_depth,
-                camera_frame="opengl",
-            )
-        )
-    pts = np.concatenate(corner_chunks, axis=0)
-    bbox_min = pts.min(0) - margin
-    bbox_max = pts.max(0) + margin
+    # Stage 1: bbox from rendered depth samples.
+    bbox_min, bbox_max = _depth_bbox_world(
+        idx=idx,
+        depth_maps=depth_seq,
+        Ks=Ks,
+        poses=poses_for_carve,
+        pose_convention="T_wc",
+        camera_frame="opengl",
+        depth_scale=1.0,
+        depth_max=max_depth,
+        margin=margin,
+    )
     extent = bbox_max - bbox_min
     if (extent <= 0).any():
         raise ValueError(f"bbox has non-positive extent {extent}")
