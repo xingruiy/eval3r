@@ -10,7 +10,11 @@ import typer
 
 from eval3r.io.geometry import load_mesh, load_point_cloud
 
-app = typer.Typer(no_args_is_help=True, add_completion=False)
+app = typer.Typer(
+    no_args_is_help=True,
+    add_completion=False,
+    context_settings={"help_option_names": ["-h", "--help"]},
+)
 
 
 def _load_pose(path: str | None) -> np.ndarray | None:
