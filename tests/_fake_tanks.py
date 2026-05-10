@@ -34,9 +34,6 @@ def make_tanks_scene(root: Path, scene_id: str) -> Path:
         lines.append(f"{i} {i} 0")
         lines.extend(" ".join(f"{x:.12f}" for x in row) for row in T)
     pose_log.write_text("\n".join(lines) + "\n")
-    # Intrinsics
-    K = np.array([[500.0, 0.0, 320.0], [0.0, 500.0, 240.0], [0.0, 0.0, 1.0]])
-    np.savetxt(sd / "intrinsics.txt", K, fmt="%.6f")
     return sd
 
 
