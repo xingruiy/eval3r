@@ -15,6 +15,8 @@ def save_debug_plot(
     out_path: str,
     align_mode: str,
     scale: float,
+    rotation: np.ndarray | None = None,
+    translation: np.ndarray | None = None,
     pred_poses: np.ndarray | None = None,
     gt_poses: np.ndarray | None = None,
     pred_convention: str = "unspecified",
@@ -82,6 +84,15 @@ def save_debug_plot(
     if pred_poses is not None and gt_poses is not None:
         from eval3r.align.trajectory import cam_positions
 
+        if pred_convention not in ("T_wc", "T_cw") or gt_convention not in ("T_wc", "T_cw"):
+            # Pose metadata can be present for non-trajectory workflows where
+            # conventions are intentionally unspecified; keep the debug plot
+            # for point clouds and skip camera overlays in that case.
+            pred_poses = None
+            gt_poses = None
+
+    if pred_poses is not None and gt_poses is not None:
+
         def _cam_dirs(poses: np.ndarray, convention: str) -> np.ndarray:
             poses = np.asarray(poses, dtype=np.float64)
             R = poses[:, :3, :3]
@@ -97,6 +108,11 @@ def save_debug_plot(
         gt_centers = cam_positions(gt_poses, gt_convention)
         pred_dirs = _cam_dirs(pred_poses, pred_convention)
         gt_dirs = _cam_dirs(gt_poses, gt_convention)
+
+        R = np.eye(3) if rotation is None else np.asarray(rotation, dtype=np.float64)
+        t = np.zeros(3) if translation is None else np.asarray(translation, dtype=np.float64)
+        pred_centers = (scale * pred_centers @ R.T) + t
+        pred_dirs = pred_dirs @ R.T
 
         if matched_pred_idx is None or matched_gt_idx is None:
             n = min(len(pred_centers), len(gt_centers))

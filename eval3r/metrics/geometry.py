@@ -179,6 +179,8 @@ def evaluate_geometry(
             debug_plot_path,
             align_mode,
             al.scale,
+            rotation=al.rotation,
+            translation=al.translation,
             pred_poses=pred_poses,
             gt_poses=gt_poses,
             pred_convention=pred_convention,
