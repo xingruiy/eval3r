@@ -68,3 +68,27 @@ def test_align_sim3_avoids_scale_collapse(rng) -> None:
 
     res = align(src, tgt, mode="sim3")
     assert res.scale == pytest.approx(1.0, abs=0.05)
+
+
+def test_traj_alignment_records_timestamp_matches() -> None:
+    pred = np.repeat(np.eye(4)[None, ...], 3, axis=0)
+    pred[:, 0, 3] = np.array([0.0, 1.0, 2.0])
+    gt = np.repeat(np.eye(4)[None, ...], 5, axis=0)
+    gt[:, 0, 3] = np.array([0.0, 0.4, 1.1, 1.9, 3.0])
+    pred_ts = np.array([0.0, 1.0, 2.0])
+    gt_ts = np.array([0.0, 0.4, 1.1, 1.9, 3.0])
+
+    res = align(
+        np.zeros((3, 3)),
+        np.zeros((3, 3)),
+        mode="traj_sim3",
+        pred_poses=pred,
+        gt_poses=gt,
+        pred_convention="T_wc",
+        gt_convention="T_wc",
+        pred_timestamps=pred_ts,
+        gt_timestamps=gt_ts,
+    )
+
+    assert np.array_equal(res.matched_pred_idx, np.array([0, 1, 2]))
+    assert np.array_equal(res.matched_gt_idx, np.array([0, 2, 3]))

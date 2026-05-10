@@ -172,7 +172,22 @@ def evaluate_geometry(
     if debug_plot_path is not None:
         from eval3r.utils.debug_plot import save_debug_plot
 
-        save_debug_plot(pred_pts, gt_pts, pred_aligned, debug_plot_path, align_mode, al.scale)
+        save_debug_plot(
+            pred_pts,
+            gt_pts,
+            pred_aligned,
+            debug_plot_path,
+            align_mode,
+            al.scale,
+            rotation=al.rotation,
+            translation=al.translation,
+            pred_poses=pred_poses,
+            gt_poses=gt_poses,
+            pred_convention=pred_convention,
+            gt_convention=gt_convention,
+            matched_pred_idx=al.matched_pred_idx,
+            matched_gt_idx=al.matched_gt_idx,
+        )
 
     # --- occlusion mask filtering ---
     n_visible = len(pred_aligned)
