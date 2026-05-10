@@ -48,6 +48,13 @@ def test_load_point_cloud(adapter: TanksTemplesAdapter) -> None:
 def test_load_intrinsics(adapter: TanksTemplesAdapter) -> None:
     K = adapter.load_intrinsics("Barn")
     assert K.shape == (3, 3)
+    np.testing.assert_allclose(
+        K,
+        np.array(
+            [[2.8, 0.0, 2.0], [0.0, 2.8, 2.0], [0.0, 0.0, 1.0]],
+            dtype=np.float64,
+        ),
+    )
     np.testing.assert_allclose(adapter.load_intrinsics_depth("Barn"), K)
     np.testing.assert_allclose(adapter.load_intrinsics_color("Barn"), K)
 

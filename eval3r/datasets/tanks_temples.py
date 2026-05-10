@@ -157,7 +157,9 @@ class TanksTemplesAdapter(DatasetAdapter):
         if asset is Asset.POSES:
             return sd / format_path(self._pose_filename, scene_id=scene_id)
         if asset in (Asset.INTRINSICS, Asset.INTRINSICS_DEPTH, Asset.INTRINSICS_COLOR):
-            return sd / self._intrinsics_filename
+            # Tanks & Temples does not ship canonical intrinsics; these are
+            # synthesized from image size in `load_intrinsics_depth`.
+            return sd / self._image_subdir
         raise NotSupportedError(f"tanks_temples: asset_path({asset}) not implemented")
 
     def _probe_layout(self, scene_id: str) -> None:
