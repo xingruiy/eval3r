@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import inspect
+
 import typer
 from rich.console import Console
 from rich.table import Table
@@ -32,6 +34,23 @@ def show_cmd(
     console.print(f"[bold]{cls.name}[/]")
     console.print("[bold]expected layout:[/]")
     console.print(cls.expected_layout)
+
+    signature = inspect.signature(cls.__init__)
+    defaults = []
+    for param in signature.parameters.values():
+        if param.name in {"self", "root", "split", "validate_on_init"}:
+            continue
+        if param.default is inspect._empty:
+            continue
+        defaults.append((param.name, repr(param.default)))
+
+    if defaults:
+        table = Table(title="default filenames / layout options")
+        table.add_column("option", style="cyan")
+        table.add_column("default", style="white")
+        for key, value in defaults:
+            table.add_row(key, value)
+        console.print(table)
 
 
 @app.command("validate")
