@@ -77,9 +77,19 @@ def test_metric_all_json(tmp_path, gaussian_cloud) -> None:
 def test_dataset_show_lists_default_filenames() -> None:
     result = runner.invoke(app, ["dataset", "show", "scannet"])
     assert result.exit_code == 0
+    assert "├──" in result.stdout or "└──" in result.stdout
+    assert "scene_id" in result.stdout
     assert "default filenames / layout options" in result.stdout
     assert "mesh_filename" in result.stdout
     assert "{scene_id}_vh_clean_2.ply" in result.stdout
+
+
+def test_dataset_show_tree_omits_override_columns_for_long_paths() -> None:
+    result = runner.invoke(app, ["dataset", "show", "dtu"])
+    assert result.exit_code == 0
+    assert "├──" in result.stdout or "└──" in result.stdout
+    assert "<scan_subdir, scan_format, point_cloud_filename>" not in result.stdout
+
 def test_preset_show() -> None:
     result = runner.invoke(app, ["preset", "show", "scannet"])
     assert result.exit_code == 0

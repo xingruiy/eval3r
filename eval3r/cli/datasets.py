@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import inspect
+import re
 
 import typer
 from rich.console import Console
@@ -15,6 +16,31 @@ app = typer.Typer(
     add_completion=False,
     context_settings={"help_option_names": ["-h", "--help"]},
 )
+
+def _layout_as_tree(layout: str) -> str:
+    """Convert expected-layout rows to a tree-style hierarchy."""
+    parts: dict[str, dict] = {}
+    for raw in layout.splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        path = re.sub(r"\s+<[^<>]+>$", "", line).strip()
+        node = parts
+        for segment in path.split("/"):
+            node = node.setdefault(segment, {})
+
+    def _render(node: dict[str, dict], prefix: str = "") -> list[str]:
+        lines: list[str] = []
+        names = list(node.keys())
+        for idx, name in enumerate(names):
+            last = idx == len(names) - 1
+            branch = "└── " if last else "├── "
+            lines.append(f"{prefix}{branch}{name}")
+            child_prefix = f"{prefix}{'    ' if last else '│   '}"
+            lines.extend(_render(node[name], child_prefix))
+        return lines
+
+    return "\n".join(_render(parts))
 
 
 @app.command("list")
@@ -33,7 +59,7 @@ def show_cmd(
     console = Console()
     console.print(f"[bold]{cls.name}[/]")
     console.print("[bold]expected layout:[/]")
-    console.print(cls.expected_layout)
+    console.print(_layout_as_tree(cls.expected_layout))
 
     signature = inspect.signature(cls.__init__)
     defaults = []
