@@ -90,6 +90,17 @@ def test_asset_path_color_uses_1_based_6_digit_ids(adapter: TanksTemplesAdapter)
     p = adapter.asset_path("Barn", Asset.COLOR, frame=0)
     assert p.name == "000001.jpg"
 
+
+
+def test_asset_path_color_format_override_accepts_frame(adapter: TanksTemplesAdapter) -> None:
+    custom = TanksTemplesAdapter(
+        adapter.root,
+        split=adapter._split,
+        color_format="{frame:04d}.jpg",
+        validate_on_init=False,
+    )
+    p = custom.asset_path("Barn", Asset.COLOR, frame=0)
+    assert p.name == "0000.jpg"
 def test_asset_path(adapter: TanksTemplesAdapter) -> None:
     p = adapter.asset_path("Barn", Asset.POINT_CLOUD)
     assert p.name == "Barn.ply"

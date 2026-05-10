@@ -137,12 +137,14 @@ class TanksTemplesAdapter(DatasetAdapter):
         if asset is Asset.POINT_CLOUD:
             return sd / format_path(self._point_cloud_filename, scene_id=scene_id)
         if asset is Asset.COLOR:
+            frame = int(kw["frame"])
             return sd / self._image_subdir / format_path(
-                self._color_format, image_id=int(kw["frame"]) + 1  # type: ignore[arg-type]
+                self._color_format, frame=frame, image_id=frame + 1
             )
         if asset is Asset.DEPTH:
+            frame = int(kw["frame"])
             return sd / self._image_subdir / format_path(
-                self._color_format, image_id=int(kw["frame"]) + 1  # type: ignore[arg-type]
+                self._color_format, frame=frame, image_id=frame + 1
             )
         if asset is Asset.POSES:
             return sd / format_path(self._pose_filename, scene_id=scene_id)
