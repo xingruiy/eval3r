@@ -7,6 +7,10 @@ from eval3r.presets import (
     tum_rgbd,
 )
 
+
+# Back-compat alias exported for star-import users.
+tnt = tanks_temples
+
 PRESETS = {
     "scannet": scannet.SCANNET_PRESET,
     "tum_rgbd": tum_rgbd.TUM_RGBD_PRESET,
