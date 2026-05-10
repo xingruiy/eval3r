@@ -84,6 +84,12 @@ def test_validate_passes(adapter: TanksTemplesAdapter) -> None:
     assert report.ok
 
 
+
+
+def test_asset_path_color_uses_1_based_6_digit_ids(adapter: TanksTemplesAdapter) -> None:
+    p = adapter.asset_path("Barn", Asset.COLOR, frame=0)
+    assert p.name == "000001.jpg"
+
 def test_asset_path(adapter: TanksTemplesAdapter) -> None:
     p = adapter.asset_path("Barn", Asset.POINT_CLOUD)
     assert p.name == "Barn.ply"

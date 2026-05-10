@@ -21,7 +21,7 @@ def make_tanks_scene(root: Path, scene_id: str) -> Path:
     img_dir.mkdir(parents=True, exist_ok=True)
     import imageio.v3 as imageio
     arr = (np.ones((4, 4, 3)) * 128).astype(np.uint8)
-    imageio.imwrite(img_dir / "0000.jpg", arr)
+    imageio.imwrite(img_dir / "000001.jpg", arr)
     # Poses (COLMAP_SfM.log style)
     Ts = []
     for i in range(2):
@@ -31,7 +31,8 @@ def make_tanks_scene(root: Path, scene_id: str) -> Path:
     pose_log = sd / f"{scene_id}_COLMAP_SfM.log"
     lines = []
     for i, T in enumerate(Ts):
-        lines.append(f"{i} {i} 0")
+        idx = i + 1
+        lines.append(f"{idx} {idx} 0")
         lines.extend(" ".join(f"{x:.12f}" for x in row) for row in T)
     pose_log.write_text("\n".join(lines) + "\n")
     # Intrinsics

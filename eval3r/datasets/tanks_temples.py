@@ -66,7 +66,7 @@ class TanksTemplesAdapter(DatasetAdapter):
         split: str | PathLike | None = None,
         point_cloud_filename: str = "{scene_id}.ply",
         image_subdir: str = "image",
-        color_format: str = "{frame:04d}.jpg",
+        color_format: str = "{image_id:06d}.jpg",
         pose_filename: str = "{scene_id}_COLMAP_SfM.log",
         intrinsics_filename: str = "intrinsics.txt",
         subset: str | None = None,
@@ -138,11 +138,11 @@ class TanksTemplesAdapter(DatasetAdapter):
             return sd / format_path(self._point_cloud_filename, scene_id=scene_id)
         if asset is Asset.COLOR:
             return sd / self._image_subdir / format_path(
-                self._color_format, frame=int(kw["frame"])  # type: ignore[arg-type]
+                self._color_format, image_id=int(kw["frame"]) + 1  # type: ignore[arg-type]
             )
         if asset is Asset.DEPTH:
             return sd / self._image_subdir / format_path(
-                self._color_format, frame=int(kw["frame"])  # type: ignore[arg-type]
+                self._color_format, image_id=int(kw["frame"]) + 1  # type: ignore[arg-type]
             )
         if asset is Asset.POSES:
             return sd / format_path(self._pose_filename, scene_id=scene_id)
