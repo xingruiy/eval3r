@@ -86,3 +86,16 @@ def test_validate_no_scenes_reason_includes_layout_hint(tmp_path) -> None:
     report = _Empty(tmp_path).validate()
     assert "auto-discovery returned no scene directories" in report.errors[0]
     assert "expected layout example: <root>/scans/<scene_id>/mesh.ply" in report.errors[0]
+
+
+def test_validate_with_scenes_zero_does_not_trigger_no_scene_failure() -> None:
+    class _OneScene(DatasetAdapter):
+        name = "_one_scene_"
+
+        def list_scenes(self, split=None):
+            return ["scene-1"]
+
+    report = _OneScene().validate(scenes=0)
+    assert report.ok is True
+    assert report.errors == []
+    assert report.checks[0] == ("list_scenes", True, "0 scenes")

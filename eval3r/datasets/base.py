@@ -124,7 +124,7 @@ class DatasetAdapter(ABC):
         except Exception as e:  # pragma: no cover - defensive
             report.add("list_scenes", False, str(e))
             return report
-        if len(ids) == 0:
+        if scenes > 0 and len(ids) == 0:
             report.add("list_scenes", False, self._no_scenes_reason())
             return report
         report.add("list_scenes", True, f"{len(ids)} scenes")
