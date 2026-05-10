@@ -268,4 +268,4 @@ class TanksTemplesAdapter(DatasetAdapter):
             poses_list.append(mat)
         poses = np.stack(poses_list, axis=0)
         timestamps_arr = np.asarray(timestamps, dtype=np.float64)
-        return Trajectory(poses=poses, timestamps=timestamps_arr, convention="T_cw")
+        return Trajectory(poses=poses, timestamps=timestamps_arr, convention="T_wc")

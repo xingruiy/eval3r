@@ -56,7 +56,7 @@ def test_load_poses(adapter: TanksTemplesAdapter) -> None:
     traj = adapter.load_poses("Barn")
     assert isinstance(traj, Trajectory)
     assert traj.poses.shape == (2, 4, 4)
-    assert traj.convention == "T_cw"
+    assert traj.convention == "T_wc"
 
 
 def test_no_mesh_support(adapter: TanksTemplesAdapter) -> None:
