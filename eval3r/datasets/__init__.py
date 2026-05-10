@@ -23,6 +23,7 @@ from eval3r.datasets.tanks_temples import TanksTemplesAdapter
 from eval3r.datasets.generic import GenericAdapter
 
 _REGISTRY: dict[str, Type[DatasetAdapter]] = {}
+_ALIASES: dict[str, str] = {}
 
 
 def register_dataset(cls: Type[DatasetAdapter]) -> Type[DatasetAdapter]:
@@ -33,14 +34,17 @@ def register_dataset(cls: Type[DatasetAdapter]) -> Type[DatasetAdapter]:
 
 
 def get_dataset(name: str) -> Type[DatasetAdapter]:
-    if name not in _REGISTRY:
+    canonical = _ALIASES.get(name, name)
+    if canonical not in _REGISTRY:
+        available = sorted(set(_REGISTRY) | set(_ALIASES))
         raise KeyError(
-            f"unknown dataset: {name!r}. Available: {sorted(_REGISTRY)}"
+            f"unknown dataset: {name!r}. Available: {available}"
         )
-    return _REGISTRY[name]
+    return _REGISTRY[canonical]
 
 
 def list_datasets() -> list[str]:
+    """List canonical dataset names (aliases are accepted by get_dataset)."""
     return sorted(_REGISTRY)
 
 
@@ -52,7 +56,7 @@ register_dataset(DTUAdapter)
 register_dataset(ETH3DAdapter)
 register_dataset(TanksTemplesAdapter)
 # Back-compat alias for short Tanks & Temples id.
-_REGISTRY["tnt"] = TanksTemplesAdapter
+_ALIASES["tnt"] = TanksTemplesAdapter.name
 register_dataset(GenericAdapter)
 
 
