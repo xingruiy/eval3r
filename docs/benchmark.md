@@ -40,7 +40,7 @@ e3r benchmark outputs/scannet \
 
 To reshape an adapter's expected layout (different filenames or subdirs), pass
 `-o key=value` overrides. Each adapter exposes its own knobs — see
-`e3r datasets show <name>` for the list.
+`e3r dataset show <name>` for the list.
 
 ```bash
 e3r benchmark outputs/eth3d --dataset eth3d \

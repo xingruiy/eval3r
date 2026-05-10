@@ -1,4 +1,4 @@
-"""e3r datasets — list, show, validate dataset adapters."""
+"""e3r dataset — list, show, validate dataset adapters."""
 
 from __future__ import annotations
 

@@ -54,14 +54,14 @@ def test_benchmark_scannet_json_out(tmp_path: Path) -> None:
 
 def test_datasets_list_and_validate(tmp_path: Path) -> None:
     ds_root, split, _ = _setup(tmp_path)
-    list_result = runner.invoke(app, ["datasets", "list"])
+    list_result = runner.invoke(app, ["dataset", "list"])
     assert list_result.exit_code == 0
     assert "scannet" in list_result.stdout
 
     val_result = runner.invoke(
         app,
         [
-            "datasets", "validate", "scannet",
+            "dataset", "validate", "scannet",
             "--root", str(ds_root),
             "--split", str(split),
             "--scenes", "1",
@@ -75,7 +75,7 @@ def test_datasets_validate_fails_on_renamed_color(tmp_path: Path) -> None:
     val_result = runner.invoke(
         app,
         [
-            "datasets", "validate", "scannet",
+            "dataset", "validate", "scannet",
             "--root", str(tmp_path / "ds"),
             "--split", str(split),
             "--scenes", "1",
