@@ -60,7 +60,7 @@ Primary commands:
 - `e3r mask ...` — generate/inspect occlusion masks
 - `e3r validate <prediction_dir>` — validate a prediction directory against manifest rules
 - `e3r inspect <prediction_dir>` — inspect a prediction directory summary
-- `e3r datasets ...` and `e3r preset ...` — inspect adapters and presets
+- `e3r dataset ...` and `e3r preset ...` — inspect adapters and presets
 
 ## Quickstart: single-scene geometry evaluation
 
