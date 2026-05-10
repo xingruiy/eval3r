@@ -68,7 +68,6 @@ class TanksTemplesAdapter(DatasetAdapter):
         image_subdir: str = "image",
         color_format: str = "{frame:04d}.jpg",
         pose_filename: str = "{scene_id}_COLMAP_SfM.log",
-        intrinsics_filename: str = "intrinsics.txt",
         subset: str | None = None,
         validate_on_init: bool = True,
     ) -> None:
@@ -80,7 +79,6 @@ class TanksTemplesAdapter(DatasetAdapter):
         self._image_subdir = image_subdir
         self._color_format = color_format
         self._pose_filename = pose_filename
-        self._intrinsics_filename = intrinsics_filename
         self._subset = subset
 
         self._scenes = self._load_split(split)
@@ -147,7 +145,9 @@ class TanksTemplesAdapter(DatasetAdapter):
         if asset is Asset.POSES:
             return sd / format_path(self._pose_filename, scene_id=scene_id)
         if asset in (Asset.INTRINSICS, Asset.INTRINSICS_DEPTH, Asset.INTRINSICS_COLOR):
-            return sd / self._intrinsics_filename
+            # Tanks & Temples does not ship canonical intrinsics; these are
+            # synthesized from image size in `load_intrinsics_depth`.
+            return sd / self._image_subdir
         raise NotSupportedError(f"tanks_temples: asset_path({asset}) not implemented")
 
     def _probe_layout(self, scene_id: str) -> None:
@@ -211,16 +211,30 @@ class TanksTemplesAdapter(DatasetAdapter):
         return self.load_intrinsics_depth(scene_id)
 
     def load_intrinsics_depth(self, scene_id: str) -> np.ndarray:
-        path = self.asset_path(scene_id, Asset.INTRINSICS_DEPTH)
-        if path.exists():
-            K4 = np.loadtxt(path)
-            if K4.shape == (4, 4):
-                return K4[:3, :3].astype(np.float64)
-            if K4.shape == (3, 3):
-                return K4.astype(np.float64)
-        raise MissingArtifactError(
-            f"Tanks & Temples: intrinsics not found at {path}. "
-            f"Pass intrinsics_fx=... to the adapter if intrinsics are known."
+        img_path = self.asset_path(scene_id, Asset.COLOR, frame=0)
+        if not img_path.exists():
+            raise_missing(
+                dataset="Tanks & Temples",
+                asset="color",
+                tried=img_path,
+                overrides=("image_subdir", "color_format"),
+                layout=_LAYOUT,
+            )
+        from eval3r.utils.optional import optional_import
+
+        imageio = optional_import("imageio.v3", extra="render")
+        image = np.asarray(imageio.imread(img_path))
+        if image.ndim < 2:
+            raise MissingArtifactError(
+                f"Tanks & Temples: expected an image-like array at {img_path}, got shape {image.shape}"
+            )
+        height, width = int(image.shape[0]), int(image.shape[1])
+        focal = 0.7 * float(width)
+        cx = float(width) / 2.0
+        cy = float(height) / 2.0
+        return np.array(
+            [[focal, 0.0, cx], [0.0, focal, cy], [0.0, 0.0, 1.0]],
+            dtype=np.float64,
         )
 
     def load_intrinsics_color(self, scene_id: str) -> np.ndarray:
