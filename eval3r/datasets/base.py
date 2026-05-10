@@ -124,6 +124,9 @@ class DatasetAdapter(ABC):
         except Exception as e:  # pragma: no cover - defensive
             report.add("list_scenes", False, str(e))
             return report
+        if len(ids) == 0:
+            report.add("list_scenes", False, self._no_scenes_reason())
+            return report
         report.add("list_scenes", True, f"{len(ids)} scenes")
         for sid in ids:
             for asset in self.supported_assets:
@@ -152,3 +155,30 @@ class DatasetAdapter(ABC):
             self.load_depth(scene_id, 0)
         elif asset is Asset.COLOR:
             self.load_color(scene_id, 0)
+
+    def _no_scenes_reason(self) -> str:
+        """Explain likely causes when no scenes are discoverable."""
+        parts: list[str] = ["0 scenes found"]
+
+        root = getattr(self, "root", None)
+        if isinstance(root, Path):
+            if not root.exists():
+                parts.append(f"dataset root does not exist: {root}")
+            else:
+                parts.append(f"dataset root exists: {root}")
+
+        split = getattr(self, "_split", None)
+        if split is not None:
+            split_path = Path(split)
+            if split_path.exists():
+                parts.append(f"split file is empty or has only blank lines: {split_path}")
+            else:
+                parts.append(f"split file missing: {split_path}")
+        else:
+            parts.append("auto-discovery returned no scene directories")
+
+        if self.expected_layout:
+            layout = self.expected_layout.splitlines()[0].strip()
+            parts.append(f"expected layout example: {layout}")
+
+        return "; ".join(parts)

@@ -56,3 +56,33 @@ def test_default_loaders_raise_not_supported() -> None:
         with pytest.raises(NotSupportedError):
             fn()
     assert ds.supports(Asset.MESH) is False
+
+
+def test_validate_fails_when_no_scenes() -> None:
+    class _Empty(DatasetAdapter):
+        name = "_empty_"
+
+        def list_scenes(self, split=None):
+            return []
+
+    report = _Empty().validate()
+    assert report.ok is False
+    assert any(name == "list_scenes" and ok is False for name, ok, _ in report.checks)
+    assert "0 scenes found" in report.errors[0]
+
+
+def test_validate_no_scenes_reason_includes_layout_hint(tmp_path) -> None:
+    class _Empty(DatasetAdapter):
+        name = "_empty_"
+        expected_layout = "<root>/scans/<scene_id>/mesh.ply"
+
+        def __init__(self, root):
+            self.root = root
+            self._split = None
+
+        def list_scenes(self, split=None):
+            return []
+
+    report = _Empty(tmp_path).validate()
+    assert "auto-discovery returned no scene directories" in report.errors[0]
+    assert "expected layout example: <root>/scans/<scene_id>/mesh.ply" in report.errors[0]
