@@ -21,7 +21,7 @@ def make_tanks_scene(root: Path, scene_id: str) -> Path:
     img_dir.mkdir(parents=True, exist_ok=True)
     import imageio.v3 as imageio
     arr = (np.ones((4, 4, 3)) * 128).astype(np.uint8)
-    imageio.imwrite(img_dir / "0000.jpg", arr)
+    imageio.imwrite(img_dir / "000001.jpg", arr)
     # Poses (COLMAP_SfM.log style)
     Ts = []
     for i in range(2):
