@@ -56,7 +56,7 @@ class TanksTemplesAdapter(DatasetAdapter):
     and advanced subsets. Only training scenes ship ground truth.
     """
 
-    name: ClassVar[str] = "tnt"
+    name: ClassVar[str] = "tanks_temples"
     expected_layout: ClassVar[str] = "\n".join(e.render() for e in _LAYOUT)
 
     def __init__(
@@ -152,7 +152,7 @@ class TanksTemplesAdapter(DatasetAdapter):
             )
         if asset in (Asset.INTRINSICS, Asset.INTRINSICS_DEPTH, Asset.INTRINSICS_COLOR):
             return sd / self._intrinsics_filename
-        raise NotSupportedError(f"tnt: asset_path({asset}) not implemented")
+        raise NotSupportedError(f"tanks_temples: asset_path({asset}) not implemented")
 
     def _probe_layout(self, scene_id: str) -> None:
         pc = self.asset_path(scene_id, Asset.POINT_CLOUD)

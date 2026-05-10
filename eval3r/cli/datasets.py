@@ -20,6 +20,7 @@ _DATASET_INFO: dict[str, tuple[str, str]] = {
     "replica": ("Replica", "https://github.com/facebookresearch/Replica-Dataset"),
     "dtu": ("DTU", "https://roboimagedata.compute.dtu.dk/?page_id=36"),
     "eth3d": ("ETH3D", "https://www.eth3d.net/"),
+    "tanks_temples": ("Tanks & Temples", "https://www.tanksandtemples.org/"),
     "tnt": ("Tanks & Temples", "https://www.tanksandtemples.org/"),
     "generic": ("Generic", "N/A (user-provided layout)"),
 }

@@ -51,6 +51,8 @@ register_dataset(ReplicaAdapter)
 register_dataset(DTUAdapter)
 register_dataset(ETH3DAdapter)
 register_dataset(TanksTemplesAdapter)
+# Back-compat alias for short Tanks & Temples id.
+_REGISTRY["tnt"] = TanksTemplesAdapter
 register_dataset(GenericAdapter)
 
 

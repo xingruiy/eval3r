@@ -14,11 +14,14 @@ from eval3r.utils.errors import NotSupportedError
 
 def test_registry_contains_all_datasets() -> None:
     assert list_datasets() == [
-        "dtu", "eth3d", "generic", "replica", "scannet", "tnt", "tum_rgbd",
+        "dtu", "eth3d", "generic", "replica", "scannet", "tanks_temples", "tnt", "tum_rgbd",
     ]
     for name in list_datasets():
         cls = get_dataset(name)
-        assert cls.name == name
+        if name == "tnt":
+            assert cls.name == "tanks_temples"
+        else:
+            assert cls.name == name
 
 
 def test_unknown_dataset_raises() -> None:
