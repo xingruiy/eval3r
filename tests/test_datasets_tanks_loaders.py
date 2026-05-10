@@ -52,6 +52,14 @@ def test_load_intrinsics(adapter: TanksTemplesAdapter) -> None:
     np.testing.assert_allclose(adapter.load_intrinsics_color("Barn"), K)
 
 
+
+
+def test_load_intrinsics_fallback_from_image_shape(tmp_path: Path) -> None:
+    make_tanks_root(tmp_path, ["Barn"])
+    (tmp_path / "Barn" / "intrinsics.txt").unlink()
+    ds = TanksTemplesAdapter(tmp_path, validate_on_init=False)
+    K = ds.load_intrinsics("Barn")
+    np.testing.assert_allclose(K, np.array([[4.0, 0.0, 2.0], [0.0, 4.0, 2.0], [0.0, 0.0, 1.0]]))
 def test_load_poses(adapter: TanksTemplesAdapter) -> None:
     traj = adapter.load_poses("Barn")
     assert isinstance(traj, Trajectory)

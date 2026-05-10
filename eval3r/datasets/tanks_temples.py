@@ -69,6 +69,10 @@ class TanksTemplesAdapter(DatasetAdapter):
         color_format: str = "{image_id:06d}.jpg",
         pose_filename: str = "{scene_id}_COLMAP_SfM.log",
         intrinsics_filename: str = "intrinsics.txt",
+        intrinsics_fx: float | None = None,
+        intrinsics_fy: float | None = None,
+        intrinsics_cx: float | None = None,
+        intrinsics_cy: float | None = None,
         subset: str | None = None,
         validate_on_init: bool = True,
     ) -> None:
@@ -81,6 +85,10 @@ class TanksTemplesAdapter(DatasetAdapter):
         self._color_format = color_format
         self._pose_filename = pose_filename
         self._intrinsics_filename = intrinsics_filename
+        self._intrinsics_fx = intrinsics_fx
+        self._intrinsics_fy = intrinsics_fy
+        self._intrinsics_cx = intrinsics_cx
+        self._intrinsics_cy = intrinsics_cy
         self._subset = subset
 
         self._scenes = self._load_split(split)
@@ -213,6 +221,13 @@ class TanksTemplesAdapter(DatasetAdapter):
         return self.load_intrinsics_depth(scene_id)
 
     def load_intrinsics_depth(self, scene_id: str) -> np.ndarray:
+        if self._intrinsics_fx is not None:
+            fx = self._intrinsics_fx
+            fy = self._intrinsics_fy if self._intrinsics_fy is not None else fx
+            cx = self._intrinsics_cx if self._intrinsics_cx is not None else 0.0
+            cy = self._intrinsics_cy if self._intrinsics_cy is not None else 0.0
+            return np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1]], dtype=np.float64)
+
         path = self.asset_path(scene_id, Asset.INTRINSICS_DEPTH)
         if path.exists():
             K4 = np.loadtxt(path)
@@ -220,9 +235,24 @@ class TanksTemplesAdapter(DatasetAdapter):
                 return K4[:3, :3].astype(np.float64)
             if K4.shape == (3, 3):
                 return K4.astype(np.float64)
+
+        # Fallback for common Tanks & Temples releases that omit intrinsics.txt.
+        color_path = self.asset_path(scene_id, Asset.COLOR, frame=0)
+        if color_path.exists():
+            from eval3r.utils.optional import optional_import
+
+            imageio = optional_import("imageio.v3", extra="render")
+            image = np.asarray(imageio.imread(color_path))
+            h, w = image.shape[:2]
+            fx = float(max(w, h))
+            fy = fx
+            cx = w / 2.0
+            cy = h / 2.0
+            return np.array([[fx, 0, cx], [0, fy, cy], [0, 0, 1]], dtype=np.float64)
+
         raise MissingArtifactError(
             f"Tanks & Temples: intrinsics not found at {path}. "
-            f"Pass intrinsics_fx=... to the adapter if intrinsics are known."
+            f"Provide intrinsics.txt or pass intrinsics_fx=... (optionally fy/cx/cy)."
         )
 
     def load_intrinsics_color(self, scene_id: str) -> np.ndarray:
