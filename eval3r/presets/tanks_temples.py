@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 TANKS_TEMPLES_PRESET = {
-    "dataset": "tanks_temples",
+    "dataset": "tnt",
     "unit": "m",
     "align": "none",
     "sample_method": "area",

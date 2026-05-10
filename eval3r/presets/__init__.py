@@ -13,7 +13,7 @@ PRESETS = {
     "replica": replica.REPLICA_PRESET,
     "dtu": dtu.DTU_PRESET,
     "eth3d": eth3d.ETH3D_PRESET,
-    "tanks_temples": tanks_temples.TANKS_TEMPLES_PRESET,
+    "tnt": tanks_temples.TANKS_TEMPLES_PRESET,
 }
 
 __all__ = [
@@ -22,6 +22,6 @@ __all__ = [
     "eth3d",
     "replica",
     "scannet",
-    "tanks_temples",
+    "tnt",
     "tum_rgbd",
 ]

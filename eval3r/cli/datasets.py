@@ -14,12 +14,28 @@ app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
 )
 
+_DATASET_INFO: dict[str, tuple[str, str]] = {
+    "scannet": ("ScanNet", "https://www.scan-net.org/"),
+    "tum_rgbd": ("TUM RGB-D", "https://cvg.cit.tum.de/data/datasets/rgbd-dataset"),
+    "replica": ("Replica", "https://github.com/facebookresearch/Replica-Dataset"),
+    "dtu": ("DTU", "https://roboimagedata.compute.dtu.dk/?page_id=36"),
+    "eth3d": ("ETH3D", "https://www.eth3d.net/"),
+    "tnt": ("Tanks & Temples", "https://www.tanksandtemples.org/"),
+    "generic": ("Generic", "N/A (user-provided layout)"),
+}
+
 
 @app.command("list")
 def list_cmd() -> None:
     """List registered dataset adapters."""
+    table = Table(title="registered datasets")
+    table.add_column("short name", style="cyan")
+    table.add_column("full name", style="white")
+    table.add_column("official link", style="blue")
     for name in list_datasets():
-        typer.echo(name)
+        full_name, link = _DATASET_INFO.get(name, (name, "N/A"))
+        table.add_row(name, full_name, link)
+    Console().print(table)
 
 
 @app.command("show")
