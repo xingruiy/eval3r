@@ -87,3 +87,11 @@ def test_validate_passes(adapter: TanksTemplesAdapter) -> None:
 def test_asset_path(adapter: TanksTemplesAdapter) -> None:
     p = adapter.asset_path("Barn", Asset.POINT_CLOUD)
     assert p.name == "Barn.ply"
+
+
+def test_empty_pose_log_raises(tmp_path: Path) -> None:
+    make_tanks_root(tmp_path, ["Barn"])
+    (tmp_path / "Barn" / "Barn_COLMAP_SfM.log").write_text("   \n\n")
+    ds = TanksTemplesAdapter(tmp_path, validate_on_init=False)
+    with pytest.raises(MissingArtifactError, match="pose log is empty"):
+        ds.load_poses("Barn")

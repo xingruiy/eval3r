@@ -237,6 +237,10 @@ class TanksTemplesAdapter(DatasetAdapter):
                 layout=_LAYOUT,
             )
         lines = [ln.strip() for ln in pose_file.read_text().splitlines() if ln.strip()]
+        if not lines:
+            raise MissingArtifactError(
+                f"Tanks & Temples: pose log is empty at {pose_file}"
+            )
         if len(lines) % 5 != 0:
             raise MissingArtifactError(
                 f"Tanks & Temples: pose log {pose_file} expected blocks of 5 lines "
