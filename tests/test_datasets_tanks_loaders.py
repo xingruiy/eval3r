@@ -12,7 +12,7 @@ from eval3r.datasets.tanks_temples import TanksTemplesAdapter
 from eval3r.io.geometry import PointCloudData
 from eval3r.io.trajectory import Trajectory
 from eval3r.utils.errors import MissingArtifactError, NotSupportedError
-from tests._fake_tanks import make_tanks_root
+from tests._fake_tanks import _DEFAULT_ALIGNMENT, make_tanks_root, make_tanks_scene
 
 
 @pytest.fixture
@@ -64,6 +64,44 @@ def test_load_poses(adapter: TanksTemplesAdapter) -> None:
     assert isinstance(traj, Trajectory)
     assert traj.poses.shape == (2, 4, 4)
     assert traj.convention == "T_wc"
+    # The fixture writes _trans.txt = +10 m in X (see _DEFAULT_ALIGNMENT) and
+    # raw T_wc translations [i*0.01, 0, 0]. After SfM→laser alignment the
+    # camera centers should be the raw centers shifted by +10 m in X.
+    expected = np.array([[10.0, 0.0, 0.0], [10.01, 0.0, 0.0]], dtype=np.float64)
+    np.testing.assert_allclose(traj.poses[:, :3, 3], expected)
+
+
+def test_load_poses_disabled_alignment(tmp_path: Path) -> None:
+    split = make_tanks_root(tmp_path, ["Barn"])
+    ds = TanksTemplesAdapter(
+        tmp_path, split=split, alignment_filename="", validate_on_init=False
+    )
+    traj = ds.load_poses("Barn")
+    raw = np.array([[0.0, 0.0, 0.0], [0.01, 0.0, 0.0]], dtype=np.float64)
+    np.testing.assert_allclose(traj.poses[:, :3, 3], raw)
+
+
+def test_load_poses_missing_alignment_raises(tmp_path: Path) -> None:
+    make_tanks_scene(tmp_path, "Barn", alignment="skip")
+    ds = TanksTemplesAdapter(tmp_path, validate_on_init=False)
+    with pytest.raises(MissingArtifactError, match="alignment"):
+        ds.load_poses("Barn")
+
+
+def test_load_poses_malformed_alignment_raises(tmp_path: Path) -> None:
+    make_tanks_scene(tmp_path, "Barn")
+    # Overwrite with a 3x3 matrix to force the shape check.
+    (tmp_path / "Barn" / "Barn_trans.txt").write_text(
+        "1 0 0\n0 1 0\n0 0 1\n"
+    )
+    ds = TanksTemplesAdapter(tmp_path, validate_on_init=False)
+    with pytest.raises(MissingArtifactError, match="expected 4x4"):
+        ds.load_poses("Barn")
+
+
+def test_load_poses_uses_default_alignment_matrix() -> None:
+    # Sanity check that the fixture's documented translation is what we expect.
+    np.testing.assert_allclose(_DEFAULT_ALIGNMENT[:3, 3], [10.0, 0.0, 0.0])
 
 
 def test_no_mesh_support(adapter: TanksTemplesAdapter) -> None:

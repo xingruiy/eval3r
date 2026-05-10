@@ -3,13 +3,32 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Literal
 
 import numpy as np
 
 from eval3r.io.geometry import save_point_cloud_ply
 
+# Default fixture alignment: +10 m translation in X. Non-identity so tests
+# can verify load_poses() actually applied it; simple enough that the
+# expected aligned camera center is `raw + [10, 0, 0]` per frame.
+_DEFAULT_ALIGNMENT: np.ndarray = np.array(
+    [
+        [1.0, 0.0, 0.0, 10.0],
+        [0.0, 1.0, 0.0, 0.0],
+        [0.0, 0.0, 1.0, 0.0],
+        [0.0, 0.0, 0.0, 1.0],
+    ],
+    dtype=np.float64,
+)
 
-def make_tanks_scene(root: Path, scene_id: str) -> Path:
+
+def make_tanks_scene(
+    root: Path,
+    scene_id: str,
+    *,
+    alignment: np.ndarray | Literal["skip"] | None = None,
+) -> Path:
     sd = root / scene_id
     sd.mkdir(parents=True, exist_ok=True)
     points = np.array(
@@ -34,6 +53,11 @@ def make_tanks_scene(root: Path, scene_id: str) -> Path:
         lines.append(f"{i} {i} 0")
         lines.extend(" ".join(f"{x:.12f}" for x in row) for row in T)
     pose_log.write_text("\n".join(lines) + "\n")
+    # Alignment matrix ({scene}_trans.txt is the SfM→laser registration
+    # shipped with T&T training scenes). Pass alignment="skip" to omit.
+    if alignment != "skip":
+        mat = _DEFAULT_ALIGNMENT if alignment is None else np.asarray(alignment, dtype=np.float64)
+        np.savetxt(sd / f"{scene_id}_trans.txt", mat)
     return sd
 
 

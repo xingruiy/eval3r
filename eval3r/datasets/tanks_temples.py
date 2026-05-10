@@ -27,6 +27,10 @@ _LAYOUT: list[LayoutEntry] = [
         path="<root>/<scene_name>/<pose_filename>",
         overrides=("pose_filename",),
     ),
+    LayoutEntry(
+        path="<root>/<scene_name>/<alignment_filename>",
+        overrides=("alignment_filename",),
+    ),
 ]
 
 _TRAINING_SCENES = [
@@ -68,6 +72,7 @@ class TanksTemplesAdapter(DatasetAdapter):
         image_subdir: str = "image",
         color_format: str = "{frame:06d}.jpg",
         pose_filename: str = "{scene_id}_COLMAP_SfM.log",
+        alignment_filename: str = "{scene_id}_trans.txt",
         subset: str | None = None,
         validate_on_init: bool = True,
     ) -> None:
@@ -79,6 +84,7 @@ class TanksTemplesAdapter(DatasetAdapter):
         self._image_subdir = image_subdir
         self._color_format = color_format
         self._pose_filename = pose_filename
+        self._alignment_filename = alignment_filename
         self._subset = subset
 
         self._scenes = self._load_split(split)
@@ -160,6 +166,28 @@ class TanksTemplesAdapter(DatasetAdapter):
                 overrides=("point_cloud_filename",),
                 layout=_LAYOUT,
             )
+
+    def _load_alignment(self, scene_id: str) -> np.ndarray | None:
+        # Empty filename ⇒ caller has opted out of SfM→laser alignment.
+        if not self._alignment_filename:
+            return None
+        path = self._scene_dir(scene_id) / format_path(
+            self._alignment_filename, scene_id=scene_id
+        )
+        if not path.exists():
+            raise_missing(
+                dataset="Tanks & Temples",
+                asset="alignment (pass alignment_filename='' to skip)",
+                tried=path,
+                overrides=("alignment_filename",),
+                layout=_LAYOUT,
+            )
+        mat = np.loadtxt(path, dtype=np.float64)
+        if mat.shape != (4, 4):
+            raise MissingArtifactError(
+                f"Tanks & Temples: alignment matrix at {path} expected 4x4, got {mat.shape}"
+            )
+        return mat
 
     # ------------------------------------------------------------------
     # loaders
@@ -282,4 +310,12 @@ class TanksTemplesAdapter(DatasetAdapter):
             poses_list.append(mat)
         poses = np.stack(poses_list, axis=0)
         timestamps_arr = np.asarray(timestamps, dtype=np.float64)
+        # The .log poses live in the COLMAP/SfM world; the GT .ply lives in
+        # the laser-scan world. T&T ships a per-scene SfM→laser transform
+        # (`{scene}_trans.txt`) used by the official toolkit's
+        # `mesh.transform(gt_trans)` step. Apply it here so cameras and the
+        # GT cloud share a frame.
+        T_align = self._load_alignment(scene_id)
+        if T_align is not None:
+            poses = T_align @ poses
         return Trajectory(poses=poses, timestamps=timestamps_arr, convention="T_wc")
