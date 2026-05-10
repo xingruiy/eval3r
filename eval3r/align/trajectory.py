@@ -67,6 +67,9 @@ def align_trajectory(
     pred_pos = cam_positions(pred_poses, pred_convention)
     gt_pos = cam_positions(gt_poses, gt_convention)
 
+    pred_idx = np.arange(pred_pos.shape[0])
+    gt_idx = np.arange(gt_pos.shape[0])
+
     if pred_pos.shape[0] != gt_pos.shape[0]:
         if pred_timestamps is None or gt_timestamps is None:
             raise ValueError(
@@ -81,7 +84,11 @@ def align_trajectory(
         pred_pos = pred_pos[pred_idx]
         gt_pos = gt_pos[gt_idx]
 
+    matched_pred_idx = pred_idx
+    matched_gt_idx = gt_idx
     umeyama_mode: Literal["se3", "sim3"] = "sim3" if mode == "traj_sim3" else "se3"
     result = umeyama(pred_pos, gt_pos, mode=umeyama_mode)
     result.mode = mode
+    result.matched_pred_idx = matched_pred_idx
+    result.matched_gt_idx = matched_gt_idx
     return result

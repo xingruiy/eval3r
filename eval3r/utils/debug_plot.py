@@ -15,6 +15,12 @@ def save_debug_plot(
     out_path: str,
     align_mode: str,
     scale: float,
+    pred_poses: np.ndarray | None = None,
+    gt_poses: np.ndarray | None = None,
+    pred_convention: str = "unspecified",
+    gt_convention: str = "unspecified",
+    matched_pred_idx: np.ndarray | None = None,
+    matched_gt_idx: np.ndarray | None = None,
     *,
     max_points: int = 2000,
 ) -> None:
@@ -72,6 +78,47 @@ def save_debug_plot(
     ax.set_zlabel("Z")
     ax.set_title(f"Alignment: {align_mode}  |  scale = {scale:.4f}")
     ax.legend(loc="upper right")
+
+    if pred_poses is not None and gt_poses is not None:
+        from eval3r.align.trajectory import cam_positions
+
+        def _cam_dirs(poses: np.ndarray, convention: str) -> np.ndarray:
+            poses = np.asarray(poses, dtype=np.float64)
+            R = poses[:, :3, :3]
+            if convention == "T_wc":
+                return R[:, :, 2]
+            if convention == "T_cw":
+                return R.transpose(0, 2, 1)[:, :, 2]
+            raise ValueError(
+                f"Unknown pose convention: {convention!r}; expected 'T_wc' or 'T_cw'"
+            )
+
+        pred_centers = cam_positions(pred_poses, pred_convention)
+        gt_centers = cam_positions(gt_poses, gt_convention)
+        pred_dirs = _cam_dirs(pred_poses, pred_convention)
+        gt_dirs = _cam_dirs(gt_poses, gt_convention)
+
+        if matched_pred_idx is None or matched_gt_idx is None:
+            n = min(len(pred_centers), len(gt_centers))
+            matched_pred_idx = np.arange(n)
+            matched_gt_idx = np.arange(n)
+
+        p = pred_centers[matched_pred_idx]
+        g = gt_centers[matched_gt_idx]
+        pd = pred_dirs[matched_pred_idx]
+        gd = gt_dirs[matched_gt_idx]
+        frustum_len = max(half_span * 0.05, 0.02)
+
+        for c, d in zip(p, pd):
+            tip = c + frustum_len * d
+            ax.plot([c[0], tip[0]], [c[1], tip[1]], [c[2], tip[2]], c="#1f77b4", alpha=0.8)
+            ax.scatter(c[0], c[1], c[2], c="#1f77b4", s=14, alpha=0.8)
+        for c, d in zip(g, gd):
+            tip = c + frustum_len * d
+            ax.plot([c[0], tip[0]], [c[1], tip[1]], [c[2], tip[2]], c="#2ca02c", alpha=0.8)
+            ax.scatter(c[0], c[1], c[2], c="#2ca02c", s=14, alpha=0.8)
+        for pc, gc in zip(p, g):
+            ax.plot([pc[0], gc[0]], [pc[1], gc[1]], [pc[2], gc[2]], c="#e67e22", alpha=0.4, lw=0.7)
 
     fig.tight_layout()
     fig.savefig(out_path, dpi=150)

@@ -21,6 +21,8 @@ class AlignResult:
     rotation: np.ndarray  # (3, 3)
     translation: np.ndarray  # (3,)
     mode: str
+    matched_pred_idx: np.ndarray | None = None
+    matched_gt_idx: np.ndarray | None = None
 
     def transform(self, points: Points) -> Points:
         pts = np.asarray(points, dtype=np.float64)
