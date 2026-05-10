@@ -20,12 +20,12 @@ _LAYOUT: list[LayoutEntry] = [
         overrides=("point_cloud_filename",),
     ),
     LayoutEntry(
-        path="<root>/<scene_name>/images/<color_format>",
+        path="<root>/<scene_name>/<image_subdir>/<color_format>",
         overrides=("image_subdir", "color_format"),
     ),
     LayoutEntry(
-        path="<root>/<scene_name>/<pose_subdir>/<pose_format>",
-        overrides=("pose_subdir", "pose_format"),
+        path="<root>/<scene_name>/<pose_filename>",
+        overrides=("pose_filename",),
     ),
 ]
 
@@ -64,11 +64,10 @@ class TanksTemplesAdapter(DatasetAdapter):
         root: PathLike,
         *,
         split: str | PathLike | None = None,
-        point_cloud_filename: str = "point_cloud.ply",
-        image_subdir: str = "images",
+        point_cloud_filename: str = "{scene_id}.ply",
+        image_subdir: str = "image",
         color_format: str = "{frame:04d}.jpg",
-        pose_subdir: str = "poses",
-        pose_format: str = "{frame:04d}.txt",
+        pose_filename: str = "{scene_id}_COLMAP_SfM.log",
         intrinsics_filename: str = "intrinsics.txt",
         subset: str | None = None,
         validate_on_init: bool = True,
@@ -80,8 +79,7 @@ class TanksTemplesAdapter(DatasetAdapter):
         self._point_cloud_filename = point_cloud_filename
         self._image_subdir = image_subdir
         self._color_format = color_format
-        self._pose_subdir = pose_subdir
-        self._pose_format = pose_format
+        self._pose_filename = pose_filename
         self._intrinsics_filename = intrinsics_filename
         self._subset = subset
 
@@ -120,7 +118,7 @@ class TanksTemplesAdapter(DatasetAdapter):
             p.name
             for p in self.root.iterdir()
             if p.is_dir()
-            and (p / self._point_cloud_filename).exists()
+            and (p / format_path(self._point_cloud_filename, scene_id=p.name)).exists()
         )
 
     def list_scenes(self, split: str | PathLike | None = None) -> list[str]:
@@ -137,7 +135,7 @@ class TanksTemplesAdapter(DatasetAdapter):
     def asset_path(self, scene_id: str, asset: Asset, **kw: object) -> Path:
         sd = self._scene_dir(scene_id)
         if asset is Asset.POINT_CLOUD:
-            return sd / self._point_cloud_filename
+            return sd / format_path(self._point_cloud_filename, scene_id=scene_id)
         if asset is Asset.COLOR:
             return sd / self._image_subdir / format_path(
                 self._color_format, frame=int(kw["frame"])  # type: ignore[arg-type]
@@ -147,9 +145,7 @@ class TanksTemplesAdapter(DatasetAdapter):
                 self._color_format, frame=int(kw["frame"])  # type: ignore[arg-type]
             )
         if asset is Asset.POSES:
-            return sd / self._pose_subdir / format_path(
-                self._pose_format, frame=int(kw["frame"])  # type: ignore[arg-type]
-            )
+            return sd / format_path(self._pose_filename, scene_id=scene_id)
         if asset in (Asset.INTRINSICS, Asset.INTRINSICS_DEPTH, Asset.INTRINSICS_COLOR):
             return sd / self._intrinsics_filename
         raise NotSupportedError(f"tanks_temples: asset_path({asset}) not implemented")
@@ -231,32 +227,41 @@ class TanksTemplesAdapter(DatasetAdapter):
         return self.load_intrinsics_depth(scene_id)
 
     def load_poses(self, scene_id: str) -> Trajectory:
-        pose_dir = self._scene_dir(scene_id) / self._pose_subdir
-        if not pose_dir.is_dir():
+        pose_file = self.asset_path(scene_id, Asset.POSES)
+        if not pose_file.exists():
             raise_missing(
                 dataset="Tanks & Temples",
                 asset="poses",
-                tried=pose_dir,
-                overrides=("pose_subdir", "pose_format"),
+                tried=pose_file,
+                overrides=("pose_filename",),
                 layout=_LAYOUT,
             )
-        files = sorted(
-            (p for p in pose_dir.iterdir() if p.suffix == ".txt"),
-            key=lambda p: int(p.stem),
-        )
-        if not files:
-            raise_missing(
-                dataset="Tanks & Temples",
-                asset="poses",
-                tried=pose_dir / format_path(self._pose_format, frame=0),
-                overrides=("pose_subdir", "pose_format"),
-                layout=_LAYOUT,
-            )
-        poses = np.stack([np.loadtxt(p) for p in files], axis=0)
-        if poses.shape[1:] != (4, 4):
+        lines = [ln.strip() for ln in pose_file.read_text().splitlines() if ln.strip()]
+        if len(lines) % 5 != 0:
             raise MissingArtifactError(
-                f"Tanks & Temples: pose files in {pose_dir} expected 4x4 matrices, "
-                f"got {poses.shape[1:]}"
+                f"Tanks & Temples: pose log {pose_file} expected blocks of 5 lines "
+                f"(header + 4x4 matrix), got {len(lines)} lines"
             )
-        timestamps = np.array([float(p.stem) for p in files], dtype=np.float64)
-        return Trajectory(poses=poses, timestamps=timestamps, convention="T_cw")
+        poses_list: list[np.ndarray] = []
+        timestamps: list[float] = []
+        for i in range(0, len(lines), 5):
+            hdr = lines[i].split()
+            if len(hdr) < 2:
+                raise MissingArtifactError(
+                    f"Tanks & Temples: malformed pose header at line {i + 1} in {pose_file}"
+                )
+            frame_idx = float(hdr[0])
+            mat = np.array(
+                [[float(x) for x in lines[i + j].split()] for j in range(1, 5)],
+                dtype=np.float64,
+            )
+            if mat.shape != (4, 4):
+                raise MissingArtifactError(
+                    f"Tanks & Temples: pose matrix at block {i // 5} in {pose_file} "
+                    f"expected 4x4, got {mat.shape}"
+                )
+            timestamps.append(frame_idx)
+            poses_list.append(mat)
+        poses = np.stack(poses_list, axis=0)
+        timestamps_arr = np.asarray(timestamps, dtype=np.float64)
+        return Trajectory(poses=poses, timestamps=timestamps_arr, convention="T_cw")

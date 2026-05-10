@@ -86,4 +86,4 @@ def test_validate_passes(adapter: TanksTemplesAdapter) -> None:
 
 def test_asset_path(adapter: TanksTemplesAdapter) -> None:
     p = adapter.asset_path("Barn", Asset.POINT_CLOUD)
-    assert p.name == "point_cloud.ply"
+    assert p.name == "Barn.ply"
