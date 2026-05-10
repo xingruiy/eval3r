@@ -15,20 +15,25 @@ def make_tanks_scene(root: Path, scene_id: str) -> Path:
     points = np.array(
         [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0]], dtype=np.float64
     )
-    save_point_cloud_ply(sd / "point_cloud.ply", points)
+    save_point_cloud_ply(sd / f"{scene_id}.ply", points)
     # Images
-    img_dir = sd / "images"
+    img_dir = sd / "image"
     img_dir.mkdir(parents=True, exist_ok=True)
     import imageio.v3 as imageio
     arr = (np.ones((4, 4, 3)) * 128).astype(np.uint8)
     imageio.imwrite(img_dir / "0000.jpg", arr)
-    # Poses
-    pose_dir = sd / "poses"
-    pose_dir.mkdir(parents=True, exist_ok=True)
+    # Poses (COLMAP_SfM.log style)
+    Ts = []
     for i in range(2):
         T = np.eye(4)
         T[:3, 3] = [i * 0.01, 0, 0]
-        np.savetxt(pose_dir / f"{i:04d}.txt", T, fmt="%.6f")
+        Ts.append(T)
+    pose_log = sd / f"{scene_id}_COLMAP_SfM.log"
+    lines = []
+    for i, T in enumerate(Ts):
+        lines.append(f"{i} {i} 0")
+        lines.extend(" ".join(f"{x:.12f}" for x in row) for row in T)
+    pose_log.write_text("\n".join(lines) + "\n")
     # Intrinsics
     K = np.array([[500.0, 0.0, 320.0], [0.0, 500.0, 240.0], [0.0, 0.0, 1.0]])
     np.savetxt(sd / "intrinsics.txt", K, fmt="%.6f")
