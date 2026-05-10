@@ -17,6 +17,7 @@ from eval3r.utils.errors import EmptyGeometryError
 from eval3r.utils.typing import Points, Poses
 
 if TYPE_CHECKING:
+    from eval3r.io.crop import CropVolume
     from eval3r.metrics.occlusion import OcclusionMask
 
 ChamferVariant = Literal[
@@ -148,6 +149,7 @@ def evaluate_geometry(
     gt_timestamps: np.ndarray | None = None,
     pred_mask: OcclusionMask | None = None,
     gt_mask: OcclusionMask | None = None,
+    crop_volume: "CropVolume | None" = None,
 ) -> GeometryEvalResult:
     """Sample → align → compute chamfer / accuracy / completeness / F-score.
 
@@ -157,6 +159,11 @@ def evaluate_geometry(
     Trajectory-based alignment (``traj_se3`` / ``traj_sim3``) requires
     *pred_poses* and *gt_poses* as ``(T, 4, 4)`` arrays with their
     respective conventions.
+
+    When *crop_volume* is provided, the prediction sample is restricted
+    to the volume **after** alignment (mirrors the *pred_mask* path), so
+    the crop is interpreted in the GT/laser frame regardless of the
+    prediction's input frame.
     """
     pred_pts = sample_points(pred, samples, method=sample_method, seed=seed)
     gt_pts = sample_points(gt, samples, method=sample_method, seed=seed + 1)
@@ -169,11 +176,16 @@ def evaluate_geometry(
     )
     pred_aligned = al.transform(pred_pts) if align_mode != "none" else pred_pts
 
+    if crop_volume is not None:
+        from eval3r.io.crop import crop_points_inside
+
+        inside = crop_points_inside(crop_volume, pred_aligned)
+        pred_aligned = pred_aligned[inside]
+
     if debug_plot_path is not None:
         from eval3r.utils.debug_plot import save_debug_plot
 
         save_debug_plot(
-            pred_pts,
             gt_pts,
             pred_aligned,
             debug_plot_path,

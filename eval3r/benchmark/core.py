@@ -14,6 +14,7 @@ import numpy as np
 from eval3r.align import AlignMode
 from eval3r.benchmark.aggregate import aggregate, aggregate_all
 from eval3r.datasets.base import Asset, DatasetAdapter
+from eval3r.io.crop import CropVolume
 from eval3r.io.geometry import (
     MeshData,
     PointCloudData,
@@ -28,7 +29,7 @@ from eval3r.metrics.geometry import (
 )
 from eval3r.metrics.sampling import SampleMethod
 from eval3r.prediction.discovery import PredictionLocator, ResolvedPrediction
-from eval3r.utils.errors import MissingArtifactError
+from eval3r.utils.errors import MissingArtifactError, NotSupportedError
 from eval3r.utils.logging import get_logger
 from eval3r.utils.typing import PathLike
 
@@ -45,6 +46,22 @@ class BenchmarkConfig:
     chamfer_variant: ChamferVariant = "l1_mean_bidirectional"
     crop_to_gt_bbox: bool = False
     bbox_margin: float = 0.10
+    # If the dataset adapter exposes a per-scene crop volume (e.g. T&T's
+    # ``{scene}.json``), clip the prediction to it before metrics. No-op
+    # for adapters whose ``load_crop_volume`` raises NotSupportedError.
+    crop_to_eval_region: bool = True
+    # If True and the dataset adapter exposes ``load_thresholds(scene_id)``
+    # (e.g. T&T's published per-scene τ), use those instead of
+    # ``cfg.thresholds`` for that scene. When scenes use heterogeneous τ,
+    # the aggregator pools them under canonical ``f`` / ``precision`` /
+    # ``recall`` columns so every scene contributes its own scene-specific
+    # f-score to the same list (matches the official T&T protocol).
+    use_dataset_thresholds: bool = True
+    # Scalar applied to every threshold (per-scene τ from the adapter or
+    # the global ``thresholds`` fallback) before metrics. Useful for
+    # sensitivity studies — e.g. ``threshold_multiplier=2.0`` scores T&T
+    # at 2× the published τ. Set to 1.0 to disable.
+    threshold_multiplier: float = 1.0
     debug_plot: bool = False
     fail_on_missing: bool = False
     workers: int = field(default_factory=lambda: min(8, os.cpu_count() or 1))
@@ -152,6 +169,8 @@ def _evaluate_one(
     gt_poses: np.ndarray | None = None,
     gt_pose_convention: str = "unspecified",
     gt_timestamps: np.ndarray | None = None,
+    crop_volume: CropVolume | None = None,
+    scene_thresholds: tuple[float, ...] | None = None,
     config: BenchmarkConfig | None = None,
 ) -> SceneOutcome:
     if pred_descriptor is None:
@@ -267,7 +286,9 @@ def _evaluate_one(
             seed=config.seed,
             sample_method=config.sample_method,
             align_mode=config.align,
-            thresholds=config.thresholds,
+            thresholds=(
+                scene_thresholds if scene_thresholds is not None else config.thresholds
+            ),
             chamfer_variant=config.chamfer_variant,
             debug_plot_path=debug_plot_path,
             pred_poses=pred_poses,
@@ -278,6 +299,7 @@ def _evaluate_one(
             gt_timestamps=gt_timestamps,
             pred_mask=pred_mask,
             gt_mask=gt_mask,
+            crop_volume=crop_volume,
         )
         return SceneOutcome(
             scene_id=scene_id,
@@ -322,6 +344,16 @@ def run_benchmark(
         raise ValueError(
             f"Invalid mask_mode {cfg.mask_mode!r}; expected one of {get_args(MaskMode)}"
         )
+    if cfg.threshold_multiplier <= 0.0:
+        raise ValueError(
+            f"threshold_multiplier must be positive, got {cfg.threshold_multiplier}"
+        )
+    # Effective fallback thresholds = cfg.thresholds × multiplier. Used
+    # when the adapter doesn't expose per-scene τ, and as the seed list
+    # for the aggregator's pre-seeded f@<thr> columns.
+    effective_default_thresholds = tuple(
+        float(t) * cfg.threshold_multiplier for t in cfg.thresholds
+    )
     loc = locator or PredictionLocator(preds_root=Path(preds_root))
     scenes = dataset.list_scenes(split)
     if split is not None:
@@ -334,7 +366,19 @@ def run_benchmark(
     # state across processes.
     want_traj = isinstance(cfg.align, str) and cfg.align.startswith("traj_")
     gt_asset = _gt_asset(dataset)
-    jobs: list[tuple[str, dict[str, Any] | None, Path | None, Asset, np.ndarray | None, str, np.ndarray | None]] = []
+    jobs: list[
+        tuple[
+            str,
+            dict[str, Any] | None,
+            Path | None,
+            Asset,
+            np.ndarray | None,
+            str,
+            np.ndarray | None,
+            CropVolume | None,
+            tuple[float, ...] | None,
+        ]
+    ] = []
     for sid in scenes:
         rp = loc.resolve(sid)
         if rp is None and cfg.fail_on_missing:
@@ -356,39 +400,76 @@ def run_benchmark(
                 gt_ts_arr = traj.timestamps
             except Exception:
                 pass
-        jobs.append((sid, _pred_descriptor(rp), gt_path, gt_asset, gt_poses_arr, gt_pose_conv, gt_ts_arr))
+        crop_vol: CropVolume | None = None
+        if cfg.crop_to_eval_region and gt_path is not None:
+            try:
+                crop_vol = dataset.load_crop_volume(sid)
+            except NotSupportedError:
+                pass
+            except Exception:
+                # Treat any other resolve failure (missing file, malformed
+                # JSON) the same way per-scene: log via verbose path and
+                # carry on without cropping rather than aborting the run.
+                if cfg.verbose:
+                    _log.info(
+                        "benchmark: %s -> crop volume unavailable", sid
+                    )
+        scene_thr: tuple[float, ...] | None = None
+        if cfg.use_dataset_thresholds and gt_path is not None:
+            try:
+                scene_thr = tuple(
+                    float(t) * cfg.threshold_multiplier
+                    for t in dataset.load_thresholds(sid)
+                )
+            except NotSupportedError:
+                pass
+        # If the adapter didn't supply τ, fall back to the global
+        # thresholds with the multiplier applied. Keeping this in the
+        # job tuple means workers don't need to know about the
+        # multiplier separately.
+        if scene_thr is None and cfg.threshold_multiplier != 1.0:
+            scene_thr = effective_default_thresholds
+        jobs.append(
+            (
+                sid,
+                _pred_descriptor(rp),
+                gt_path,
+                gt_asset,
+                gt_poses_arr,
+                gt_pose_conv,
+                gt_ts_arr,
+                crop_vol,
+                scene_thr,
+            )
+        )
+
+    def _log_outcome(o: SceneOutcome) -> None:
+        _log.info("benchmark: %s -> %s", o.scene_id, o.status)
+        # `failed` is exceptional — always surface the traceback so the
+        # user can act on it. Other statuses are routine; gate their
+        # details behind --verbose to avoid noise on large datasets.
+        if o.status == "failed" and o.error:
+            for line in o.error.rstrip().split("\n"):
+                _log.warning("benchmark:   %s", line)
+        elif cfg.verbose:
+            if o.status == "missing_pred":
+                _log.info("benchmark:   prediction not found")
+            elif o.status == "missing_gt":
+                _log.info("benchmark:   %s", o.gt_path)
 
     outcomes: list[SceneOutcome] = []
     if cfg.workers <= 1 or len(jobs) <= 1:
         for j in jobs:
             outcomes.append(_evaluate_one(*j, cfg))  # type: ignore[arg-type]
             if progress:
-                o = outcomes[-1]
-                _log.info("benchmark: %s -> %s", o.scene_id, o.status)
-                if cfg.verbose:
-                    if o.status == "failed" and o.error:
-                        for line in o.error.rstrip().split("\n"):
-                            _log.info("benchmark:   %s", line)
-                    elif o.status == "missing_pred":
-                        _log.info("benchmark:   prediction not found")
-                    elif o.status == "missing_gt":
-                        _log.info("benchmark:   %s", o.gt_path)
+                _log_outcome(outcomes[-1])
     else:
         with ProcessPoolExecutor(max_workers=cfg.workers) as ex:
             futures = {ex.submit(_evaluate_one, *j, cfg): j[0] for j in jobs}
             for fut in as_completed(futures):
                 outcomes.append(fut.result())
                 if progress:
-                    o = outcomes[-1]
-                    _log.info("benchmark: %s -> %s", o.scene_id, o.status)
-                    if cfg.verbose:
-                        if o.status == "failed" and o.error:
-                            for line in o.error.rstrip().split("\n"):
-                                _log.info("benchmark:   %s", line)
-                        elif o.status == "missing_pred":
-                            _log.info("benchmark:   prediction not found")
-                        elif o.status == "missing_gt":
-                            _log.info("benchmark:   %s", o.gt_path)
+                    _log_outcome(outcomes[-1])
         outcomes.sort(key=lambda o: scenes.index(o.scene_id))
 
     coverage = {
@@ -398,15 +479,37 @@ def run_benchmark(
         "n_missing_gt": sum(1 for o in outcomes if o.status == "missing_gt"),
         "n_failed": sum(1 for o in outcomes if o.status == "failed"),
     }
+
+    # Pool f-score columns across τ values when scenes used heterogeneous
+    # per-scene thresholds (e.g. T&T scene-tau). Pooling collapses all
+    # per-τ buckets into canonical ``f`` / ``precision`` / ``recall`` so
+    # each scene contributes its own scene-τ result to the same list.
+    used_thresholds: set[float] = set(effective_default_thresholds)
+    for j in jobs:
+        st = j[8]  # scene_thresholds slot
+        if st is not None:
+            used_thresholds.update(float(t) for t in st)
+    pooled = (
+        any(j[8] is not None for j in jobs)
+        and any(
+            j[8] is not None and tuple(j[8]) != effective_default_thresholds
+            for j in jobs
+        )
+        and len(used_thresholds) > 1
+    )
+
     return BenchmarkResult(
         dataset=dataset.name,
         split=split_label,
         scenes=outcomes,
-        summary=aggregate(outcomes, thresholds=cfg.thresholds),
+        summary=aggregate(
+            outcomes, thresholds=effective_default_thresholds, pooled=pooled
+        ),
         summary_all=aggregate_all(
             outcomes,
             n_total=len(scenes),
-            thresholds=cfg.thresholds,
+            thresholds=effective_default_thresholds,
+            pooled=pooled,
             distance_default=cfg.missing_distance_default,
             fscore_default=cfg.missing_fscore_default,
         ),
@@ -420,6 +523,10 @@ def run_benchmark(
             "chamfer_variant": cfg.chamfer_variant,
             "crop_to_gt_bbox": cfg.crop_to_gt_bbox,
             "bbox_margin": cfg.bbox_margin,
+            "crop_to_eval_region": cfg.crop_to_eval_region,
+            "use_dataset_thresholds": cfg.use_dataset_thresholds,
+            "threshold_multiplier": cfg.threshold_multiplier,
+            "thresholds_pooled": pooled,
             "workers": cfg.workers,
             "missing_distance_default": cfg.missing_distance_default,
             "missing_fscore_default": cfg.missing_fscore_default,

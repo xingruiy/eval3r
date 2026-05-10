@@ -128,6 +128,9 @@ def _build_config(
     chamfer_variant: str | None,
     crop: bool,
     crop_margin: float,
+    crop_to_eval_region: bool,
+    use_dataset_thresholds: bool,
+    threshold_multiplier: float,
     workers: int | None,
     fail_on_missing: bool,
     missing_distance_default: float,
@@ -179,6 +182,9 @@ def _build_config(
         chamfer_variant=chamfer_value,  # type: ignore[arg-type]
         crop_to_gt_bbox=crop,
         bbox_margin=crop_margin,
+        crop_to_eval_region=crop_to_eval_region,
+        use_dataset_thresholds=use_dataset_thresholds,
+        threshold_multiplier=threshold_multiplier,
         fail_on_missing=fail_on_missing,
         workers=workers if workers is not None else min(8, os.cpu_count() or 1),
         missing_distance_default=missing_distance_default,
@@ -216,6 +222,28 @@ def run_cmd(
     chamfer_variant: str | None = typer.Option(None, "--chamfer-variant"),
     crop: bool = typer.Option(False, "--crop/--no-crop", help="Crop pred to GT bbox."),
     crop_margin: float = typer.Option(0.10, help="Bbox crop margin in metres."),
+    crop_to_eval_region: bool = typer.Option(
+        True,
+        "--crop-eval-region/--no-crop-eval-region",
+        help="If the dataset adapter ships a per-scene crop volume "
+             "(e.g. T&T `{scene}.json`), clip prediction points to it before "
+             "metrics. No-op for datasets without one.",
+    ),
+    use_dataset_thresholds: bool = typer.Option(
+        True,
+        "--dataset-thresholds/--no-dataset-thresholds",
+        help="Use per-scene F-score thresholds from the dataset adapter "
+             "(e.g. T&T scene-specific τ) when available. Falls back to "
+             "--thresholds for adapters without one.",
+    ),
+    threshold_multiplier: float = typer.Option(
+        1.0,
+        "--threshold-multiplier",
+        help="Scalar applied to every threshold (per-scene τ from the "
+             "adapter or the --thresholds fallback). Useful for sensitivity "
+             "studies — e.g. `--threshold-multiplier 2.0` scores T&T at 2× "
+             "the published τ. 1.0 disables.",
+    ),
     workers: int | None = typer.Option(None, help="Process workers; default min(8, ncpu)."),
     missing_distance_default: float = typer.Option(
         1.0,
@@ -331,6 +359,9 @@ def run_cmd(
         chamfer_variant=chamfer_variant,
         crop=crop,
         crop_margin=crop_margin,
+        crop_to_eval_region=crop_to_eval_region,
+        use_dataset_thresholds=use_dataset_thresholds,
+        threshold_multiplier=threshold_multiplier,
         workers=workers,
         fail_on_missing=fail_on_missing,
         missing_distance_default=missing_distance_default,

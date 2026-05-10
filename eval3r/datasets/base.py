@@ -10,6 +10,7 @@ from typing import ClassVar
 
 import numpy as np
 
+from eval3r.io.crop import CropVolume
 from eval3r.io.geometry import MeshData, PointCloudData
 from eval3r.io.trajectory import Trajectory
 from eval3r.utils.errors import NotSupportedError
@@ -106,6 +107,23 @@ class DatasetAdapter(ABC):
 
     def load_poses(self, scene_id: str) -> Trajectory:
         raise NotSupportedError(f"{self.name}: load_poses not supported")
+
+    def load_crop_volume(self, scene_id: str) -> CropVolume:
+        """Per-scene evaluation crop region (e.g. T&T ``{scene}.json``).
+
+        Optional: only datasets that ship a crop file override this.
+        Callers should treat ``NotSupportedError`` as "no crop applies".
+        """
+        raise NotSupportedError(f"{self.name}: load_crop_volume not supported")
+
+    def load_thresholds(self, scene_id: str) -> tuple[float, ...]:
+        """Per-scene F-score thresholds (e.g. T&T's scene-specific τ).
+
+        Optional: only datasets with published per-scene τ override this.
+        Callers should treat ``NotSupportedError`` as "fall back to the
+        global ``BenchmarkConfig.thresholds``".
+        """
+        raise NotSupportedError(f"{self.name}: load_thresholds not supported")
 
     # ------------------------------------------------------------------
     # introspection

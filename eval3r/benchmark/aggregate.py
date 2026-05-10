@@ -33,12 +33,19 @@ def collect_values(
     outcomes: Iterable["SceneOutcome"],
     *,
     thresholds: Iterable[float] = (),
+    pooled: bool = False,
 ) -> dict[str, list[float]]:
     """Return per-metric value lists from ``status == "ok"`` outcomes.
 
-    Threshold-keyed metrics for any threshold listed in ``thresholds`` are
-    pre-seeded as empty lists so the caller can pad them even when zero
-    scenes succeeded.
+    When ``pooled=False`` (default), threshold-keyed metrics for any
+    threshold listed in ``thresholds`` are pre-seeded as empty lists so
+    the caller can pad them even when zero scenes succeeded; columns
+    are emitted as ``f@{thr}`` / ``precision@{thr}`` / ``recall@{thr}``.
+
+    When ``pooled=True`` (used when scenes have heterogeneous τ — e.g.
+    Tanks & Temples per-scene thresholds), every scene contributes its
+    own scene-specific f-score to a single canonical ``f`` /
+    ``precision`` / ``recall`` column regardless of which τ produced it.
     """
     chamfer: list[float] = []
     accuracy: list[float] = []
@@ -64,10 +71,22 @@ def collect_values(
         "accuracy": accuracy,
         "completeness": completeness,
     }
-    for thr in sorted(fscore):
-        out[f"f@{thr}"] = fscore[thr]["f"]
-        out[f"precision@{thr}"] = fscore[thr]["precision"]
-        out[f"recall@{thr}"] = fscore[thr]["recall"]
+    if pooled:
+        flat_f: list[float] = []
+        flat_p: list[float] = []
+        flat_r: list[float] = []
+        for thr in sorted(fscore):
+            flat_f.extend(fscore[thr]["f"])
+            flat_p.extend(fscore[thr]["precision"])
+            flat_r.extend(fscore[thr]["recall"])
+        out["f"] = flat_f
+        out["precision"] = flat_p
+        out["recall"] = flat_r
+    else:
+        for thr in sorted(fscore):
+            out[f"f@{thr}"] = fscore[thr]["f"]
+            out[f"precision@{thr}"] = fscore[thr]["precision"]
+            out[f"recall@{thr}"] = fscore[thr]["recall"]
     return out
 
 
@@ -75,9 +94,10 @@ def aggregate(
     outcomes: list["SceneOutcome"],
     *,
     thresholds: Iterable[float] = (),
+    pooled: bool = False,
 ) -> dict[str, dict[str, float]]:
     """Mean / median / std / n over **successful** outcomes only."""
-    values = collect_values(outcomes, thresholds=thresholds)
+    values = collect_values(outcomes, thresholds=thresholds, pooled=pooled)
     return {name: _stats(vs) for name, vs in values.items()}
 
 
@@ -86,6 +106,7 @@ def aggregate_all(
     *,
     n_total: int,
     thresholds: Iterable[float] = (),
+    pooled: bool = False,
     distance_default: float = 1.0,
     fscore_default: float = 0.0,
 ) -> dict[str, dict[str, float]]:
@@ -97,7 +118,7 @@ def aggregate_all(
     Use this when you want a single number per metric across the whole split
     that penalises missing or failed scenes instead of silently dropping them.
     """
-    values = collect_values(outcomes, thresholds=thresholds)
+    values = collect_values(outcomes, thresholds=thresholds, pooled=pooled)
     padded: dict[str, list[float]] = {}
     for name, vs in values.items():
         default = distance_default if is_distance_metric(name) else fscore_default

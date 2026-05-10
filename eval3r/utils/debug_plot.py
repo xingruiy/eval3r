@@ -9,7 +9,6 @@ from eval3r.utils.typing import Points
 
 
 def save_debug_plot(
-    pred_pts: Points,
     gt_pts: Points,
     pred_aligned: Points,
     out_path: str,
@@ -29,9 +28,10 @@ def save_debug_plot(
     """Downsample and export a 3D scatter plot of aligned prediction vs. GT.
 
     Args:
-        pred_pts: Original prediction points (N, 3).
         gt_pts: Ground-truth points (N, 3).
-        pred_aligned: Aligned prediction points (N, 3).
+        pred_aligned: Aligned prediction points (M, 3). May differ in length
+            from the original sampled prediction when post-alignment filters
+            (crop volume, occlusion mask) drop rows.
         out_path: Output image path (PNG).
         align_mode: Alignment mode label for the title.
         scale: Estimated scale factor for the title.
@@ -40,15 +40,12 @@ def save_debug_plot(
     plt = optional_import("matplotlib.pyplot", extra="render")
     optional_import("mpl_toolkits.mplot3d", extra="render")  # registers '3d' projection
 
-    pred_pts = np.asarray(pred_pts, dtype=np.float64)
     gt_pts = np.asarray(gt_pts, dtype=np.float64)
     pred_aligned = np.asarray(pred_aligned, dtype=np.float64)
 
-    # Downsample
-    if len(pred_pts) > max_points:
+    if len(pred_aligned) > max_points:
         rng = np.random.default_rng(seed=42)
-        idx = rng.choice(len(pred_pts), size=max_points, replace=False)
-        pred_pts = pred_pts[idx]
+        idx = rng.choice(len(pred_aligned), size=max_points, replace=False)
         pred_aligned = pred_aligned[idx]
     if len(gt_pts) > max_points:
         rng = np.random.default_rng(seed=123)

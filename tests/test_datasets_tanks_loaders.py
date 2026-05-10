@@ -9,6 +9,7 @@ import pytest
 
 from eval3r.datasets.base import Asset
 from eval3r.datasets.tanks_temples import TanksTemplesAdapter
+from eval3r.io.crop import CropVolume
 from eval3r.io.geometry import PointCloudData
 from eval3r.io.trajectory import Trajectory
 from eval3r.utils.errors import MissingArtifactError, NotSupportedError
@@ -140,3 +141,62 @@ def test_empty_pose_log_raises(tmp_path: Path) -> None:
     ds = TanksTemplesAdapter(tmp_path, validate_on_init=False)
     with pytest.raises(MissingArtifactError, match="pose log is empty"):
         ds.load_poses("Barn")
+
+
+def test_load_crop_volume(adapter: TanksTemplesAdapter) -> None:
+    vol = adapter.load_crop_volume("Barn")
+    assert isinstance(vol, CropVolume)
+    assert vol.orthogonal_axis == 1  # default fixture uses Y
+    assert vol.axis_min == 0.0
+    assert vol.axis_max == 1.0
+    assert vol.polygon_2d.shape == (4, 2)
+
+
+def test_load_crop_volume_disabled(tmp_path: Path) -> None:
+    split = make_tanks_root(tmp_path, ["Barn"])
+    ds = TanksTemplesAdapter(
+        tmp_path, split=split, crop_filename="", validate_on_init=False
+    )
+    with pytest.raises(NotSupportedError):
+        ds.load_crop_volume("Barn")
+
+
+def test_load_crop_volume_missing(tmp_path: Path) -> None:
+    make_tanks_scene(tmp_path, "Barn", crop="skip")
+    ds = TanksTemplesAdapter(tmp_path, validate_on_init=False)
+    with pytest.raises(MissingArtifactError, match="crop_filename"):
+        ds.load_crop_volume("Barn")
+
+
+def test_other_adapter_no_crop_volume() -> None:
+    # The default DatasetAdapter base says no crop. Use the GenericAdapter
+    # (or any non-T&T adapter) to confirm the soft-default raises.
+    from eval3r.datasets.generic import GenericAdapter
+
+    ds = GenericAdapter.__new__(GenericAdapter)  # bypass __init__ — only need the method
+    ds.name = "generic"  # type: ignore[attr-defined]
+    with pytest.raises(NotSupportedError):
+        ds.load_crop_volume("anything")
+
+
+def test_load_thresholds_training_scenes(adapter: TanksTemplesAdapter) -> None:
+    # Spot-check several scene-specific τ values.
+    assert adapter.load_thresholds("Barn") == (0.01,)
+    assert adapter.load_thresholds("Caterpillar") == (0.005,)
+    assert adapter.load_thresholds("Ignatius") == (0.003,)
+    assert adapter.load_thresholds("Courthouse") == (0.025,)
+
+
+def test_load_thresholds_unknown_scene_raises(adapter: TanksTemplesAdapter) -> None:
+    # Advanced subset has no published τ.
+    with pytest.raises(NotSupportedError, match="published"):
+        adapter.load_thresholds("Auditorium")
+
+
+def test_other_adapter_no_thresholds() -> None:
+    from eval3r.datasets.generic import GenericAdapter
+
+    ds = GenericAdapter.__new__(GenericAdapter)
+    ds.name = "generic"  # type: ignore[attr-defined]
+    with pytest.raises(NotSupportedError):
+        ds.load_thresholds("anything")

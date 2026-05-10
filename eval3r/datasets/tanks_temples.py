@@ -9,6 +9,7 @@ import numpy as np
 
 from eval3r.datasets.base import Asset, DatasetAdapter
 from eval3r.datasets.layout import LayoutEntry, format_path, raise_missing
+from eval3r.io.crop import CropVolume, load_crop_volume_json
 from eval3r.io.geometry import PointCloudData, load_point_cloud
 from eval3r.io.trajectory import Trajectory
 from eval3r.utils.errors import MissingArtifactError, NotSupportedError
@@ -30,6 +31,10 @@ _LAYOUT: list[LayoutEntry] = [
     LayoutEntry(
         path="<root>/<scene_name>/<alignment_filename>",
         overrides=("alignment_filename",),
+    ),
+    LayoutEntry(
+        path="<root>/<scene_name>/<crop_filename>",
+        overrides=("crop_filename",),
     ),
 ]
 
@@ -53,6 +58,20 @@ _SUBSETS: dict[str, list[str]] = {
 }
 
 
+# Official Tanks & Temples per-scene F-score thresholds (metres). Only the
+# training subset has published τ values — intermediate/advanced are scored
+# on the leaderboard, not via the open-source toolkit.
+_SCENES_TAU_DICT: dict[str, float] = {
+    "Barn": 0.01,
+    "Caterpillar": 0.005,
+    "Church": 0.025,
+    "Courthouse": 0.025,
+    "Ignatius": 0.003,
+    "Meetingroom": 0.01,
+    "Truck": 0.005,
+}
+
+
 class TanksTemplesAdapter(DatasetAdapter):
     """Tanks & Temples dataset adapter.
 
@@ -73,6 +92,7 @@ class TanksTemplesAdapter(DatasetAdapter):
         color_format: str = "{frame:06d}.jpg",
         pose_filename: str = "{scene_id}_COLMAP_SfM.log",
         alignment_filename: str = "{scene_id}_trans.txt",
+        crop_filename: str = "{scene_id}.json",
         subset: str | None = None,
         validate_on_init: bool = True,
     ) -> None:
@@ -85,6 +105,7 @@ class TanksTemplesAdapter(DatasetAdapter):
         self._color_format = color_format
         self._pose_filename = pose_filename
         self._alignment_filename = alignment_filename
+        self._crop_filename = crop_filename
         self._subset = subset
 
         self._scenes = self._load_split(split)
@@ -192,6 +213,35 @@ class TanksTemplesAdapter(DatasetAdapter):
     # ------------------------------------------------------------------
     # loaders
     # ------------------------------------------------------------------
+    def load_thresholds(self, scene_id: str) -> tuple[float, ...]:
+        if scene_id not in _SCENES_TAU_DICT:
+            raise NotSupportedError(
+                f"tanks_temples: no published τ for scene {scene_id!r} "
+                f"(only training scenes have one). "
+                f"Available: {sorted(_SCENES_TAU_DICT)}"
+            )
+        return (_SCENES_TAU_DICT[scene_id],)
+
+    def load_crop_volume(self, scene_id: str) -> CropVolume:
+        # Empty filename ⇒ adapter advertises "no crop volume" so the
+        # benchmark layer treats us like adapters without crop support.
+        if not self._crop_filename:
+            raise NotSupportedError(
+                "tanks_temples: crop volume disabled (crop_filename=\"\")"
+            )
+        path = self._scene_dir(scene_id) / format_path(
+            self._crop_filename, scene_id=scene_id
+        )
+        if not path.exists():
+            raise_missing(
+                dataset="Tanks & Temples",
+                asset="crop volume (pass crop_filename='' to skip)",
+                tried=path,
+                overrides=("crop_filename",),
+                layout=_LAYOUT,
+            )
+        return load_crop_volume_json(path)
+
     def load_point_cloud(self, scene_id: str) -> PointCloudData:
         path = self.asset_path(scene_id, Asset.POINT_CLOUD)
         if not path.exists():

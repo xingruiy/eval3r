@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Literal
 
@@ -23,11 +24,30 @@ _DEFAULT_ALIGNMENT: np.ndarray = np.array(
 )
 
 
+# Default fixture crop volume: a unit-cube prism (XZ unit square × Y∈[0,1])
+# that covers the synthetic GT triangle [(0,0,0),(1,0,0),(0,1,0)].
+_DEFAULT_CROP_JSON: dict = {
+    "class_name": "SelectionPolygonVolume",
+    "orthogonal_axis": "Y",
+    "axis_min": 0.0,
+    "axis_max": 1.0,
+    "bounding_polygon": [
+        [0.0, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [1.0, 0.0, 1.0],
+        [0.0, 0.0, 1.0],
+    ],
+    "version_major": 1,
+    "version_minor": 0,
+}
+
+
 def make_tanks_scene(
     root: Path,
     scene_id: str,
     *,
     alignment: np.ndarray | Literal["skip"] | None = None,
+    crop: dict | Literal["skip"] | None = None,
 ) -> Path:
     sd = root / scene_id
     sd.mkdir(parents=True, exist_ok=True)
@@ -58,6 +78,11 @@ def make_tanks_scene(
     if alignment != "skip":
         mat = _DEFAULT_ALIGNMENT if alignment is None else np.asarray(alignment, dtype=np.float64)
         np.savetxt(sd / f"{scene_id}_trans.txt", mat)
+    # Crop volume ({scene}.json is the Open3D SelectionPolygonVolume the
+    # T&T eval toolkit uses to clip predictions). Pass crop="skip" to omit.
+    if crop != "skip":
+        payload = _DEFAULT_CROP_JSON if crop is None else crop
+        (sd / f"{scene_id}.json").write_text(json.dumps(payload))
     return sd
 
 
