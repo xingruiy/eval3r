@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import inspect
+import re
 
 import typer
 from rich.console import Console
@@ -23,7 +24,7 @@ def _layout_as_tree(layout: str) -> str:
         line = raw.strip()
         if not line:
             continue
-        path = line.split("  <", 1)[0].strip()
+        path = re.sub(r"\s+<[^<>]+>$", "", line).strip()
         node = parts
         for segment in path.split("/"):
             node = node.setdefault(segment, {})
