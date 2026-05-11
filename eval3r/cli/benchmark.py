@@ -16,7 +16,7 @@ from eval3r.benchmark import BenchmarkConfig, run_benchmark
 from eval3r.datasets import get_dataset
 from eval3r.datasets.base import Asset, DatasetAdapter
 from eval3r.datasets.generic import GenericAdapter
-from eval3r.metrics.geometry import ChamferVariant, MaskMode
+from eval3r.metrics.geometry import ChamferVariant
 from eval3r.prediction.discovery import PredictionLocator
 from eval3r.presets import PRESETS
 
@@ -141,9 +141,8 @@ def _build_config(
     pred_pose_convention: str,
     verbose: bool,
     mask_dir: str | None,
-    mask_name: str,
-    t_mask_scene_name: str,
-    mask_mode: str,
+    mask_pattern: str,
+    t_mask_scene_pattern: str,
 ) -> BenchmarkConfig:
     """Merge CLI options with preset defaults into a BenchmarkConfig.
 
@@ -172,8 +171,10 @@ def _build_config(
         raise typer.BadParameter(f"--align must be one of {get_args(AlignMode)}")
     if chamfer_value not in get_args(ChamferVariant):
         raise typer.BadParameter(f"--chamfer-variant must be one of {get_args(ChamferVariant)}")
-    if mask_mode not in get_args(MaskMode):
-        raise typer.BadParameter(f"--mask-mode must be one of {get_args(MaskMode)}")
+    if Path(mask_pattern).is_absolute():
+        raise typer.BadParameter("--mask-pattern must be relative to --mask-dir")
+    if Path(t_mask_scene_pattern).is_absolute():
+        raise typer.BadParameter("--t-mask-scene-pattern must be relative to --mask-dir")
     return BenchmarkConfig(
         samples=samples if samples is not None else defaults["samples"],
         seed=seed if seed is not None else defaults["seed"],
@@ -195,9 +196,8 @@ def _build_config(
         pred_pose_convention=pred_pose_convention,
         verbose=verbose,
         mask_dir=mask_dir,
-        mask_name=mask_name,
-        t_mask_scene_name=t_mask_scene_name,
-        mask_mode=mask_mode,  # type: ignore[arg-type]
+        mask_pattern=mask_pattern,
+        t_mask_scene_pattern=t_mask_scene_pattern,
     )
 
 
@@ -312,17 +312,16 @@ def run_cmd(
     ),
     mask_dir: str | None = typer.Option(
         None, "--mask-dir",
-        help="Directory with per-scene subdirs containing occlusion_mask.npy + T_mask_scene.txt.",
+        help="Directory for occlusion mask path patterns.",
     ),
-    mask_name: str = typer.Option(
-        "occlusion_mask.npy", "--mask-name",
-        help="Filename of the occlusion mask .npy file within each scene subdir.",
+    mask_pattern: str = typer.Option(
+        "{scene_id}/occlusion_mask.npy", "--mask-pattern",
+        help="Mask .npy path pattern relative to --mask-dir. Supports {scene_id}.",
     ),
-    t_mask_scene_name: str = typer.Option(
-        "T_mask_scene.txt", "--t-mask-scene-name",
-        help="Filename of the T_mask_scene .txt file within each scene subdir.",
+    t_mask_scene_pattern: str = typer.Option(
+        "{scene_id}/T_mask_scene.txt", "--t-mask-scene-pattern",
+        help="T_mask_scene .txt path pattern relative to --mask-dir. Supports {scene_id}.",
     ),
-    mask_mode: str = typer.Option("pred", "--mask-mode", help="pred | gt | both"),
 ) -> None:
     """Run a geometry benchmark.
 
@@ -372,9 +371,8 @@ def run_cmd(
         pred_pose_convention=pred_pose_convention,
         verbose=verbose,
         mask_dir=mask_dir,
-        mask_name=mask_name,
-        t_mask_scene_name=t_mask_scene_name,
-        mask_mode=mask_mode,
+        mask_pattern=mask_pattern,
+        t_mask_scene_pattern=t_mask_scene_pattern,
     )
 
     if not (ds.supports(Asset.MESH) or ds.supports(Asset.POINT_CLOUD)):

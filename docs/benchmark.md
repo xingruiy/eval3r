@@ -115,7 +115,7 @@ results, paths, errors) and `--csv result.csv` for a flat per-scene table.
 
 ## Combining with other features
 
-- **Occlusion masks** — pass `--mask-dir` plus optional `--mask-mode`. See
+- **Occlusion masks** — pass `--mask-dir` plus optional path patterns. See
   [Occlusion Masks](masks.md) for the file-format and
   transform conventions.
 - **Trajectory alignment** — set `--align traj_sim3` (or similar) and provide
@@ -137,7 +137,7 @@ results, paths, errors) and `--csv result.csv` for a flat per-scene table.
 | `--thresholds X [Y ...]`      | F-score / precision / recall thresholds.                  |
 | `--align {none,sim3,...}`     | Alignment mode applied before metrics.                    |
 | `--samples N`, `--seed N`     | Override preset sampling defaults.                        |
-| `--mask-dir PATH`             | Per-scene occlusion masks. See `masks.md`.                |
+| `--mask-dir PATH`             | Root for mask path patterns. See `masks.md`.              |
 | `--out result.json`           | Write full per-scene + summary JSON.                      |
 | `--csv result.csv`            | Write per-scene CSV.                                      |
 | `--json`                      | Emit the JSON payload to stdout (no rich table).          |

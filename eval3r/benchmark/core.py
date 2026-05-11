@@ -24,7 +24,6 @@ from eval3r.io.geometry import (
 from eval3r.metrics.geometry import (
     ChamferVariant,
     GeometryEvalResult,
-    MaskMode,
     evaluate_geometry,
 )
 from eval3r.metrics.sampling import SampleMethod
@@ -76,9 +75,8 @@ class BenchmarkConfig:
     verbose: bool = False
     # Occlusion mask for filtering predicted points in unobserved regions.
     mask_dir: str | None = None
-    mask_name: str = "occlusion_mask.npy"
-    t_mask_scene_name: str = "T_mask_scene.txt"
-    mask_mode: MaskMode = "pred"
+    mask_pattern: str = "{scene_id}/occlusion_mask.npy"
+    t_mask_scene_pattern: str = "{scene_id}/T_mask_scene.txt"
 
 
 SceneStatus = Literal["ok", "missing_pred", "missing_gt", "failed"]
@@ -144,6 +142,13 @@ def _crop_to_bbox(
     hi = bbox_max + margin
     mask = np.all((points >= lo) & (points <= hi), axis=1)
     return points[mask]
+
+
+def _resolve_mask_pattern(mask_dir: str, pattern: str, scene_id: str) -> Path:
+    rel = Path(pattern.format(scene_id=scene_id))
+    if rel.is_absolute():
+        raise ValueError("Mask path patterns must be relative to mask_dir.")
+    return Path(mask_dir) / rel
 
 
 def _load_pred_geometry(
@@ -256,26 +261,18 @@ def _evaluate_one(
             debug_plot_path = f"debug_plots/{scene_id}.png"
 
         pred_mask = None
-        gt_mask = None
         mask_missing = False
         if config.mask_dir is not None:
             from eval3r.metrics.occlusion import load_occlusion_mask
 
-            mask_path = Path(config.mask_dir) / scene_id / config.mask_name
-            w2g_path = Path(config.mask_dir) / scene_id / config.t_mask_scene_name
+            mask_path = _resolve_mask_pattern(
+                config.mask_dir, config.mask_pattern, scene_id
+            )
+            w2g_path = _resolve_mask_pattern(
+                config.mask_dir, config.t_mask_scene_pattern, scene_id
+            )
             if mask_path.exists() and w2g_path.exists():
-                mask_obj = load_occlusion_mask(mask_path, w2g_path)
-                if config.mask_mode == "pred":
-                    pred_mask = mask_obj
-                elif config.mask_mode == "gt":
-                    gt_mask = mask_obj
-                elif config.mask_mode == "both":
-                    pred_mask = mask_obj
-                    gt_mask = mask_obj
-                else:
-                    raise ValueError(
-                        f"Invalid mask_mode {config.mask_mode!r}; expected one of {get_args(MaskMode)}"
-                    )
+                pred_mask = load_occlusion_mask(mask_path, w2g_path)
             else:
                 mask_missing = True
 
@@ -298,7 +295,7 @@ def _evaluate_one(
             pred_timestamps=pred_timestamps,
             gt_timestamps=gt_timestamps,
             pred_mask=pred_mask,
-            gt_mask=gt_mask,
+            gt_mask=None,
             crop_volume=crop_volume,
         )
         return SceneOutcome(
@@ -340,10 +337,6 @@ def run_benchmark(
     progress: bool = True,
 ) -> BenchmarkResult:
     cfg = config or BenchmarkConfig()
-    if cfg.mask_mode not in get_args(MaskMode):
-        raise ValueError(
-            f"Invalid mask_mode {cfg.mask_mode!r}; expected one of {get_args(MaskMode)}"
-        )
     if cfg.threshold_multiplier <= 0.0:
         raise ValueError(
             f"threshold_multiplier must be positive, got {cfg.threshold_multiplier}"
@@ -535,9 +528,8 @@ def run_benchmark(
             "pred_pose_convention": cfg.pred_pose_convention,
             "verbose": cfg.verbose,
             "mask_dir": cfg.mask_dir,
-            "mask_name": cfg.mask_name,
-            "t_mask_scene_name": cfg.t_mask_scene_name,
-            "mask_mode": cfg.mask_mode,
+            "mask_pattern": cfg.mask_pattern,
+            "t_mask_scene_pattern": cfg.t_mask_scene_pattern,
         },
     )
 

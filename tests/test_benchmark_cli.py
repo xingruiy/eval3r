@@ -111,9 +111,108 @@ def test_benchmark_json_marks_missing_scene_mask(tmp_path: Path) -> None:
     )
     assert result.exit_code == 0, result.stdout
     payload = json.loads(out.read_text())
+    assert payload["config"]["mask_pattern"] == "{scene_id}/occlusion_mask.npy"
+    assert payload["config"]["t_mask_scene_pattern"] == "{scene_id}/T_mask_scene.txt"
     by_scene = {s["scene_id"]: s for s in payload["scenes"]}
     assert by_scene["s1"]["mask_missing"] is False
     assert by_scene["s2"]["mask_missing"] is True
+
+
+def test_benchmark_mask_patterns_support_flat_layout(tmp_path: Path) -> None:
+    ds_root, split, preds = _setup(tmp_path)
+    out = tmp_path / "result_flat_mask.json"
+    mask_root = tmp_path / "masks"
+    mask_root.mkdir()
+    np.save(mask_root / "s1_mask.npy", np.zeros((1, 1, 1), dtype=np.uint8))
+    np.savetxt(mask_root / "s1_T_mask_scene.txt", np.eye(4))
+
+    result = runner.invoke(
+        app,
+        [
+            "benchmark", str(preds),
+            "--dataset", "scannet",
+            "--root", str(ds_root),
+            "--split", str(split),
+            "--samples", "2048",
+            "--seed", "0",
+            "--workers", "1",
+            "--thresholds", "0.05",
+            "--mask-dir", str(mask_root),
+            "--mask-pattern", "{scene_id}_mask.npy",
+            "--t-mask-scene-pattern", "{scene_id}_T_mask_scene.txt",
+            "--out", str(out),
+            "--json",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(out.read_text())
+    assert payload["config"]["mask_pattern"] == "{scene_id}_mask.npy"
+    assert payload["config"]["t_mask_scene_pattern"] == "{scene_id}_T_mask_scene.txt"
+    by_scene = {s["scene_id"]: s for s in payload["scenes"]}
+    assert by_scene["s1"]["mask_missing"] is False
+    assert by_scene["s2"]["mask_missing"] is True
+
+
+def test_benchmark_mask_patterns_support_nested_layout(tmp_path: Path) -> None:
+    ds_root, split, preds = _setup(tmp_path)
+    out = tmp_path / "result_nested_mask.json"
+    mask_root = tmp_path / "masks"
+    (mask_root / "volumes" / "s1").mkdir(parents=True)
+    (mask_root / "transforms").mkdir(parents=True)
+    np.save(
+        mask_root / "volumes" / "s1" / "visible.npy",
+        np.zeros((1, 1, 1), dtype=np.uint8),
+    )
+    np.savetxt(mask_root / "transforms" / "s1.txt", np.eye(4))
+
+    result = runner.invoke(
+        app,
+        [
+            "benchmark", str(preds),
+            "--dataset", "scannet",
+            "--root", str(ds_root),
+            "--split", str(split),
+            "--samples", "2048",
+            "--seed", "0",
+            "--workers", "1",
+            "--thresholds", "0.05",
+            "--mask-dir", str(mask_root),
+            "--mask-pattern", "volumes/{scene_id}/visible.npy",
+            "--t-mask-scene-pattern", "transforms/{scene_id}.txt",
+            "--out", str(out),
+            "--json",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    payload = json.loads(out.read_text())
+    assert payload["config"]["mask_pattern"] == "volumes/{scene_id}/visible.npy"
+    assert payload["config"]["t_mask_scene_pattern"] == "transforms/{scene_id}.txt"
+    by_scene = {s["scene_id"]: s for s in payload["scenes"]}
+    assert by_scene["s1"]["mask_missing"] is False
+    assert by_scene["s2"]["mask_missing"] is True
+
+
+def test_benchmark_mask_patterns_must_be_relative(tmp_path: Path) -> None:
+    ds_root, split, preds = _setup(tmp_path)
+
+    result = runner.invoke(
+        app,
+        [
+            "benchmark", str(preds),
+            "--dataset", "scannet",
+            "--root", str(ds_root),
+            "--split", str(split),
+            "--samples", "2048",
+            "--seed", "0",
+            "--workers", "1",
+            "--thresholds", "0.05",
+            "--mask-dir", str(tmp_path / "masks"),
+            "--mask-pattern", str(tmp_path / "mask.npy"),
+        ],
+    )
+
+    assert result.exit_code != 0
+    assert "--mask-pattern must be relative to --mask-dir" in result.output
 
 
 def test_benchmark_manual_mode(tmp_path: Path) -> None:

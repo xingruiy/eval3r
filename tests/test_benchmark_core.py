@@ -387,17 +387,3 @@ def test_no_dataset_thresholds_keeps_per_tau_columns(tmp_path: Path) -> None:
     assert result.config["thresholds_pooled"] is False
     assert "f@0.05" in result.summary
     assert "f" not in result.summary
-
-
-def test_invalid_mask_mode_raises(tmp_path: Path) -> None:
-    class _DummyDataset:
-        name = "dummy"
-
-        def list_scenes(self, split=None):
-            return []
-
-    cfg = BenchmarkConfig(workers=1, mask_dir=str(tmp_path / "masks"))
-    cfg.mask_mode = "typo"  # type: ignore[assignment]
-
-    with pytest.raises(ValueError, match="Invalid mask_mode"):
-        run_benchmark(_DummyDataset(), tmp_path / "preds", config=cfg, progress=False)
