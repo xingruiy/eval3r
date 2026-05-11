@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from eval3r.io.crop import CropVolume, crop_points_inside, load_crop_volume_json
+from eval3r.mask.crop import CropVolume, crop_points_inside, load_crop_volume_json
 from eval3r.utils.errors import MissingArtifactError
 
 
@@ -61,6 +61,21 @@ def test_inside_outside_band(tmp_path: Path) -> None:
     )
     mask = crop_points_inside(vol, points)
     np.testing.assert_array_equal(mask, [True, False, False, False, False])
+
+
+def test_filter_points_contract(tmp_path: Path) -> None:
+    vol = load_crop_volume_json(_square_volume_y(tmp_path))
+    points = np.array(
+        [
+            [0.5, 0.5, 0.5],
+            [0.5, 1.1, 0.5],
+        ],
+        dtype=np.float64,
+    )
+    kept, n_kept, n_total = vol.filter_points(points)
+    np.testing.assert_array_equal(kept, points[:1])
+    assert n_kept == 1
+    assert n_total == 2
 
 
 def test_boundary_inclusive(tmp_path: Path) -> None:

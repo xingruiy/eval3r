@@ -32,6 +32,13 @@ class CropVolume:
     axis_min: float
     axis_max: float
     orthogonal_axis: int  # 0=X, 1=Y, 2=Z
+    source: str = ""
+
+    def filter_points(self, points: np.ndarray) -> tuple[np.ndarray, int, int]:
+        inside = crop_points_inside(self, points)
+        pts = np.asarray(points, dtype=np.float64)
+        n_kept = int(inside.sum())
+        return pts[inside], n_kept, len(pts)
 
 
 def load_crop_volume_json(path: PathLike) -> CropVolume:
@@ -86,6 +93,7 @@ def load_crop_volume_json(path: PathLike) -> CropVolume:
         axis_min=axis_min,
         axis_max=axis_max,
         orthogonal_axis=axis,
+        source=str(p),
     )
 
 

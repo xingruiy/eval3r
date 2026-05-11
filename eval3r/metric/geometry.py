@@ -8,17 +8,12 @@ from typing import Any, Literal
 import numpy as np
 from scipy.spatial import cKDTree
 
-from typing import TYPE_CHECKING
-
 from eval3r.align import AlignMode, align
 from eval3r.io.geometry import MeshData, PointCloudData
-from eval3r.metrics.sampling import SampleMethod, sample_points
+from eval3r.mask.base import GeometryMask
+from eval3r.metric.sampling import SampleMethod, sample_points
 from eval3r.utils.errors import EmptyGeometryError
 from eval3r.utils.typing import Points, Poses
-
-if TYPE_CHECKING:
-    from eval3r.io.crop import CropVolume
-    from eval3r.metrics.occlusion import OcclusionMask
 
 ChamferVariant = Literal[
     "l1_mean_bidirectional",
@@ -26,7 +21,6 @@ ChamferVariant = Literal[
     "l2_squared",
     "l2_unsquared",
 ]
-MaskMode = Literal["pred", "gt", "both"]
 
 
 def _nn_dists(a: Points, b: Points) -> np.ndarray:
@@ -147,9 +141,7 @@ def evaluate_geometry(
     gt_convention: str = "unspecified",
     pred_timestamps: np.ndarray | None = None,
     gt_timestamps: np.ndarray | None = None,
-    pred_mask: OcclusionMask | None = None,
-    gt_mask: OcclusionMask | None = None,
-    crop_volume: "CropVolume | None" = None,
+    pred_mask: GeometryMask | None = None,
 ) -> GeometryEvalResult:
     """Sample → align → compute chamfer / accuracy / completeness / F-score.
 
@@ -160,10 +152,9 @@ def evaluate_geometry(
     *pred_poses* and *gt_poses* as ``(T, 4, 4)`` arrays with their
     respective conventions.
 
-    When *crop_volume* is provided, the prediction sample is restricted
-    to the volume **after** alignment (mirrors the *pred_mask* path), so
-    the crop is interpreted in the GT/laser frame regardless of the
-    prediction's input frame.
+    If *pred_mask* is provided, it filters the aligned prediction points
+    after alignment and before metric computation. The mask is interpreted
+    in the post-alignment frame; GT points are not filtered.
     """
     pred_pts = sample_points(pred, samples, method=sample_method, seed=seed)
     gt_pts = sample_points(gt, samples, method=sample_method, seed=seed + 1)
@@ -176,11 +167,10 @@ def evaluate_geometry(
     )
     pred_aligned = al.transform(pred_pts) if align_mode != "none" else pred_pts
 
-    if crop_volume is not None:
-        from eval3r.io.crop import crop_points_inside
-
-        inside = crop_points_inside(crop_volume, pred_aligned)
-        pred_aligned = pred_aligned[inside]
+    n_visible = len(pred_aligned)
+    total_pred_points = len(pred_aligned)
+    if pred_mask is not None:
+        pred_aligned, n_visible, total_pred_points = pred_mask.filter_points(pred_aligned)
 
     if debug_plot_path is not None:
         from eval3r.utils.debug_plot import save_debug_plot
@@ -201,21 +191,8 @@ def evaluate_geometry(
             matched_gt_idx=al.matched_gt_idx,
         )
 
-    # --- occlusion mask filtering ---
-    n_visible = len(pred_aligned)
-    pred_aligned_full = pred_aligned
-    gt_eval = gt_pts
-    if pred_mask is not None:
-        from eval3r.metrics.occlusion import filter_visible_points
-
-        pred_aligned, n_visible, _ = filter_visible_points(pred_aligned, pred_mask)
-    if gt_mask is not None:
-        from eval3r.metrics.occlusion import filter_visible_points
-
-        gt_eval, _, _ = filter_visible_points(gt_pts, gt_mask)
-
-    d_pg = _nn_dists(pred_aligned, gt_eval)
-    d_gp = _nn_dists(gt_eval, pred_aligned)
+    d_pg = _nn_dists(pred_aligned, gt_pts)
+    d_gp = _nn_dists(gt_pts, pred_aligned)
 
     acc = float(d_pg.mean())
     comp = float(d_gp.mean())
@@ -249,9 +226,9 @@ def evaluate_geometry(
         sample_method=sample_method,
         align_mode=align_mode,
         align_scale=al.scale,
-        masked=pred_mask is not None or gt_mask is not None,
+        masked=pred_mask is not None,
         visible_points=n_visible,
-        total_pred_points=len(pred_aligned_full),
+        total_pred_points=total_pred_points,
     )
 
 
@@ -286,7 +263,7 @@ class Evaluator:
         pred: Points | PointCloudData | MeshData,
         gt: Points | PointCloudData | MeshData,
         *,
-        pred_mask: OcclusionMask | None = None,
+        pred_mask: GeometryMask | None = None,
     ) -> GeometryEvalResult:
         return evaluate_geometry(
             pred,

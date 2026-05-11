@@ -9,7 +9,7 @@ import numpy as np
 
 from eval3r.datasets.base import Asset, DatasetAdapter
 from eval3r.datasets.layout import LayoutEntry, format_path, raise_missing
-from eval3r.io.crop import CropVolume, load_crop_volume_json
+from eval3r.mask.crop import CropVolume, load_crop_volume_json
 from eval3r.io.geometry import PointCloudData, load_point_cloud
 from eval3r.io.trajectory import Trajectory
 from eval3r.utils.errors import MissingArtifactError, NotSupportedError

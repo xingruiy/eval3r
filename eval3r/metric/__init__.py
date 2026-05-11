@@ -1,4 +1,4 @@
-from eval3r.metrics.depth import (
+from eval3r.metric.depth import (
     DepthEvalResult,
     abs_rel,
     delta_accuracy,
@@ -7,7 +7,7 @@ from eval3r.metrics.depth import (
     rmse_log,
     sq_rel,
 )
-from eval3r.metrics.geometry import (
+from eval3r.metric.geometry import (
     ChamferVariant,
     Evaluator,
     GeometryEvalResult,
@@ -19,12 +19,7 @@ from eval3r.metrics.geometry import (
     precision_at,
     recall_at,
 )
-from eval3r.metrics.occlusion import (
-    OcclusionMask,
-    filter_visible_points,
-    load_occlusion_mask,
-)
-from eval3r.metrics.sampling import SampleMethod, sample_points
+from eval3r.metric.sampling import SampleMethod, sample_points
 
 __all__ = [
     "Evaluator",
@@ -44,9 +39,6 @@ __all__ = [
     "rmse",
     "rmse_log",
     "delta_accuracy",
-    "OcclusionMask",
-    "load_occlusion_mask",
-    "filter_visible_points",
     "SampleMethod",
     "sample_points",
 ]

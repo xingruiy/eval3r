@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import get_args
@@ -17,9 +16,9 @@ from eval3r.align import AlignMode
 from eval3r.datasets import Asset, get_dataset
 from eval3r.io.geometry import load_mesh, load_point_cloud
 from eval3r.io.trajectory import Trajectory, load_trajectory_auto
-from eval3r.metrics.depth import depth_metrics
-from eval3r.metrics.geometry import ChamferVariant, MaskMode, evaluate_geometry
-from eval3r.metrics.sampling import SampleMethod
+from eval3r.metric.depth import depth_metrics
+from eval3r.metric.geometry import ChamferVariant, evaluate_geometry
+from eval3r.metric.sampling import SampleMethod
 from eval3r.prediction.reader import PredictionReader
 from eval3r.presets import PRESETS
 from eval3r.report.table import print_depth_result, print_geometry_result
@@ -203,19 +202,9 @@ def _load_pred_mask(
             "Masking requires both --mask and --t-mask-scene, or neither."
         )
     if mask_path is not None and t_mask_scene_path is not None:
-        from eval3r.metrics.occlusion import load_occlusion_mask
+        from eval3r.mask.occlusion import load_occlusion_mask
         return load_occlusion_mask(mask_path, t_mask_scene_path)
     return None
-
-
-def _resolve_masks(mask: object | None, mask_mode: str) -> tuple[object | None, object | None]:
-    if mask_mode == "pred":
-        return mask, None
-    if mask_mode == "gt":
-        return None, mask
-    if mask_mode == "both":
-        return mask, mask
-    raise typer.BadParameter(f"--mask-mode must be one of {get_args(MaskMode)}")
 
 
 def _load_pred_poses(
@@ -253,8 +242,8 @@ def _validate_metric_options(
     if chamfer_variant is not None and chamfer_variant not in get_args(ChamferVariant):
         raise typer.BadParameter(f"--chamfer-variant must be one of {get_args(ChamferVariant)}")
 
-@app.command("all")
-def all_cmd(
+@app.command("geometry")
+def geometry_cmd(
     pred: str = typer.Argument(..., help="Prediction directory or geometry file."),
     gt: str = typer.Option(..., "--gt", help="Ground-truth geometry file or dataset folder."),
     dataset: str | None = typer.Option(
@@ -302,7 +291,6 @@ def all_cmd(
     t_mask_scene_path: str | None = typer.Option(
         None, "--t-mask-scene", help="Explicit path to T_mask_scene .txt for this scene.",
     ),
-    mask_mode: str = typer.Option("pred", "--mask-mode", help="pred | gt | both"),
 ) -> None:
     """Compute chamfer, accuracy, completeness, and F-score for a prediction vs. GT."""
     pred_geom = _load_geom(pred)
@@ -346,8 +334,7 @@ def all_cmd(
                 "Trajectory alignment requires GT poses. Provide --gt-poses."
             )
 
-    mask = _load_pred_mask(mask_path, t_mask_scene_path)
-    pred_mask, gt_mask = _resolve_masks(mask, mask_mode)
+    pred_mask = _load_pred_mask(mask_path, t_mask_scene_path)
 
     result = evaluate_geometry(
         pred_geom,
@@ -366,214 +353,6 @@ def all_cmd(
         pred_timestamps=pred_traj.timestamps if pred_traj else None,
         gt_timestamps=gt_traj.timestamps if gt_traj else None,
         pred_mask=pred_mask,
-        gt_mask=gt_mask,
-    )
-    print_geometry_result(result, as_json=json_out)
-
-
-@app.command("chamfer")
-def chamfer_cmd(
-    pred: str = typer.Argument(...),
-    gt: str = typer.Option(..., "--gt"),
-    dataset: str | None = typer.Option(
-        None, "--dataset",
-        help=(
-            "Registered dataset name: " + " | ".join(sorted(PRESETS)) + ". "
-            "Required when --gt is a folder; otherwise fills metric defaults."
-        ),
-    ),
-    scene_id: str | None = typer.Option(
-        None, "--scene-id",
-        help="Scene id within the dataset. Required when --gt is a folder.",
-    ),
-    samples: int | None = typer.Option(None),
-    seed: int | None = typer.Option(None),
-    align: str | None = typer.Option(None),
-    chamfer_variant: str | None = typer.Option(None),
-    json_out: bool = typer.Option(False, "--json"),
-    debug_plot: bool = typer.Option(
-        False, "--debug-plot", help="Export a 3D scatter plot of aligned point clouds."
-    ),
-    pred_poses: str | None = typer.Option(
-        None, "--pred-poses", help="Prediction trajectory file (.txt) for traj_* alignment."
-    ),
-    gt_poses: str | None = typer.Option(
-        None, "--gt-poses", help="GT trajectory file (.txt) for traj_* alignment."
-    ),
-    pred_pose_convention: str = typer.Option(
-        "unspecified", "--pred-pose-convention", help="Pose convention: T_wc | T_cw."
-    ),
-    gt_pose_convention: str = typer.Option(
-        "unspecified", "--gt-pose-convention", help="Pose convention: T_wc | T_cw."
-    ),
-    mask_path: str | None = typer.Option(
-        None, "--mask", help="Explicit path to occlusion mask .npy for this scene.",
-    ),
-    t_mask_scene_path: str | None = typer.Option(
-        None, "--t-mask-scene", help="Explicit path to T_mask_scene .txt for this scene.",
-    ),
-    mask_mode: str = typer.Option("pred", "--mask-mode", help="pred | gt | both"),
-) -> None:
-    """Just chamfer distance, with thresholds=[]."""
-    pred_geom = _load_geom(pred)
-    gt_resolution = _resolve_gt(gt, dataset, scene_id)
-    gt_geom = gt_resolution.geom
-    resolved = _apply_preset(
-        dataset,
-        samples=samples,
-        seed=seed,
-        align=align,
-        chamfer_variant=chamfer_variant,
-    )
-    samples = resolved["samples"]
-    seed = resolved["seed"]
-    align = resolved["align"]
-    chamfer_variant = resolved["chamfer_variant"]
-    _validate_metric_options(align=align, chamfer_variant=chamfer_variant)
-    pred_traj = _load_pred_poses(pred, pred_poses, pred_pose_convention)
-    if gt_resolution.poses is not None:
-        gt_traj = gt_resolution.poses
-    elif gt_poses is not None:
-        gt_traj = _load_poses(gt_poses, gt_pose_convention)
-    else:
-        gt_traj = None
-
-    if isinstance(align, str) and align.startswith("traj_"):
-        if pred_traj is None:
-            raise typer.BadParameter(
-                "Trajectory alignment requires prediction poses. "
-                "If the prediction directory contains a manifest with "
-                "trajectory data it is used automatically; otherwise "
-                "provide --pred-poses."
-            )
-        if gt_traj is None:
-            raise typer.BadParameter(
-                "Trajectory alignment requires GT poses. Provide --gt-poses."
-            )
-
-    mask = _load_pred_mask(mask_path, t_mask_scene_path)
-    pred_mask, gt_mask = _resolve_masks(mask, mask_mode)
-
-    result = evaluate_geometry(
-        pred_geom,
-        gt_geom,
-        samples=samples,
-        seed=seed,
-        align_mode=align,  # type: ignore[arg-type]
-        thresholds=[],
-        chamfer_variant=chamfer_variant,  # type: ignore[arg-type]
-        debug_plot_path="debug_plot.png" if debug_plot else None,
-        pred_poses=pred_traj.poses if pred_traj else None,
-        gt_poses=gt_traj.poses if gt_traj else None,
-        pred_convention=pred_traj.convention if pred_traj else pred_pose_convention,
-        gt_convention=gt_traj.convention if gt_traj else gt_pose_convention,
-        pred_timestamps=pred_traj.timestamps if pred_traj else None,
-        gt_timestamps=gt_traj.timestamps if gt_traj else None,
-        pred_mask=pred_mask,
-        gt_mask=gt_mask,
-    )
-    if json_out:
-        print(json.dumps({"chamfer": result.chamfer, "variant": result.chamfer_variant}, indent=2))
-    else:
-        print_geometry_result(result, as_json=False)
-
-
-@app.command("fscore")
-def fscore_cmd(
-    pred: str = typer.Argument(...),
-    gt: str = typer.Option(..., "--gt"),
-    dataset: str | None = typer.Option(
-        None, "--dataset",
-        help=(
-            "Registered dataset name: " + " | ".join(sorted(PRESETS)) + ". "
-            "Required when --gt is a folder; otherwise fills metric defaults."
-        ),
-    ),
-    scene_id: str | None = typer.Option(
-        None, "--scene-id",
-        help="Scene id within the dataset. Required when --gt is a folder.",
-    ),
-    threshold: float | None = typer.Option(None, help="F-score distance threshold."),
-    samples: int | None = typer.Option(None),
-    seed: int | None = typer.Option(None),
-    align: str | None = typer.Option(None),
-    json_out: bool = typer.Option(False, "--json"),
-    debug_plot: bool = typer.Option(
-        False, "--debug-plot", help="Export a 3D scatter plot of aligned point clouds."
-    ),
-    pred_poses: str | None = typer.Option(
-        None, "--pred-poses", help="Prediction trajectory file (.txt) for traj_* alignment."
-    ),
-    gt_poses: str | None = typer.Option(
-        None, "--gt-poses", help="GT trajectory file (.txt) for traj_* alignment."
-    ),
-    pred_pose_convention: str = typer.Option(
-        "unspecified", "--pred-pose-convention", help="Pose convention: T_wc | T_cw."
-    ),
-    gt_pose_convention: str = typer.Option(
-        "unspecified", "--gt-pose-convention", help="Pose convention: T_wc | T_cw."
-    ),
-    mask_path: str | None = typer.Option(
-        None, "--mask", help="Explicit path to occlusion mask .npy for this scene.",
-    ),
-    t_mask_scene_path: str | None = typer.Option(
-        None, "--t-mask-scene", help="Explicit path to T_mask_scene .txt for this scene.",
-    ),
-    mask_mode: str = typer.Option("pred", "--mask-mode", help="pred | gt | both"),
-) -> None:
-    """F-score / precision / recall at a single threshold."""
-    pred_geom = _load_geom(pred)
-    gt_resolution = _resolve_gt(gt, dataset, scene_id)
-    gt_geom = gt_resolution.geom
-    resolved = _apply_preset(
-        dataset, samples=samples, seed=seed, align=align,
-    )
-    samples = resolved["samples"]
-    seed = resolved["seed"]
-    align = resolved["align"]
-    if threshold is None:
-        threshold = float(resolved["thresholds"][0])
-    _validate_metric_options(align=align)
-    pred_traj = _load_pred_poses(pred, pred_poses, pred_pose_convention)
-    if gt_resolution.poses is not None:
-        gt_traj = gt_resolution.poses
-    elif gt_poses is not None:
-        gt_traj = _load_poses(gt_poses, gt_pose_convention)
-    else:
-        gt_traj = None
-
-    if isinstance(align, str) and align.startswith("traj_"):
-        if pred_traj is None:
-            raise typer.BadParameter(
-                "Trajectory alignment requires prediction poses. "
-                "If the prediction directory contains a manifest with "
-                "trajectory data it is used automatically; otherwise "
-                "provide --pred-poses."
-            )
-        if gt_traj is None:
-            raise typer.BadParameter(
-                "Trajectory alignment requires GT poses. Provide --gt-poses."
-            )
-
-    mask = _load_pred_mask(mask_path, t_mask_scene_path)
-    pred_mask, gt_mask = _resolve_masks(mask, mask_mode)
-
-    result = evaluate_geometry(
-        pred_geom,
-        gt_geom,
-        samples=samples,
-        seed=seed,
-        align_mode=align,  # type: ignore[arg-type]
-        thresholds=[threshold],
-        debug_plot_path="debug_plot.png" if debug_plot else None,
-        pred_poses=pred_traj.poses if pred_traj else None,
-        gt_poses=gt_traj.poses if gt_traj else None,
-        pred_convention=pred_traj.convention if pred_traj else pred_pose_convention,
-        gt_convention=gt_traj.convention if gt_traj else gt_pose_convention,
-        pred_timestamps=pred_traj.timestamps if pred_traj else None,
-        gt_timestamps=gt_traj.timestamps if gt_traj else None,
-        pred_mask=pred_mask,
-        gt_mask=gt_mask,
     )
     print_geometry_result(result, as_json=json_out)
 

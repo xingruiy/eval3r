@@ -74,7 +74,7 @@ gt.ply     # ground truth
 ### 1) Compute metrics
 
 ```bash
-e3r metric all pred.ply --gt gt.ply
+e3r metric geometry pred.ply --gt gt.ply
 ```
 
 Typical outputs include Chamfer distance, accuracy/completeness, and thresholded precision/recall/F-score.
@@ -82,7 +82,7 @@ Typical outputs include Chamfer distance, accuracy/completeness, and thresholded
 ### 2) Always inspect overlap
 
 ```bash
-e3r metric all pred.ply --gt gt.ply --debug-plot
+e3r metric geometry pred.ply --gt gt.ply --debug-plot
 ```
 
 If overlap is poor due to coordinate mismatch, metrics are not meaningful yet.
@@ -92,19 +92,19 @@ If overlap is poor due to coordinate mismatch, metrics are not meaningful yet.
 Use rigid alignment when scale is trustworthy:
 
 ```bash
-e3r metric all pred.ply --gt gt.ply --align icp --debug-plot
+e3r metric geometry pred.ply --gt gt.ply --align icp --debug-plot
 ```
 
 Use similarity alignment when scale may drift (common in monocular systems):
 
 ```bash
-e3r metric all pred.ply --gt gt.ply --align sim3 --debug-plot
+e3r metric geometry pred.ply --gt gt.ply --align sim3 --debug-plot
 ```
 
 Use trajectory-driven alignment when poses are available:
 
 ```bash
-e3r metric all pred.ply --gt gt.ply \
+e3r metric geometry pred.ply --gt gt.ply \
   --align traj_sim3 \
   --pred-traj pred_trajectory.txt \
   --gt-traj gt_trajectory.txt \

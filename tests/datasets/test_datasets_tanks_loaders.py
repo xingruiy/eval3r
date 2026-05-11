@@ -9,7 +9,7 @@ import pytest
 
 from eval3r.datasets.base import Asset
 from eval3r.datasets.tanks_temples import TanksTemplesAdapter
-from eval3r.io.crop import CropVolume
+from eval3r.mask.crop import CropVolume
 from eval3r.io.geometry import PointCloudData
 from eval3r.io.trajectory import Trajectory
 from eval3r.utils.errors import MissingArtifactError, NotSupportedError

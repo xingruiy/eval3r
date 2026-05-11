@@ -7,26 +7,27 @@ import traceback
 from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal, get_args
+from typing import Any, Literal
 
 import numpy as np
 
 from eval3r.align import AlignMode
 from eval3r.benchmark.aggregate import aggregate, aggregate_all
 from eval3r.datasets.base import Asset, DatasetAdapter
-from eval3r.io.crop import CropVolume
+from eval3r.mask.base import CropToGT
+from eval3r.mask.crop import CropVolume
 from eval3r.io.geometry import (
     MeshData,
     PointCloudData,
     load_mesh,
     load_point_cloud,
 )
-from eval3r.metrics.geometry import (
+from eval3r.metric.geometry import (
     ChamferVariant,
     GeometryEvalResult,
     evaluate_geometry,
 )
-from eval3r.metrics.sampling import SampleMethod
+from eval3r.metric.sampling import SampleMethod
 from eval3r.prediction.discovery import PredictionLocator, ResolvedPrediction
 from eval3r.utils.errors import MissingArtifactError, NotSupportedError
 from eval3r.utils.logging import get_logger
@@ -135,15 +136,6 @@ class BenchmarkResult:
 # ---------------------------------------------------------------------------
 
 
-def _crop_to_bbox(
-    points: np.ndarray, bbox_min: np.ndarray, bbox_max: np.ndarray, margin: float
-) -> np.ndarray:
-    lo = bbox_min - margin
-    hi = bbox_max + margin
-    mask = np.all((points >= lo) & (points <= hi), axis=1)
-    return points[mask]
-
-
 def _resolve_mask_pattern(mask_dir: str, pattern: str, scene_id: str) -> Path:
     rel = Path(pattern.format(scene_id=scene_id))
     if rel.is_absolute():
@@ -203,19 +195,6 @@ def _evaluate_one(
         else:
             gt_geom = load_mesh(gt_path)
 
-        if config.crop_to_gt_bbox:
-            gv = gt_geom.vertices if isinstance(gt_geom, MeshData) else gt_geom.points
-            bbox_min, bbox_max = gv.min(axis=0), gv.max(axis=0)
-            if isinstance(pred_geom, MeshData):
-                kept = _crop_to_bbox(pred_geom.vertices, bbox_min, bbox_max, config.bbox_margin)
-                pred_geom = PointCloudData(points=kept)
-            else:
-                pred_geom = PointCloudData(
-                    points=_crop_to_bbox(
-                        pred_geom.points, bbox_min, bbox_max, config.bbox_margin
-                    )
-                )
-
         # Trajectory-based alignment: load pred poses from manifest or
         # from an explicit external pose directory.
         pred_poses: np.ndarray | None = None
@@ -263,7 +242,7 @@ def _evaluate_one(
         pred_mask = None
         mask_missing = False
         if config.mask_dir is not None:
-            from eval3r.metrics.occlusion import load_occlusion_mask
+            from eval3r.mask.occlusion import load_occlusion_mask
 
             mask_path = _resolve_mask_pattern(
                 config.mask_dir, config.mask_pattern, scene_id
@@ -275,6 +254,15 @@ def _evaluate_one(
                 pred_mask = load_occlusion_mask(mask_path, w2g_path)
             else:
                 mask_missing = True
+        if pred_mask is None and crop_volume is not None:
+            pred_mask = crop_volume
+        if pred_mask is None and config.crop_to_gt_bbox:
+            gv = gt_geom.vertices if isinstance(gt_geom, MeshData) else gt_geom.points
+            pred_mask = CropToGT(
+                bbox_min=gv.min(axis=0),
+                bbox_max=gv.max(axis=0),
+                margin=config.bbox_margin,
+            )
 
         result = evaluate_geometry(
             pred_geom,
@@ -295,8 +283,6 @@ def _evaluate_one(
             pred_timestamps=pred_timestamps,
             gt_timestamps=gt_timestamps,
             pred_mask=pred_mask,
-            gt_mask=None,
-            crop_volume=crop_volume,
         )
         return SceneOutcome(
             scene_id=scene_id,

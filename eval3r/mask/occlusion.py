@@ -29,6 +29,9 @@ class OcclusionMask:
     source: str = ""
     """Path to the mask file, for provenance."""
 
+    def filter_points(self, points: Points) -> tuple[Points, int, int]:
+        return filter_visible_points(points, self)
+
 
 def load_occlusion_mask(
     mask_path: str | Path,

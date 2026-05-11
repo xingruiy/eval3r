@@ -16,7 +16,7 @@ from eval3r.benchmark import BenchmarkConfig, run_benchmark
 from eval3r.datasets import get_dataset
 from eval3r.datasets.base import Asset, DatasetAdapter
 from eval3r.datasets.generic import GenericAdapter
-from eval3r.metrics.geometry import ChamferVariant
+from eval3r.metric.geometry import ChamferVariant
 from eval3r.prediction.discovery import PredictionLocator
 from eval3r.presets import PRESETS
 

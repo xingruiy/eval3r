@@ -42,7 +42,7 @@ Run the CLI:
 ```bash
 e3r validate outputs/scannet/scene0799_00
 e3r inspect outputs/scannet/scene0799_00
-e3r metric all outputs/scannet/scene0799_00 \
+e3r metric geometry outputs/scannet/scene0799_00 \
     --gt /data/scannet/scene0799_00/gt_mesh.ply \
     --align none --samples 200000 --seed 42 \
     --thresholds 0.05 --chamfer-variant l1_mean_bidirectional

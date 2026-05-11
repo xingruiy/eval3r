@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from eval3r.metrics.depth import (
+from eval3r.metric.depth import (
     DepthEvalResult,
     abs_rel,
     delta_accuracy,

@@ -127,16 +127,14 @@ Use explicit per-scene mask paths with:
 
 - `--mask`
 - `--t-mask-scene`
-- `--mask-mode` in `{pred, gt, both}` (default: `pred`)
 
 Example:
 
 ```bash
-e3r metric all outputs/scannet/scene0001_00 \
+e3r metric geometry outputs/scannet/scene0001_00 \
   --gt /data/scannet/scene0001_00/gt_mesh.ply \
   --mask /data/scannet_masks/scene0001_00/occlusion_mask.npy \
-  --t-mask-scene /data/scannet_masks/scene0001_00/T_mask_scene.txt \
-  --mask-mode both
+  --t-mask-scene /data/scannet_masks/scene0001_00/T_mask_scene.txt
 ```
 
 ### Benchmark CLI
@@ -167,12 +165,7 @@ e3r benchmark outputs/scannet \
   --t-mask-scene-pattern "{scene_id}_T_mask_scene.txt"
 ```
 
-## Mask mode semantics
+## Mask semantics
 
-The metric CLI supports explicit mask modes:
-
-- `pred`: apply mask only to predicted points.
-- `gt`: apply mask only to ground-truth points.
-- `both`: apply mask to both predicted and ground-truth points.
-
-The benchmark CLI does not expose mask modes; it always uses `pred`.
+Geometry masks apply only to predicted points after alignment. Ground-truth
+points remain unfiltered.

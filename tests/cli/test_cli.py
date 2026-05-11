@@ -50,14 +50,14 @@ def test_inspect_summary(tmp_path, gaussian_cloud) -> None:
     assert payload["points.count"] == len(gaussian_cloud)
 
 
-def test_metric_all_json(tmp_path, gaussian_cloud) -> None:
+def test_metric_geometry_json(tmp_path, gaussian_cloud) -> None:
     pred = _write_pred(tmp_path, gaussian_cloud)
     gt_path = tmp_path / "gt.ply"
     save_point_cloud_ply(gt_path, gaussian_cloud)
     result = runner.invoke(
         app,
         [
-            "metric", "all", pred,
+            "metric", "geometry", pred,
             "--gt", str(gt_path),
             "--samples", "2048",
             "--seed", "0",
@@ -70,6 +70,14 @@ def test_metric_all_json(tmp_path, gaussian_cloud) -> None:
     payload = json.loads(result.stdout)
     assert payload["chamfer"] >= 0.0
     assert "0.01" in payload["fscore"]
+
+
+def test_metric_all_command_removed(tmp_path, gaussian_cloud) -> None:
+    pred = _write_pred(tmp_path, gaussian_cloud)
+    gt_path = tmp_path / "gt.ply"
+    save_point_cloud_ply(gt_path, gaussian_cloud)
+    result = runner.invoke(app, ["metric", "all", pred, "--gt", str(gt_path)])
+    assert result.exit_code == 2
 
 
 
@@ -184,7 +192,7 @@ def test_metric_depth_png_non_default_scale_no_warning(tmp_path) -> None:
     assert result.exit_code == 0, result.stdout
     assert "WARNING: PNG depth loaded with scale=1.0" not in result.stderr
 
-def test_metric_all_explicit_mask_requires_both_paths(tmp_path, gaussian_cloud) -> None:
+def test_metric_geometry_explicit_mask_requires_both_paths(tmp_path, gaussian_cloud) -> None:
     pred = _write_pred(tmp_path, gaussian_cloud)
     gt_path = tmp_path / "gt.ply"
     save_point_cloud_ply(gt_path, gaussian_cloud)
@@ -193,14 +201,14 @@ def test_metric_all_explicit_mask_requires_both_paths(tmp_path, gaussian_cloud) 
 
     result = runner.invoke(
         app,
-        ["metric", "all", pred, "--gt", str(gt_path), "--mask", str(mask_path)],
+        ["metric", "geometry", pred, "--gt", str(gt_path), "--mask", str(mask_path)],
         env={"NO_COLOR": "1", "TERM": "dumb"},
     )
     assert result.exit_code != 0
     assert "both --mask and --t-mask-scene" in result.output
 
 
-def test_metric_all_explicit_mask_paths_are_used(tmp_path, gaussian_cloud) -> None:
+def test_metric_geometry_explicit_mask_paths_are_used(tmp_path, gaussian_cloud) -> None:
     pred_path = tmp_path / "pred_mesh.ply"
     gt_path = tmp_path / "gt_mesh.ply"
     save_point_cloud_ply(pred_path, gaussian_cloud)
@@ -213,7 +221,7 @@ def test_metric_all_explicit_mask_paths_are_used(tmp_path, gaussian_cloud) -> No
     result = runner.invoke(
         app,
         [
-            "metric", "all", str(pred_path),
+            "metric", "geometry", str(pred_path),
             "--gt", str(gt_path),
             "--mask", str(mask_path),
             "--t-mask-scene", str(t_mask_scene_path),
@@ -226,38 +234,38 @@ def test_metric_all_explicit_mask_paths_are_used(tmp_path, gaussian_cloud) -> No
     assert payload["masked"] is True
 
 
-def test_metric_chamfer_validates_align_option(tmp_path, gaussian_cloud) -> None:
+def test_metric_geometry_validates_align_option(tmp_path, gaussian_cloud) -> None:
     pred = _write_pred(tmp_path, gaussian_cloud)
     gt_path = tmp_path / "gt.ply"
     save_point_cloud_ply(gt_path, gaussian_cloud)
 
     result = runner.invoke(
         app,
-        ["metric", "chamfer", pred, "--gt", str(gt_path), "--align", "bad_align"],
+        ["metric", "geometry", pred, "--gt", str(gt_path), "--align", "bad_align"],
     )
     assert result.exit_code == 2
 
 
-def test_metric_chamfer_validates_chamfer_variant_option(tmp_path, gaussian_cloud) -> None:
+def test_metric_geometry_validates_chamfer_variant_option(tmp_path, gaussian_cloud) -> None:
     pred = _write_pred(tmp_path, gaussian_cloud)
     gt_path = tmp_path / "gt.ply"
     save_point_cloud_ply(gt_path, gaussian_cloud)
 
     result = runner.invoke(
         app,
-        ["metric", "chamfer", pred, "--gt", str(gt_path), "--chamfer-variant", "bad_variant"],
+        ["metric", "geometry", pred, "--gt", str(gt_path), "--chamfer-variant", "bad_variant"],
     )
     assert result.exit_code == 2
 
 
-def test_metric_fscore_validates_align_option(tmp_path, gaussian_cloud) -> None:
+def test_metric_geometry_rejects_mask_mode(tmp_path, gaussian_cloud) -> None:
     pred = _write_pred(tmp_path, gaussian_cloud)
     gt_path = tmp_path / "gt.ply"
     save_point_cloud_ply(gt_path, gaussian_cloud)
 
     result = runner.invoke(
         app,
-        ["metric", "fscore", pred, "--gt", str(gt_path), "--align", "bad_align"],
+        ["metric", "geometry", pred, "--gt", str(gt_path), "--mask-mode", "both"],
     )
     assert result.exit_code == 2
 
@@ -275,21 +283,21 @@ def _scannet_pred(preds_root, scene_id) -> str:
     return str(pred_dir)
 
 
-def test_metric_all_gt_folder_requires_dataset(tmp_path) -> None:
+def test_metric_geometry_gt_folder_requires_dataset(tmp_path) -> None:
     from tests.helpers._fake_scannet import make_scannet_root
 
     make_scannet_root(tmp_path / "ds", ["s1"])
     pred = _scannet_pred(tmp_path / "preds", "s1")
     result = runner.invoke(
         app,
-        ["metric", "all", pred, "--gt", str(tmp_path / "ds"), "--samples", "256"],
+        ["metric", "geometry", pred, "--gt", str(tmp_path / "ds"), "--samples", "256"],
         env={"NO_COLOR": "1", "TERM": "dumb"},
     )
     assert result.exit_code != 0
     assert "--dataset" in result.output and "--scene-id" in result.output
 
 
-def test_metric_all_gt_folder_requires_scene_id(tmp_path) -> None:
+def test_metric_geometry_gt_folder_requires_scene_id(tmp_path) -> None:
     from tests.helpers._fake_scannet import make_scannet_root
 
     make_scannet_root(tmp_path / "ds", ["s1"])
@@ -297,7 +305,7 @@ def test_metric_all_gt_folder_requires_scene_id(tmp_path) -> None:
     result = runner.invoke(
         app,
         [
-            "metric", "all", pred,
+            "metric", "geometry", pred,
             "--gt", str(tmp_path / "ds"),
             "--dataset", "scannet",
             "--samples", "256",
@@ -308,7 +316,7 @@ def test_metric_all_gt_folder_requires_scene_id(tmp_path) -> None:
     assert "--scene-id" in result.output
 
 
-def test_metric_all_gt_folder_full(tmp_path) -> None:
+def test_metric_geometry_gt_folder_full(tmp_path) -> None:
     from tests.helpers._fake_scannet import make_scannet_root
 
     make_scannet_root(tmp_path / "ds", ["s1"])
@@ -316,7 +324,7 @@ def test_metric_all_gt_folder_full(tmp_path) -> None:
     result = runner.invoke(
         app,
         [
-            "metric", "all", pred,
+            "metric", "geometry", pred,
             "--gt", str(tmp_path / "ds"),
             "--dataset", "scannet",
             "--scene-id", "s1",
@@ -332,7 +340,7 @@ def test_metric_all_gt_folder_full(tmp_path) -> None:
     assert "0.05" in payload["fscore"]
 
 
-def test_metric_all_gt_folder_invalid_scene_id(tmp_path) -> None:
+def test_metric_geometry_gt_folder_invalid_scene_id(tmp_path) -> None:
     from tests.helpers._fake_scannet import make_scannet_root
 
     make_scannet_root(tmp_path / "ds", ["s1", "s2"])
@@ -340,7 +348,7 @@ def test_metric_all_gt_folder_invalid_scene_id(tmp_path) -> None:
     result = runner.invoke(
         app,
         [
-            "metric", "all", pred,
+            "metric", "geometry", pred,
             "--gt", str(tmp_path / "ds"),
             "--dataset", "scannet",
             "--scene-id", "nope",
@@ -353,7 +361,7 @@ def test_metric_all_gt_folder_invalid_scene_id(tmp_path) -> None:
     assert "s1" in result.output
 
 
-def test_metric_all_file_gt_with_dataset_applies_preset(tmp_path, gaussian_cloud) -> None:
+def test_metric_geometry_file_gt_with_dataset_applies_preset(tmp_path, gaussian_cloud) -> None:
     """File GT + --dataset still pulls preset metric defaults (e.g. thresholds)."""
     pred = _write_pred(tmp_path, gaussian_cloud)
     gt_path = tmp_path / "gt.ply"
@@ -361,7 +369,7 @@ def test_metric_all_file_gt_with_dataset_applies_preset(tmp_path, gaussian_cloud
     result = runner.invoke(
         app,
         [
-            "metric", "all", pred,
+            "metric", "geometry", pred,
             "--gt", str(gt_path),
             "--dataset", "dtu",
             "--samples", "512",
@@ -375,14 +383,14 @@ def test_metric_all_file_gt_with_dataset_applies_preset(tmp_path, gaussian_cloud
     assert set(payload["fscore"].keys()) == {"1.0", "2.0", "5.0"}
 
 
-def test_metric_all_unknown_dataset_raises(tmp_path, gaussian_cloud) -> None:
+def test_metric_geometry_unknown_dataset_raises(tmp_path, gaussian_cloud) -> None:
     pred = _write_pred(tmp_path, gaussian_cloud)
     gt_path = tmp_path / "gt.ply"
     save_point_cloud_ply(gt_path, gaussian_cloud)
     result = runner.invoke(
         app,
         [
-            "metric", "all", pred,
+            "metric", "geometry", pred,
             "--gt", str(gt_path),
             "--dataset", "no_such_dataset",
         ],

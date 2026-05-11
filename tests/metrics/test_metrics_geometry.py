@@ -3,7 +3,7 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from eval3r.metrics.geometry import (
+from eval3r.metric.geometry import (
     accuracy,
     chamfer_distance,
     completeness,
@@ -12,7 +12,9 @@ from eval3r.metrics.geometry import (
     precision_at,
     recall_at,
 )
-from eval3r.metrics.occlusion import (
+from eval3r.mask.base import CropToGT
+from eval3r.mask.crop import CropVolume
+from eval3r.mask.occlusion import (
     OcclusionMask,
     filter_visible_points,
     load_occlusion_mask,
@@ -115,7 +117,7 @@ def test_duplicate_points_do_not_break() -> None:
 
 
 def test_sampling_is_deterministic() -> None:
-    from eval3r.metrics.sampling import sample_points
+    from eval3r.metric.sampling import sample_points
 
     pts = _grid()
     a = sample_points(pts, 1000, method="uniform", seed=42)
@@ -124,7 +126,7 @@ def test_sampling_is_deterministic() -> None:
 
 
 def test_sampling_without_replacement_when_possible() -> None:
-    from eval3r.metrics.sampling import sample_points
+    from eval3r.metric.sampling import sample_points
 
     pts = np.arange(30, dtype=np.float64).reshape(10, 3)
     sampled = sample_points(pts, 10, method="uniform", seed=42)
@@ -133,7 +135,7 @@ def test_sampling_without_replacement_when_possible() -> None:
 
 
 def test_sampling_returns_all_points_when_n_exceeds_total() -> None:
-    from eval3r.metrics.sampling import sample_points
+    from eval3r.metric.sampling import sample_points
 
     pts = np.arange(15, dtype=np.float64).reshape(5, 3)
     sampled = sample_points(pts, 12, method="uniform", seed=42)
@@ -144,7 +146,7 @@ def test_sampling_returns_all_points_when_n_exceeds_total() -> None:
 
 def test_mesh_vertex_sampling_without_replacement_when_possible() -> None:
     from eval3r.io.geometry import MeshData
-    from eval3r.metrics.sampling import sample_points
+    from eval3r.metric.sampling import sample_points
 
     vertices = np.arange(30, dtype=np.float64).reshape(10, 3)
     faces = np.array([[0, 1, 2]], dtype=np.int64)
@@ -157,7 +159,7 @@ def test_mesh_vertex_sampling_without_replacement_when_possible() -> None:
 
 def test_mesh_vertex_sampling_returns_all_vertices_when_n_exceeds_total() -> None:
     from eval3r.io.geometry import MeshData
-    from eval3r.metrics.sampling import sample_points
+    from eval3r.metric.sampling import sample_points
 
     vertices = np.arange(15, dtype=np.float64).reshape(5, 3)
     faces = np.array([[0, 1, 2]], dtype=np.int64)
@@ -248,6 +250,36 @@ def test_occlusion_mask_load_roundtrip(tmp_path) -> None:
     assert np.allclose(loaded.T_mask_scene, w2g)
 
 
+def test_occlusion_mask_filter_points_contract() -> None:
+    grid = np.array([[[0.0]], [[1.0]]], dtype=np.float64)
+    mask = OcclusionMask(grid=grid, T_mask_scene=np.eye(4))
+    pts = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]], dtype=np.float64)
+    kept, n_kept, n_total = mask.filter_points(pts)
+    np.testing.assert_array_equal(kept, pts[:1])
+    assert n_kept == 1
+    assert n_total == 2
+
+
+def test_crop_to_gt_filter_points_contract() -> None:
+    mask = CropToGT(
+        bbox_min=np.array([0.0, 0.0, 0.0]),
+        bbox_max=np.array([1.0, 1.0, 1.0]),
+        margin=0.0,
+    )
+    pts = np.array(
+        [
+            [0.0, 0.0, 0.0],
+            [1.0, 1.0, 1.0],
+            [1.1, 0.5, 0.5],
+        ],
+        dtype=np.float64,
+    )
+    kept, n_kept, n_total = mask.filter_points(pts)
+    np.testing.assert_array_equal(kept, pts[:2])
+    assert n_kept == 2
+    assert n_total == 3
+
+
 def test_occlusion_mask_no_mask_backward_compat() -> None:
     """pred_mask=None produces the same result as the unmasked path."""
     pts = _grid(8)
@@ -300,26 +332,43 @@ def test_occlusion_mask_improves_accuracy() -> None:
     assert result_masked.visible_points < result_masked.total_pred_points
 
 
-def test_gt_mask_applies_to_reverse_term() -> None:
+def test_gt_mask_kwarg_removed() -> None:
     pred = np.array([[0.0, 0.0, 0.0]], dtype=np.float64)
     gt = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]], dtype=np.float64)
 
     grid = np.array([[[0.0]], [[1.0]]], dtype=np.float64)
     gt_mask = OcclusionMask(grid=grid, T_mask_scene=np.eye(4))
 
-    result = evaluate_geometry(
-        pred,
-        gt,
-        samples=2,
-        seed=0,
-        sample_method="uniform",
-        align_mode="none",
-        thresholds=[0.1],
-        gt_mask=gt_mask,
-    )
+    with pytest.raises(TypeError):
+        evaluate_geometry(
+            pred,
+            gt,
+            samples=2,
+            seed=0,
+            sample_method="uniform",
+            align_mode="none",
+            thresholds=[0.1],
+            gt_mask=gt_mask,
+        )
 
-    assert result.completeness == pytest.approx(0.0, abs=1e-12)
-    assert result.fscore[0.1]["recall"] == pytest.approx(1.0, abs=1e-12)
+
+def test_crop_volume_kwarg_removed() -> None:
+    vol = CropVolume(
+        polygon_2d=np.array(
+            [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]],
+            dtype=np.float64,
+        ),
+        axis_min=0.0,
+        axis_max=1.0,
+        orthogonal_axis=1,
+    )
+    with pytest.raises(TypeError):
+        evaluate_geometry(
+            np.zeros((1, 3), dtype=np.float64),
+            np.zeros((1, 3), dtype=np.float64),
+            samples=1,
+            crop_volume=vol,
+        )
 
 
 def test_occlusion_mask_chamfer_l1_mean() -> None:

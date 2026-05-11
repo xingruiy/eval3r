@@ -139,7 +139,7 @@ class _CropAwareScanNet(ScanNetAdapter):
     """ScanNet adapter that exposes a half-cube crop volume."""
 
     def load_crop_volume(self, scene_id: str):
-        from eval3r.io.crop import CropVolume
+        from eval3r.mask.crop import CropVolume
 
         # Half-cube along +X: keep only x in [0, 0.5], y/z in [-0.5, 0.5].
         return CropVolume(
@@ -202,7 +202,7 @@ def test_crop_applied_after_alignment(tmp_path: Path) -> None:
 
     class _ShiftedCropAdapter(ScanNetAdapter):
         def load_crop_volume(self, scene_id: str):
-            from eval3r.io.crop import CropVolume
+            from eval3r.mask.crop import CropVolume
 
             # Polygon in YZ around the GT-frame cube. Margin keeps
             # alignment numerical noise inside without making the crop

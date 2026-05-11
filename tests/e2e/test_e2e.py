@@ -48,7 +48,7 @@ def test_e2e_metric_json(tmp_path, cube_mesh) -> None:
     metric = runner.invoke(
         app,
         [
-            "metric", "all", str(pred_dir),
+            "metric", "geometry", str(pred_dir),
             "--gt", str(gt_path),
             "--samples", "8000",
             "--seed", "0",

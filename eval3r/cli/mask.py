@@ -26,8 +26,8 @@ from eval3r.datasets import get_dataset
 from eval3r.datasets.base import Asset
 from eval3r.io.geometry import load_mesh
 from eval3r.io.trajectory import Trajectory, load_trajectory_auto
-from eval3r.masks.generate import from_depth, from_rendered
-from eval3r.metrics.occlusion import (
+from eval3r.mask.generate import from_depth, from_rendered
+from eval3r.mask.occlusion import (
     OcclusionMask,
     load_occlusion_mask,
     save_occlusion_mask,
@@ -710,7 +710,7 @@ def visualize_cmd(
     if value not in {"occluded", "visible"}:
         raise typer.BadParameter("--value must be 'occluded' or 'visible'")
 
-    from eval3r.masks.visualize import save_mask_overview, save_mask_point_cloud
+    from eval3r.mask.visualize import save_mask_overview, save_mask_point_cloud
 
     mask_path = Path(mask)
     grid = np.load(mask_path, mmap_mode="r")
