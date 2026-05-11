@@ -7,7 +7,7 @@ import pytest
 from eval3r.datasets import ScanNetAdapter
 from eval3r.utils.errors import MissingArtifactError
 
-from ._fake_scannet import make_scannet_root
+from tests.helpers._fake_scannet import make_scannet_root
 
 
 def test_default_layout_validates(tmp_path: Path) -> None:

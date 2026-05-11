@@ -10,7 +10,7 @@ from eval3r.benchmark import BenchmarkConfig, run_benchmark
 from eval3r.datasets import ScanNetAdapter
 from eval3r.io.geometry import save_mesh_ply
 from eval3r.prediction import PredictionLocator
-from tests._fake_scannet import CUBE_FACES, CUBE_VERTS, make_scannet_root
+from tests.helpers._fake_scannet import CUBE_FACES, CUBE_VERTS, make_scannet_root
 
 
 def _make_dataset(tmp_path: Path) -> tuple[ScanNetAdapter, Path]:

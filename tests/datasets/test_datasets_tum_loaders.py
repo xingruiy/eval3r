@@ -11,7 +11,7 @@ from eval3r.datasets.base import Asset
 from eval3r.datasets.tum_rgbd import TumRGBDAdapter
 from eval3r.io.trajectory import Trajectory
 from eval3r.utils.errors import MissingArtifactError, NotSupportedError
-from tests._fake_tum import make_tum_root
+from tests.helpers._fake_tum import make_tum_root
 
 
 @pytest.fixture

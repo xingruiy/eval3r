@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 
 from eval3r.io.geometry import save_mesh_ply
-from tests._fake_scannet import CUBE_FACES, CUBE_VERTS, write_color, write_depth
+from tests.helpers._fake_scannet import CUBE_FACES, CUBE_VERTS, write_color, write_depth
 
 REPLICA_TRAJECTORY = """\
 0.000000000 0.000000000 0.000000000 0.000000000 0.000000000 0.000000000 0.000000000 1.000000000

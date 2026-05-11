@@ -264,7 +264,7 @@ def test_metric_fscore_validates_align_option(tmp_path, gaussian_cloud) -> None:
 
 def _scannet_pred(preds_root, scene_id) -> str:
     """Write a tiny prediction directory matching the cube fake-scannet uses."""
-    from tests._fake_scannet import CUBE_FACES, CUBE_VERTS
+    from tests.helpers._fake_scannet import CUBE_FACES, CUBE_VERTS
 
     pred_dir = preds_root / scene_id
     with PredictionWriter(
@@ -276,7 +276,7 @@ def _scannet_pred(preds_root, scene_id) -> str:
 
 
 def test_metric_all_gt_folder_requires_dataset(tmp_path) -> None:
-    from tests._fake_scannet import make_scannet_root
+    from tests.helpers._fake_scannet import make_scannet_root
 
     make_scannet_root(tmp_path / "ds", ["s1"])
     pred = _scannet_pred(tmp_path / "preds", "s1")
@@ -290,7 +290,7 @@ def test_metric_all_gt_folder_requires_dataset(tmp_path) -> None:
 
 
 def test_metric_all_gt_folder_requires_scene_id(tmp_path) -> None:
-    from tests._fake_scannet import make_scannet_root
+    from tests.helpers._fake_scannet import make_scannet_root
 
     make_scannet_root(tmp_path / "ds", ["s1"])
     pred = _scannet_pred(tmp_path / "preds", "s1")
@@ -309,7 +309,7 @@ def test_metric_all_gt_folder_requires_scene_id(tmp_path) -> None:
 
 
 def test_metric_all_gt_folder_full(tmp_path) -> None:
-    from tests._fake_scannet import make_scannet_root
+    from tests.helpers._fake_scannet import make_scannet_root
 
     make_scannet_root(tmp_path / "ds", ["s1"])
     pred = _scannet_pred(tmp_path / "preds", "s1")
@@ -333,7 +333,7 @@ def test_metric_all_gt_folder_full(tmp_path) -> None:
 
 
 def test_metric_all_gt_folder_invalid_scene_id(tmp_path) -> None:
-    from tests._fake_scannet import make_scannet_root
+    from tests.helpers._fake_scannet import make_scannet_root
 
     make_scannet_root(tmp_path / "ds", ["s1", "s2"])
     pred = _scannet_pred(tmp_path / "preds", "s1")

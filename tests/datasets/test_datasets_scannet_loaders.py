@@ -8,7 +8,7 @@ import pytest
 from eval3r.datasets import Asset, ScanNetAdapter
 from eval3r.utils.errors import MissingArtifactError
 
-from ._fake_scannet import make_scannet_root
+from tests.helpers._fake_scannet import make_scannet_root
 
 
 @pytest.fixture

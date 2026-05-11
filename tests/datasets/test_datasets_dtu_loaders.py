@@ -12,7 +12,7 @@ from eval3r.datasets.dtu import DTUAdapter
 from eval3r.io.geometry import PointCloudData
 from eval3r.io.trajectory import Trajectory
 from eval3r.utils.errors import MissingArtifactError, NotSupportedError
-from tests._fake_dtu import make_dtu_root
+from tests.helpers._fake_dtu import make_dtu_root
 
 
 @pytest.fixture

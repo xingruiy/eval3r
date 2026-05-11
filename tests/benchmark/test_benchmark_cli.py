@@ -9,7 +9,7 @@ from typer.testing import CliRunner
 from eval3r import PredictionWriter
 from eval3r.cli.main import app
 from eval3r.io.geometry import save_mesh_ply
-from tests._fake_scannet import CUBE_FACES, CUBE_VERTS, make_scannet_root
+from tests.helpers._fake_scannet import CUBE_FACES, CUBE_VERTS, make_scannet_root
 
 runner = CliRunner()
 

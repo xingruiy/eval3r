@@ -12,7 +12,7 @@ from eval3r.datasets.eth3d import ETH3DAdapter
 from eval3r.io.geometry import MeshData, PointCloudData
 from eval3r.io.trajectory import Trajectory
 from eval3r.utils.errors import MissingArtifactError, NotSupportedError
-from tests._fake_eth3d import make_eth3d_root
+from tests.helpers._fake_eth3d import make_eth3d_root
 
 
 @pytest.fixture

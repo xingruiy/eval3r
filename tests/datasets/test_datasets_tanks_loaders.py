@@ -13,7 +13,7 @@ from eval3r.io.crop import CropVolume
 from eval3r.io.geometry import PointCloudData
 from eval3r.io.trajectory import Trajectory
 from eval3r.utils.errors import MissingArtifactError, NotSupportedError
-from tests._fake_tanks import _DEFAULT_ALIGNMENT, make_tanks_root, make_tanks_scene
+from tests.helpers._fake_tanks import _DEFAULT_ALIGNMENT, make_tanks_root, make_tanks_scene
 
 
 @pytest.fixture

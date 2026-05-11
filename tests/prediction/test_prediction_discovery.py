@@ -7,7 +7,7 @@ import numpy as np
 from eval3r import PredictionWriter
 from eval3r.io.geometry import save_mesh_ply, save_point_cloud_ply
 from eval3r.prediction import PredictionLocator
-from tests._fake_scannet import CUBE_FACES, CUBE_VERTS
+from tests.helpers._fake_scannet import CUBE_FACES, CUBE_VERTS
 
 
 def _scene_dir(root: Path, sid: str) -> Path:

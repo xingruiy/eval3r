@@ -12,7 +12,7 @@ from eval3r.datasets.replica import ReplicaAdapter
 from eval3r.io.geometry import MeshData, PointCloudData
 from eval3r.io.trajectory import Trajectory
 from eval3r.utils.errors import MissingArtifactError, NotSupportedError
-from tests._fake_replica import make_replica_root
+from tests.helpers._fake_replica import make_replica_root
 
 
 @pytest.fixture

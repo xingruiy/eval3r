@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 
 from eval3r.io.geometry import save_mesh_ply
-from tests._fake_scannet import CUBE_FACES, CUBE_VERTS
+from tests.helpers._fake_scannet import CUBE_FACES, CUBE_VERTS
 
 
 def make_eth3d_scene(root: Path, scene_id: str, *, track: str = "dslr") -> Path:
