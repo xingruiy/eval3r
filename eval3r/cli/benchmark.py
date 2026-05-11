@@ -349,6 +349,11 @@ def run_cmd(
         scenes=scenes_list,
     )
 
+    if Path(mask_pattern).is_absolute():
+        raise typer.BadParameter("--mask-pattern must be relative to --mask-dir")
+    if Path(t_mask_scene_pattern).is_absolute():
+        raise typer.BadParameter("--t-mask-scene-pattern must be relative to --mask-dir")
+
     cfg = _build_config(
         preset,
         samples=samples,
