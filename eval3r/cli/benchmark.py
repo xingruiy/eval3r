@@ -171,10 +171,6 @@ def _build_config(
         raise typer.BadParameter(f"--align must be one of {get_args(AlignMode)}")
     if chamfer_value not in get_args(ChamferVariant):
         raise typer.BadParameter(f"--chamfer-variant must be one of {get_args(ChamferVariant)}")
-    if Path(mask_pattern).is_absolute():
-        raise typer.BadParameter("--mask-pattern must be relative to --mask-dir")
-    if Path(t_mask_scene_pattern).is_absolute():
-        raise typer.BadParameter("--t-mask-scene-pattern must be relative to --mask-dir")
     return BenchmarkConfig(
         samples=samples if samples is not None else defaults["samples"],
         seed=seed if seed is not None else defaults["seed"],
@@ -348,6 +344,14 @@ def run_cmd(
         scenes_file=scenes_file,
         scenes=scenes_list,
     )
+
+    if Path(mask_pattern).is_absolute():
+        typer.echo("--mask-pattern must be relative to --mask-dir", err=True)
+        raise typer.Exit(code=2)
+    if Path(t_mask_scene_pattern).is_absolute():
+        typer.echo("--t-mask-scene-pattern must be relative to --mask-dir", err=True)
+        raise typer.Exit(code=2)
+
 
     cfg = _build_config(
         preset,
