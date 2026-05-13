@@ -29,7 +29,7 @@ from eval3r.metric.geometry import (
     GeometryEvalResult,
     evaluate_geometry,
 )
-from eval3r.metric.sampling import SampleMethod
+from eval3r.sampling import SampleMethod
 from eval3r.prediction.discovery import PredictionLocator, ResolvedPrediction
 from eval3r.utils.errors import MissingArtifactError, NotSupportedError
 from eval3r.utils.logging import get_logger

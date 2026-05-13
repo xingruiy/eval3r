@@ -18,7 +18,7 @@ from eval3r.metric.geometry import (
     precision_at,
     recall_at,
 )
-from eval3r.metric.sampling import SampleMethod, sample_points
+from eval3r.sampling import SampleMethod, sample_points
 
 __all__ = [
     "GeometryEvalResult",

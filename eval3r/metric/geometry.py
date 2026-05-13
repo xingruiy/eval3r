@@ -11,7 +11,7 @@ from scipy.spatial import cKDTree
 from eval3r.alignment import AlignMode, align
 from eval3r.io.geometry import MeshData, PointCloudData
 from eval3r.filtering.base import BaseFilter
-from eval3r.metric.sampling import SampleMethod, sample_points
+from eval3r.sampling import SampleMethod, sample_points
 from eval3r.utils.errors import EmptyGeometryError
 from eval3r.utils.typing import Points, Poses
 
