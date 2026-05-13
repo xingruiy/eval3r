@@ -52,6 +52,32 @@ def test_benchmark_scannet_json_out(tmp_path: Path) -> None:
     assert payload["summary_all"]["chamfer"]["n"] == 2  # all scenes present
 
 
+def test_benchmark_reports_run_context_by_default(tmp_path: Path) -> None:
+    ds_root, split, preds = _setup(tmp_path)
+    result = runner.invoke(
+        app,
+        [
+            "benchmark", "scannet",
+            "--pred-root", str(preds),
+            "--gt-root", str(ds_root),
+            "--split", str(split),
+            "--samples", "2048",
+            "--seed", "0",
+            "--workers", "1",
+            "--thresholds", "0.05",
+            "--json",
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+    assert "benchmark: dataset=scannet" in result.output
+    assert "scenes=2" in result.output
+    assert f"benchmark: pred_root={preds}" in result.output
+    assert f"benchmark: gt_root={ds_root}" in result.output
+    assert "workers=1 samples=2048 seed=0" in result.output
+    assert "thresholds=[0.05]" in result.output
+    assert json.loads(result.stdout)["dataset"] == "scannet"
+
+
 def test_datasets_list_and_validate(tmp_path: Path) -> None:
     ds_root, split, _ = _setup(tmp_path)
     list_result = runner.invoke(app, ["dataset", "list"])
@@ -297,8 +323,9 @@ def test_benchmark_help_lists_dataset_subcommands() -> None:
         assert name in result.stdout
 
 
-def test_benchmark_scannet_help_uses_new_roots() -> None:
+def test_benchmark_scannet_help_uses_new_roots_and_no_verbose() -> None:
     result = runner.invoke(app, ["benchmark", "scannet", "--help"])
     assert result.exit_code == 0, result.stdout
     assert "--pred-root" in result.stdout
     assert "--gt-root" in result.stdout
+    assert "--verbose" not in result.stdout

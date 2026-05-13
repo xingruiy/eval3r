@@ -165,9 +165,7 @@ def _evaluate_one(
     pred_descriptor: dict[str, Any] | None,
     gt_path: Path | None,
     gt_asset: Asset,
-    gt_poses: np.ndarray | None = None,
-    gt_pose_convention: str = "unspecified",
-    gt_timestamps: np.ndarray | None = None,
+    dataset: DatasetAdapter | None = None,
     crop_volume: CropVolume | None = None,
     scene_thresholds: tuple[float, ...] | None = None,
     config: BenchmarkConfig | None = None,
@@ -197,12 +195,24 @@ def _evaluate_one(
         else:
             gt_geom = load_mesh(gt_path)
 
-        # Trajectory-based alignment: load pred poses from manifest or
-        # from an explicit external pose directory.
+        # Trajectory-based alignment: load poses in the worker so the
+        # parent process does not eagerly parse pose files for every scene.
         pred_poses: np.ndarray | None = None
         pred_pose_convention = "unspecified"
         pred_timestamps: np.ndarray | None = None
+        gt_poses: np.ndarray | None = None
+        gt_pose_convention = "unspecified"
+        gt_timestamps: np.ndarray | None = None
         if isinstance(config.align, str) and config.align.startswith("traj_"):
+            if dataset is not None:
+                try:
+                    gt_traj = dataset.load_poses(scene_id)
+                    gt_poses = gt_traj.poses
+                    gt_pose_convention = gt_traj.convention
+                    gt_timestamps = gt_traj.timestamps
+                except Exception:
+                    pass
+
             if rp["kind"] == "manifest" and rp["reader"] is not None:
                 try:
                     traj = rp["reader"].poses
@@ -315,9 +325,7 @@ BenchmarkJob = tuple[
     dict[str, Any] | None,
     Path | None,
     Asset,
-    np.ndarray | None,
-    str,
-    np.ndarray | None,
+    DatasetAdapter | None,
     CropVolume | None,
     tuple[float, ...] | None,
 ]
@@ -454,9 +462,8 @@ def run_benchmark(
         adapter_split = getattr(dataset, "_split", None)
         split_label = str(adapter_split) if adapter_split is not None else "auto"
 
-    # Resolve preds + GT paths upfront; that way workers don't share adapter
-    # state across processes.
-    want_traj = isinstance(cfg.align, str) and cfg.align.startswith("traj_")
+    # Resolve preds + GT paths upfront. Heavier per-scene data such as
+    # trajectory arrays is loaded inside the worker.
     gt_asset = _gt_asset(dataset)
     jobs: list[BenchmarkJob] = []
     for sid in scenes:
@@ -469,17 +476,6 @@ def run_benchmark(
             gt_path = dataset.asset_path(sid, gt_asset)
         except Exception:
             gt_path = None
-        gt_poses_arr: np.ndarray | None = None
-        gt_pose_conv = "unspecified"
-        gt_ts_arr: np.ndarray | None = None
-        if want_traj and gt_path is not None:
-            try:
-                traj = dataset.load_poses(sid)
-                gt_poses_arr = traj.poses
-                gt_pose_conv = traj.convention
-                gt_ts_arr = traj.timestamps
-            except Exception:
-                pass
         crop_vol: CropVolume | None = None
         if cfg.crop_to_eval_region and gt_path is not None:
             try:
@@ -515,9 +511,7 @@ def run_benchmark(
                 _pred_descriptor(rp),
                 gt_path,
                 gt_asset,
-                gt_poses_arr,
-                gt_pose_conv,
-                gt_ts_arr,
+                dataset,
                 crop_vol,
                 scene_thr,
             )
@@ -565,13 +559,13 @@ def run_benchmark(
     # each scene contributes its own scene-τ result to the same list.
     used_thresholds: set[float] = set(effective_default_thresholds)
     for j in jobs:
-        st = j[8]  # scene_thresholds slot
+        st = j[6]  # scene_thresholds slot
         if st is not None:
             used_thresholds.update(float(t) for t in st)
     pooled = (
-        any(j[8] is not None for j in jobs)
+        any(j[6] is not None for j in jobs)
         and any(
-            j[8] is not None and tuple(j[8]) != effective_default_thresholds
+            j[6] is not None and tuple(j[6]) != effective_default_thresholds
             for j in jobs
         )
         and len(used_thresholds) > 1

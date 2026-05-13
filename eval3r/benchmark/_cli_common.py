@@ -90,7 +90,6 @@ def build_config(
     pred_pose_dir: str | None,
     pred_pose_file: str,
     pred_pose_convention: str,
-    verbose: bool,
     mask_dir: str | None,
     mask_pattern: str,
     t_mask_scene_pattern: str,
@@ -139,7 +138,7 @@ def build_config(
         pred_pose_dir=pred_pose_dir,
         pred_pose_file=pred_pose_file,
         pred_pose_convention=pred_pose_convention,
-        verbose=verbose,
+        verbose=True,
         mask_dir=mask_dir,
         mask_pattern=mask_pattern,
         t_mask_scene_pattern=t_mask_scene_pattern,
@@ -166,6 +165,19 @@ def run_and_emit(
         )
         raise typer.Exit(code=2)
 
+    scenes = ds.list_scenes(split)
+    _emit_run_context(
+        ds,
+        pred_root=pred_root,
+        split=split,
+        scene_count=len(scenes),
+        cfg=cfg,
+        pred_patterns=pred_patterns,
+        out=out,
+        csv=csv,
+        json_out=json_out,
+    )
+
     locator = PredictionLocator(
         preds_root=Path(pred_root),
         extra_patterns=tuple(pred_patterns),
@@ -175,8 +187,10 @@ def run_and_emit(
 
     if out:
         Path(out).write_text(json.dumps(payload, indent=2))
+        typer.echo(f"benchmark: wrote JSON results to {out}", err=True)
     if csv:
         write_csv(Path(csv), payload)
+        typer.echo(f"benchmark: wrote CSV results to {csv}", err=True)
     if json_out:
         print(json.dumps(payload, indent=2))
         return
@@ -204,6 +218,77 @@ def run_and_emit(
                 ),
             )
         )
+
+
+def _emit_run_context(
+    ds: DatasetAdapter,
+    *,
+    pred_root: str,
+    split: str | None,
+    scene_count: int,
+    cfg: BenchmarkConfig,
+    pred_patterns: list[str],
+    out: str | None,
+    csv: str | None,
+    json_out: bool,
+) -> None:
+    gt_root = getattr(ds, "root", None)
+    split_label = split if split is not None else getattr(ds, "_split", None)
+    split_text = str(split_label) if split_label is not None else "auto"
+    typer.echo(
+        f"benchmark: dataset={ds.name} split={split_text} scenes={scene_count}",
+        err=True,
+    )
+    typer.echo(f"benchmark: pred_root={pred_root}", err=True)
+    if gt_root is not None:
+        typer.echo(f"benchmark: gt_root={gt_root}", err=True)
+    typer.echo(
+        "benchmark: "
+        f"workers={cfg.workers} samples={cfg.samples} seed={cfg.seed} "
+        f"align={cfg.align} chamfer={cfg.chamfer_variant}",
+        err=True,
+    )
+    typer.echo(
+        "benchmark: "
+        f"thresholds={list(cfg.thresholds)} "
+        f"dataset_thresholds={cfg.use_dataset_thresholds} "
+        f"threshold_multiplier={cfg.threshold_multiplier}",
+        err=True,
+    )
+    if cfg.crop_to_gt_bbox or cfg.crop_to_eval_region:
+        typer.echo(
+            "benchmark: "
+            f"crop_gt_bbox={cfg.crop_to_gt_bbox} "
+            f"crop_eval_region={cfg.crop_to_eval_region} "
+            f"bbox_margin={cfg.bbox_margin}",
+            err=True,
+        )
+    if cfg.mask_dir is not None:
+        typer.echo(
+            "benchmark: "
+            f"mask_dir={cfg.mask_dir} mask_pattern={cfg.mask_pattern} "
+            f"t_mask_scene_pattern={cfg.t_mask_scene_pattern}",
+            err=True,
+        )
+    if cfg.pred_pose_dir is not None:
+        typer.echo(
+            "benchmark: "
+            f"pred_pose_dir={cfg.pred_pose_dir} "
+            f"pred_pose_file={cfg.pred_pose_file} "
+            f"pred_pose_convention={cfg.pred_pose_convention}",
+            err=True,
+        )
+    if pred_patterns:
+        typer.echo(f"benchmark: extra prediction patterns={pred_patterns}", err=True)
+    targets = []
+    if out:
+        targets.append(f"json_file={out}")
+    if csv:
+        targets.append(f"csv_file={csv}")
+    if json_out:
+        targets.append("stdout=json")
+    if targets:
+        typer.echo(f"benchmark: outputs {' '.join(targets)}", err=True)
 
 
 def write_csv(path: Path, payload: dict) -> None:

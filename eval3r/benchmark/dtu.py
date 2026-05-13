@@ -50,7 +50,6 @@ def command(
     pred_pose_dir: str | None = typer.Option(None, "--pred-pose-dir"),
     pred_pose_file: str = typer.Option("{scene_id}.txt", "--pred-pose-file"),
     pred_pose_convention: str = typer.Option("unspecified", "--pred-pose-convention"),
-    verbose: bool = typer.Option(False, "--verbose", "-v"),
 ) -> None:
     """Run a DTU geometry benchmark."""
     adapter_kwargs = {
@@ -82,7 +81,6 @@ def command(
         pred_pose_dir=pred_pose_dir,
         pred_pose_file=pred_pose_file,
         pred_pose_convention=pred_pose_convention,
-        verbose=verbose,
         mask_dir=None,
         mask_pattern="{scene_id}/occlusion_mask.npy",
         t_mask_scene_pattern="{scene_id}/T_mask_scene.txt",

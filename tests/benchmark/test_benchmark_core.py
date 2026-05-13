@@ -125,6 +125,32 @@ def test_abrupt_worker_exit_marked_failed(tmp_path: Path, monkeypatch: pytest.Mo
     assert "Worker process exited abruptly with exit code 70" in failed.error
 
 
+def test_traj_alignment_defers_gt_pose_loading_until_worker(tmp_path: Path) -> None:
+    class _NoMissingPredPoseLoadScanNet(ScanNetAdapter):
+        def load_poses(self, scene_id: str):
+            if scene_id == "s3":
+                raise AssertionError("missing-pred scene should not load GT poses")
+            return super().load_poses(scene_id)
+
+    split = make_scannet_root(tmp_path / "ds", ["s1", "s2", "s3"])
+    ds = _NoMissingPredPoseLoadScanNet(
+        tmp_path / "ds", split=split, validate_on_init=False
+    )
+    preds = _make_preds_root(tmp_path)
+    cfg = BenchmarkConfig(
+        samples=2048,
+        seed=0,
+        workers=1,
+        thresholds=(0.05,),
+        align="traj_se3",
+    )
+
+    result = run_benchmark(ds, preds, config=cfg, progress=False)
+
+    statuses = {o.scene_id: o.status for o in result.scenes}
+    assert statuses["s3"] == "missing_pred"
+
+
 def test_corrupted_pred_marked_failed(tmp_path: Path) -> None:
     ds, _ = _make_dataset(tmp_path)
     preds = _make_preds_root(tmp_path)
