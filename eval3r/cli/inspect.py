@@ -7,7 +7,7 @@ from pathlib import Path
 
 from rich.console import Console
 
-from eval3r.prediction.reader import PredictionReader
+from eval3r.manifest.reader import PredictionReader
 from eval3r.report.table import print_dict
 
 

@@ -15,4 +15,5 @@ venv/
 *.swp
 .DS_Store
 .CLAUDE
-DESIGN.md
+.eval3r
+.vscode

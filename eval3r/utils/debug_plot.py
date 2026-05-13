@@ -9,21 +9,29 @@ from eval3r.utils.typing import Points
 
 
 def save_debug_plot(
-    pred_pts: Points,
     gt_pts: Points,
     pred_aligned: Points,
     out_path: str,
     align_mode: str,
     scale: float,
+    rotation: np.ndarray | None = None,
+    translation: np.ndarray | None = None,
+    pred_poses: np.ndarray | None = None,
+    gt_poses: np.ndarray | None = None,
+    pred_convention: str = "unspecified",
+    gt_convention: str = "unspecified",
+    matched_pred_idx: np.ndarray | None = None,
+    matched_gt_idx: np.ndarray | None = None,
     *,
     max_points: int = 2000,
 ) -> None:
     """Downsample and export a 3D scatter plot of aligned prediction vs. GT.
 
     Args:
-        pred_pts: Original prediction points (N, 3).
         gt_pts: Ground-truth points (N, 3).
-        pred_aligned: Aligned prediction points (N, 3).
+        pred_aligned: Aligned prediction points (M, 3). May differ in length
+            from the original sampled prediction when post-alignment filters
+            (crop volume, occlusion mask) drop rows.
         out_path: Output image path (PNG).
         align_mode: Alignment mode label for the title.
         scale: Estimated scale factor for the title.
@@ -32,15 +40,12 @@ def save_debug_plot(
     plt = optional_import("matplotlib.pyplot", extra="render")
     optional_import("mpl_toolkits.mplot3d", extra="render")  # registers '3d' projection
 
-    pred_pts = np.asarray(pred_pts, dtype=np.float64)
     gt_pts = np.asarray(gt_pts, dtype=np.float64)
     pred_aligned = np.asarray(pred_aligned, dtype=np.float64)
 
-    # Downsample
-    if len(pred_pts) > max_points:
+    if len(pred_aligned) > max_points:
         rng = np.random.default_rng(seed=42)
-        idx = rng.choice(len(pred_pts), size=max_points, replace=False)
-        pred_pts = pred_pts[idx]
+        idx = rng.choice(len(pred_aligned), size=max_points, replace=False)
         pred_aligned = pred_aligned[idx]
     if len(gt_pts) > max_points:
         rng = np.random.default_rng(seed=123)
@@ -72,6 +77,61 @@ def save_debug_plot(
     ax.set_zlabel("Z")
     ax.set_title(f"Alignment: {align_mode}  |  scale = {scale:.4f}")
     ax.legend(loc="upper right")
+
+    if pred_poses is not None and gt_poses is not None:
+        from eval3r.alignment.trajectory import cam_positions
+
+        if pred_convention not in ("T_wc", "T_cw") or gt_convention not in ("T_wc", "T_cw"):
+            # Pose metadata can be present for non-trajectory workflows where
+            # conventions are intentionally unspecified; keep the debug plot
+            # for point clouds and skip camera overlays in that case.
+            pred_poses = None
+            gt_poses = None
+
+    if pred_poses is not None and gt_poses is not None:
+
+        def _cam_dirs(poses: np.ndarray, convention: str) -> np.ndarray:
+            poses = np.asarray(poses, dtype=np.float64)
+            R = poses[:, :3, :3]
+            if convention == "T_wc":
+                return R[:, :, 2]
+            if convention == "T_cw":
+                return R.transpose(0, 2, 1)[:, :, 2]
+            raise ValueError(
+                f"Unknown pose convention: {convention!r}; expected 'T_wc' or 'T_cw'"
+            )
+
+        pred_centers = cam_positions(pred_poses, pred_convention)
+        gt_centers = cam_positions(gt_poses, gt_convention)
+        pred_dirs = _cam_dirs(pred_poses, pred_convention)
+        gt_dirs = _cam_dirs(gt_poses, gt_convention)
+
+        R = np.eye(3) if rotation is None else np.asarray(rotation, dtype=np.float64)
+        t = np.zeros(3) if translation is None else np.asarray(translation, dtype=np.float64)
+        pred_centers = (scale * pred_centers @ R.T) + t
+        pred_dirs = pred_dirs @ R.T
+
+        if matched_pred_idx is None or matched_gt_idx is None:
+            n = min(len(pred_centers), len(gt_centers))
+            matched_pred_idx = np.arange(n)
+            matched_gt_idx = np.arange(n)
+
+        p = pred_centers[matched_pred_idx]
+        g = gt_centers[matched_gt_idx]
+        pd = pred_dirs[matched_pred_idx]
+        gd = gt_dirs[matched_gt_idx]
+        frustum_len = max(half_span * 0.05, 0.02)
+
+        for c, d in zip(p, pd):
+            tip = c + frustum_len * d
+            ax.plot([c[0], tip[0]], [c[1], tip[1]], [c[2], tip[2]], c="#1f77b4", alpha=0.8)
+            ax.scatter(c[0], c[1], c[2], c="#1f77b4", s=14, alpha=0.8)
+        for c, d in zip(g, gd):
+            tip = c + frustum_len * d
+            ax.plot([c[0], tip[0]], [c[1], tip[1]], [c[2], tip[2]], c="#2ca02c", alpha=0.8)
+            ax.scatter(c[0], c[1], c[2], c="#2ca02c", s=14, alpha=0.8)
+        for pc, gc in zip(p, g):
+            ax.plot([pc[0], gc[0]], [pc[1], gc[1]], [pc[2], gc[2]], c="#e67e22", alpha=0.4, lw=0.7)
 
     fig.tight_layout()
     fig.savefig(out_path, dpi=150)

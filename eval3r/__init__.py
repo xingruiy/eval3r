@@ -2,35 +2,58 @@
 
 from eval3r._version import __version__
 from eval3r.benchmark import (
+    BaseBenchmark,
     BenchmarkConfig,
     BenchmarkResult,
+    DTUBenchmark,
+    DTUBenchmarkConfig,
+    ETH3DBenchmark,
+    ETH3DBenchmarkConfig,
+    GenericBenchmark,
+    GenericBenchmarkConfig,
+    ReplicaBenchmark,
+    ReplicaBenchmarkConfig,
     SceneOutcome,
-    run_benchmark,
+    ScanNetBenchmark,
+    ScanNetBenchmarkConfig,
+    TanksTemplesBenchmark,
+    TanksTemplesBenchmarkConfig,
+    TumRGBDBenchmark,
+    TumRGBDBenchmarkConfig,
 )
-from eval3r.datasets import (
-    DatasetAdapter,
-    ScanNetAdapter,
-    get_dataset,
-    list_datasets,
-)
-from eval3r.metrics.geometry import Evaluator, evaluate_geometry
-from eval3r.prediction.discovery import PredictionLocator
-from eval3r.prediction.reader import PredictionReader
-from eval3r.prediction.writer import PredictionWriter
+from eval3r.manifest.discovery import PredictionLocator
+from eval3r.manifest.reader import PredictionReader
+from eval3r.manifest.writer import PredictionWriter
+from eval3r.pipeline import EvalConfig, Pipeline, PipelineResult
 
 __all__ = [
     "__version__",
+    # Pipeline
+    "EvalConfig",
+    "Pipeline",
+    "PipelineResult",
+    # Manifest
     "PredictionWriter",
     "PredictionReader",
     "PredictionLocator",
-    "Evaluator",
-    "evaluate_geometry",
-    "DatasetAdapter",
-    "ScanNetAdapter",
-    "get_dataset",
-    "list_datasets",
+    # Benchmark base
+    "BaseBenchmark",
     "BenchmarkConfig",
     "BenchmarkResult",
     "SceneOutcome",
-    "run_benchmark",
+    # Dataset benchmarks
+    "DTUBenchmark",
+    "DTUBenchmarkConfig",
+    "ETH3DBenchmark",
+    "ETH3DBenchmarkConfig",
+    "GenericBenchmark",
+    "GenericBenchmarkConfig",
+    "ReplicaBenchmark",
+    "ReplicaBenchmarkConfig",
+    "ScanNetBenchmark",
+    "ScanNetBenchmarkConfig",
+    "TanksTemplesBenchmark",
+    "TanksTemplesBenchmarkConfig",
+    "TumRGBDBenchmark",
+    "TumRGBDBenchmarkConfig",
 ]
