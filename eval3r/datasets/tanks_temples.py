@@ -9,7 +9,7 @@ import numpy as np
 
 from eval3r.datasets.base import Asset, DatasetAdapter
 from eval3r.datasets.layout import LayoutEntry, format_path, raise_missing
-from eval3r.mask.crop import CropVolume, load_crop_volume_json
+from eval3r.filtering.polygon import PolygonFilter
 from eval3r.io.geometry import PointCloudData, load_point_cloud
 from eval3r.io.trajectory import Trajectory
 from eval3r.utils.errors import MissingArtifactError, NotSupportedError
@@ -222,7 +222,7 @@ class TanksTemplesAdapter(DatasetAdapter):
             )
         return (_SCENES_TAU_DICT[scene_id],)
 
-    def load_crop_volume(self, scene_id: str) -> CropVolume:
+    def load_crop_volume(self, scene_id: str) -> PolygonFilter:
         # Empty filename ⇒ adapter advertises "no crop volume" so the
         # benchmark layer treats us like adapters without crop support.
         if not self._crop_filename:
@@ -240,7 +240,7 @@ class TanksTemplesAdapter(DatasetAdapter):
                 overrides=("crop_filename",),
                 layout=_LAYOUT,
             )
-        return load_crop_volume_json(path)
+        return PolygonFilter.load_from_json(path)
 
     def load_point_cloud(self, scene_id: str) -> PointCloudData:
         path = self.asset_path(scene_id, Asset.POINT_CLOUD)

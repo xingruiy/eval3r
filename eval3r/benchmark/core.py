@@ -16,8 +16,8 @@ import numpy as np
 from eval3r.alignment import AlignMode
 from eval3r.benchmark.aggregate import aggregate, aggregate_all
 from eval3r.datasets.base import Asset, DatasetAdapter
-from eval3r.mask.base import CropToGT
-from eval3r.mask.crop import CropVolume
+from eval3r.filtering.bbox import BBoxFilter
+from eval3r.filtering.polygon import PolygonFilter
 from eval3r.io.geometry import (
     MeshData,
     PointCloudData,
@@ -166,7 +166,7 @@ def _evaluate_one(
     gt_path: Path | None,
     gt_asset: Asset,
     dataset: DatasetAdapter | None = None,
-    crop_volume: CropVolume | None = None,
+    crop_volume: PolygonFilter | None = None,
     scene_thresholds: tuple[float, ...] | None = None,
     config: BenchmarkConfig | None = None,
 ) -> SceneOutcome:
@@ -254,7 +254,7 @@ def _evaluate_one(
         pred_mask = None
         mask_missing = False
         if config.mask_dir is not None:
-            from eval3r.mask.occlusion import load_occlusion_mask
+            from eval3r.filtering.occlusion import load_occlusion_mask
 
             mask_path = _resolve_mask_pattern(
                 config.mask_dir, config.mask_pattern, scene_id
@@ -270,7 +270,7 @@ def _evaluate_one(
             pred_mask = crop_volume
         if pred_mask is None and config.crop_to_gt_bbox:
             gv = gt_geom.vertices if isinstance(gt_geom, MeshData) else gt_geom.points
-            pred_mask = CropToGT(
+            pred_mask = BBoxFilter(
                 bbox_min=gv.min(axis=0),
                 bbox_max=gv.max(axis=0),
                 margin=config.bbox_margin,
@@ -326,7 +326,7 @@ BenchmarkJob = tuple[
     Path | None,
     Asset,
     DatasetAdapter | None,
-    CropVolume | None,
+    PolygonFilter | None,
     tuple[float, ...] | None,
 ]
 
@@ -476,7 +476,7 @@ def run_benchmark(
             gt_path = dataset.asset_path(sid, gt_asset)
         except Exception:
             gt_path = None
-        crop_vol: CropVolume | None = None
+        crop_vol: PolygonFilter | None = None
         if cfg.crop_to_eval_region and gt_path is not None:
             try:
                 crop_vol = dataset.load_crop_volume(sid)

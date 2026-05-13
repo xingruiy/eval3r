@@ -12,9 +12,9 @@ from eval3r.metric.geometry import (
     precision_at,
     recall_at,
 )
-from eval3r.mask.base import CropToGT
-from eval3r.mask.occlusion import (
-    OcclusionMask,
+from eval3r.filtering.bbox import BBoxFilter
+from eval3r.filtering.occlusion import (
+    OcclusionFilter,
     filter_visible_points,
     load_occlusion_mask,
 )
@@ -179,7 +179,7 @@ def test_occlusion_mask_visible_center() -> None:
     """Point at the centre voxel (only visible one) is kept."""
     grid = np.ones((3, 3, 3), dtype=np.float64)
     grid[1, 1, 1] = 0.0
-    mask = OcclusionMask(grid=grid, T_mask_scene=np.eye(4))
+    mask = OcclusionFilter(grid=grid, T_mask_scene=np.eye(4))
     pts = np.array([[1.0, 1.0, 1.0]])
     vis, n_vis, n_tot = filter_visible_points(pts, mask)
     assert n_vis == 1
@@ -190,7 +190,7 @@ def test_occlusion_mask_visible_center() -> None:
 def test_occlusion_mask_all_occluded_raises() -> None:
     """When every point is occluded an explicit error is raised."""
     grid = np.ones((3, 3, 3), dtype=np.float64)
-    mask = OcclusionMask(grid=grid, T_mask_scene=np.eye(4))
+    mask = OcclusionFilter(grid=grid, T_mask_scene=np.eye(4))
     pts = np.array([[0.0, 0.0, 0.0]])
     with pytest.raises(ValueError, match="All points in the evaluated set were marked occluded"):
         filter_visible_points(pts, mask)
@@ -200,7 +200,7 @@ def test_occlusion_mask_mixed() -> None:
     """Mixed visible/occluded points are correctly filtered."""
     grid = np.ones((3, 3, 3), dtype=np.float64)
     grid[1, 1, 1] = 0.0
-    mask = OcclusionMask(grid=grid, T_mask_scene=np.eye(4))
+    mask = OcclusionFilter(grid=grid, T_mask_scene=np.eye(4))
     pts = np.array([[1.0, 1.0, 1.0], [0.0, 0.0, 0.0]])
     vis, n_vis, n_tot = filter_visible_points(pts, mask)
     assert n_vis == 1
@@ -212,7 +212,7 @@ def test_occlusion_mask_out_of_bounds() -> None:
     """Points outside the grid are treated as occluded."""
     grid = np.ones((3, 3, 3), dtype=np.float64)
     grid[1, 1, 1] = 0.0
-    mask = OcclusionMask(grid=grid, T_mask_scene=np.eye(4))
+    mask = OcclusionFilter(grid=grid, T_mask_scene=np.eye(4))
     pts = np.array([[10.0, 10.0, 10.0]])
     with pytest.raises(ValueError, match="including out-of-bounds treated as occluded"):
         filter_visible_points(pts, mask)
@@ -229,7 +229,7 @@ def test_occlusion_mask_with_transform() -> None:
         [0.0, 0.0, 0.4, 1.0],
         [0.0, 0.0, 0.0, 1.0],
     ])
-    mask = OcclusionMask(grid=grid, T_mask_scene=w2g)
+    mask = OcclusionFilter(grid=grid, T_mask_scene=w2g)
     pts = np.array([[2.5, 2.5, 2.5]])
     vis, n_vis, _ = filter_visible_points(pts, mask)
     assert n_vis == 1
@@ -251,7 +251,7 @@ def test_occlusion_mask_load_roundtrip(tmp_path) -> None:
 
 def test_occlusion_mask_filter_points_contract() -> None:
     grid = np.array([[[0.0]], [[1.0]]], dtype=np.float64)
-    mask = OcclusionMask(grid=grid, T_mask_scene=np.eye(4))
+    mask = OcclusionFilter(grid=grid, T_mask_scene=np.eye(4))
     pts = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]], dtype=np.float64)
     kept, n_kept, n_total = mask.filter_points(pts)
     np.testing.assert_array_equal(kept, pts[:1])
@@ -260,7 +260,7 @@ def test_occlusion_mask_filter_points_contract() -> None:
 
 
 def test_crop_to_gt_filter_points_contract() -> None:
-    mask = CropToGT(
+    mask = BBoxFilter(
         bbox_min=np.array([0.0, 0.0, 0.0]),
         bbox_max=np.array([1.0, 1.0, 1.0]),
         margin=0.0,
@@ -313,7 +313,7 @@ def test_occlusion_mask_improves_accuracy() -> None:
     grid[gx**2 + gy**2 + gz**2 < 4.0] = 0.0
     w2g = np.eye(4)
     w2g[:3, 3] = (dim - 1) / 2  # world 0 → grid centre
-    mask = OcclusionMask(grid=grid, T_mask_scene=w2g)
+    mask = OcclusionFilter(grid=grid, T_mask_scene=w2g)
 
     result_masked = evaluate_geometry(
         pred_with_outliers, gt_pts, samples=3000, seed=42, thresholds=[0.05],
@@ -340,7 +340,7 @@ def test_occlusion_mask_chamfer_l1_mean() -> None:
     grid[4:6, 4:6, 4:6] = 0.0  # small visible cube near origin
     w2g = np.eye(4)
     w2g[:3, 3] = 4.5  # center
-    mask = OcclusionMask(grid=grid, T_mask_scene=w2g)
+    mask = OcclusionFilter(grid=grid, T_mask_scene=w2g)
 
     result = evaluate_geometry(
         pts, pred, samples=1000, seed=0, thresholds=[0.05],
@@ -359,7 +359,7 @@ def test_occlusion_mask_chamfer_l2_squared() -> None:
     grid[4:6, 4:6, 4:6] = 0.0
     w2g = np.eye(4)
     w2g[:3, 3] = 4.5
-    mask = OcclusionMask(grid=grid, T_mask_scene=w2g)
+    mask = OcclusionFilter(grid=grid, T_mask_scene=w2g)
 
     result = evaluate_geometry(
         pts, pred, samples=1000, seed=0, thresholds=[0.05],

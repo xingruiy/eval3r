@@ -1,4 +1,4 @@
-"""Voxel occlusion mask for filtering predicted points in unseen regions."""
+"""Voxel occlusion filter for removing predicted points in unseen regions."""
 
 from __future__ import annotations
 
@@ -8,11 +8,12 @@ from pathlib import Path
 import numpy as np
 from scipy.ndimage import map_coordinates
 
+from eval3r.filtering.base import BaseFilter
 from eval3r.utils.typing import Points
 
 
 @dataclass
-class OcclusionMask:
+class OcclusionFilter(BaseFilter):
     """3D voxel grid marking occluded regions (1=occluded, 0=visible).
 
     The ``T_mask_scene`` matrix maps homogeneous scene coordinates
@@ -36,15 +37,15 @@ class OcclusionMask:
 def load_occlusion_mask(
     mask_path: str | Path,
     T_mask_scene_path: str | Path,
-) -> OcclusionMask:
-    """Load occlusion mask and ``T_mask_scene`` transform from disk.
+) -> OcclusionFilter:
+    """Load occlusion filter and ``T_mask_scene`` transform from disk.
 
     Args:
         mask_path: Path to a ``.npy`` file containing the 3D occlusion grid.
         T_mask_scene_path: Path to a whitespace-delimited 4×4 text file.
 
     Returns:
-        OcclusionMask with the loaded data.
+        OcclusionFilter with the loaded data.
     """
     mask_path = Path(mask_path)
     grid = np.load(mask_path)
@@ -59,7 +60,7 @@ def load_occlusion_mask(
             f"T_mask_scene must be 4×4, got shape {T_mask_scene.shape}"
         )
 
-    return OcclusionMask(
+    return OcclusionFilter(
         grid=grid.astype(np.float64, copy=False),
         T_mask_scene=T_mask_scene.astype(np.float64),
         source=str(mask_path),
@@ -67,13 +68,13 @@ def load_occlusion_mask(
 
 
 def save_occlusion_mask(
-    mask: OcclusionMask,
+    mask: OcclusionFilter,
     out_dir: str | Path,
     *,
     mask_name: str = "occlusion_mask.npy",
     t_mask_scene_name: str = "T_mask_scene.txt",
 ) -> tuple[Path, Path]:
-    """Save an occlusion mask to ``out_dir`` as a ``.npy`` + ``.txt`` pair.
+    """Save an occlusion filter to ``out_dir`` as a ``.npy`` + ``.txt`` pair.
 
     Mirrors the layout :func:`load_occlusion_mask` reads. Creates ``out_dir``
     if it does not already exist.
@@ -98,7 +99,7 @@ def save_occlusion_mask(
 
 def filter_visible_points(
     points: Points,
-    mask: OcclusionMask,
+    mask: OcclusionFilter,
 ) -> tuple[Points, int, int]:
     """Filter a point set to only those in visible (non-occluded) voxels.
 
@@ -115,13 +116,9 @@ def filter_visible_points(
     """
     n_total = len(points)
 
-    # Transform world-space points to grid-index coordinates.
     homogeneous = np.column_stack([points, np.ones(n_total)])
     grid_coords = (mask.T_mask_scene @ homogeneous.T).T[:, :3]  # (N, 3)
 
-    # Trilinear interpolation (order=1) over the occlusion grid.
-    # map_coordinates expects coords as a tuple of 1-D arrays, one per axis.
-    # Mode 'constant' with cval=1.0 treats out-of-bounds as occluded.
     sampled = map_coordinates(
         mask.grid,
         (grid_coords[:, 0], grid_coords[:, 1], grid_coords[:, 2]),
@@ -142,3 +139,11 @@ def filter_visible_points(
         )
 
     return points[is_visible], n_visible, n_total
+
+
+__all__ = [
+    "OcclusionFilter",
+    "filter_visible_points",
+    "load_occlusion_mask",
+    "save_occlusion_mask",
+]

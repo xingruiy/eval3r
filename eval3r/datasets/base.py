@@ -10,7 +10,7 @@ from typing import ClassVar
 
 import numpy as np
 
-from eval3r.mask.crop import CropVolume
+from eval3r.filtering.polygon import PolygonFilter
 from eval3r.io.geometry import MeshData, PointCloudData
 from eval3r.io.trajectory import Trajectory
 from eval3r.utils.errors import NotSupportedError
@@ -109,7 +109,7 @@ class DatasetAdapter(ABC):
     def load_poses(self, scene_id: str) -> Trajectory:
         raise NotSupportedError(f"{self.name}: load_poses not supported")
 
-    def load_crop_volume(self, scene_id: str) -> CropVolume:
+    def load_crop_volume(self, scene_id: str) -> PolygonFilter:
         """Per-scene evaluation crop region (e.g. T&T ``{scene}.json``).
 
         Optional: only datasets that ship a crop file override this.

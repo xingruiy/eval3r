@@ -9,7 +9,7 @@ import pytest
 
 from eval3r.datasets.base import Asset
 from eval3r.datasets.tanks_temples import TanksTemplesAdapter
-from eval3r.mask.crop import CropVolume
+from eval3r.filtering.polygon import PolygonFilter
 from eval3r.io.geometry import PointCloudData
 from eval3r.io.trajectory import Trajectory
 from eval3r.utils.errors import MissingArtifactError, NotSupportedError
@@ -145,7 +145,7 @@ def test_empty_pose_log_raises(tmp_path: Path) -> None:
 
 def test_load_crop_volume(adapter: TanksTemplesAdapter) -> None:
     vol = adapter.load_crop_volume("Barn")
-    assert isinstance(vol, CropVolume)
+    assert isinstance(vol, PolygonFilter)
     assert vol.orthogonal_axis == 1  # default fixture uses Y
     assert vol.axis_min == 0.0
     assert vol.axis_max == 1.0

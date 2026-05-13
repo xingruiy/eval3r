@@ -8,7 +8,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-from eval3r.mask.crop import CropVolume, crop_points_inside, load_crop_volume_json
+from eval3r.filtering.polygon import PolygonFilter, crop_points_inside, load_crop_volume_json
 from eval3r.utils.errors import MissingArtifactError
 
 
@@ -36,7 +36,7 @@ def _square_volume_y(tmp_path: Path) -> Path:
 def test_load_round_trip(tmp_path: Path) -> None:
     p = _square_volume_y(tmp_path)
     vol = load_crop_volume_json(p)
-    assert isinstance(vol, CropVolume)
+    assert isinstance(vol, PolygonFilter)
     assert vol.orthogonal_axis == 1  # Y
     assert vol.axis_min == 0.0
     assert vol.axis_max == 1.0

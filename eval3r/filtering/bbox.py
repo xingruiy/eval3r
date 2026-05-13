@@ -1,23 +1,16 @@
-"""Common geometry mask protocol and analytic mask types."""
+"""Axis-aligned bounding-box filter using GT mesh bounds."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol, runtime_checkable
 
 import numpy as np
 
-
-@runtime_checkable
-class GeometryMask(Protocol):
-    """Protocol for prediction-point filters used by geometry evaluation."""
-
-    def filter_points(self, points: np.ndarray) -> tuple[np.ndarray, int, int]:
-        """Return ``(kept_points, n_kept, n_total)`` for ``points``."""
+from eval3r.filtering.base import BaseFilter
 
 
 @dataclass
-class CropToGT:
+class BBoxFilter(BaseFilter):
     """Axis-aligned GT-bounds crop, expanded by ``margin``."""
 
     bbox_min: np.ndarray
@@ -39,4 +32,4 @@ class CropToGT:
         return pts[keep], n_kept, n_total
 
 
-__all__ = ["CropToGT", "GeometryMask"]
+__all__ = ["BBoxFilter"]

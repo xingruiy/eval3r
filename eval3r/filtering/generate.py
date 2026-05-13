@@ -1,6 +1,6 @@
-"""Volumetric occlusion mask generation via voxel-centric TSDF carving.
+"""Volumetric occlusion filter generation via voxel-centric TSDF carving.
 
-Two pluggable methods produce the same :class:`OcclusionMask` format:
+Two pluggable methods produce the same :class:`OcclusionFilter` format:
 
 - :func:`from_depth`    — back-project sensor depth using poses + intrinsics.
 - :func:`from_rendered` — render a GT mesh per camera, use the rendered depth.
@@ -17,7 +17,7 @@ Both share a two-stage core:
    ``≤ depth_at_pixel + truncation`` (free space + thin TSDF band past surface).
    Voxels behind the observed surface stay occluded.
 
-The consumer (:func:`eval3r.mask.occlusion.filter_visible_points`) samples
+The consumer (:func:`eval3r.filtering.occlusion.filter_visible_points`) samples
 the mask with trilinear interpolation, so visible voxels are dilated by one
 cell by default; pass ``dilation=0`` for a crisp mask.
 """
@@ -31,7 +31,7 @@ import numpy as np
 from scipy.ndimage import binary_dilation
 
 from eval3r.io.geometry import MeshData
-from eval3r.mask.occlusion import OcclusionMask
+from eval3r.filtering.occlusion import OcclusionFilter
 from eval3r.render.camera import CameraFrame, PoseFrame, to_pyrender_pose
 from eval3r.utils.optional import optional_import
 from eval3r.utils.typing import PathLike
@@ -50,8 +50,8 @@ def _points_to_mask(
     bbox: tuple[np.ndarray, np.ndarray] | None = None,
     dilation: int = 1,
     source: str = "<generated>",
-) -> OcclusionMask:
-    """Voxelize world-space points into an :class:`OcclusionMask`.
+) -> OcclusionFilter:
+    """Voxelize world-space points into an :class:`OcclusionFilter`.
 
     Kept as a private helper exercised by tests; the public API
     (:func:`from_depth`, :func:`from_rendered`) does not call it.
@@ -98,7 +98,7 @@ def _points_to_mask(
         visible = binary_dilation(visible, iterations=dilation)
 
     grid = np.where(visible, 0.0, 1.0)
-    return OcclusionMask(
+    return OcclusionFilter(
         grid=grid,
         T_mask_scene=_build_T_mask_scene(bbox_min, voxel_size),
         source=source,
@@ -322,7 +322,6 @@ def _carve_visible_grid(
     T_cw_list = [_to_T_cw(poses[i], pose_convention) for i in idx]
     K_list = list(Ks)
 
-    # Pre-cast depth maps once (float64 for stable division) per frame.
     depth_cache: dict[int, np.ndarray] = {}
 
     def get_depth(frame_idx: int) -> np.ndarray:
@@ -350,8 +349,6 @@ def _carve_visible_grid(
         depth_i = get_depth(int(frame_idx))
         H, W = depth_i.shape
 
-        # (1) Per-frame frustum AABB in voxel-grid space. A voxel outside this
-        # AABB also fails the in_image / in_z gate, so skipping it is safe.
         T_wc = np.linalg.inv(T_cw)
         corners_world = _frustum_corners_world(
             K_i,
@@ -379,7 +376,6 @@ def _carve_visible_grid(
         cx = K_i[0, 2]
         cy = K_i[1, 2]
 
-        # (2) Iterate the sub-grid in chunks.
         for chunk_start in range(0, sub_total, chunk_size):
             chunk_end = min(chunk_start + chunk_size, sub_total)
             flat_local = np.arange(chunk_start, chunk_end, dtype=np.int64)
@@ -388,7 +384,6 @@ def _carve_visible_grid(
             gj = lj + int(v_min[1])
             gk = lk + int(v_min[2])
 
-            # (3) Skip already-visible voxels in this chunk.
             already = visible[gi, gj, gk]
             if already.all():
                 continue
@@ -397,17 +392,12 @@ def _carve_visible_grid(
             gj = gj[todo]
             gk = gk[todo]
 
-            # (4) World coords for the active subset only — float64 to match
-            # the chunk-outer / frame-inner reference exactly at boundary
-            # voxels (float32 introduced sub-pixel drift that flipped a
-            # handful of u, v lookups near image edges).
             xs = bbox_min_f64[0] + gi.astype(np.float64) * voxel_size_f64
             ys = bbox_min_f64[1] + gj.astype(np.float64) * voxel_size_f64
             zs = bbox_min_f64[2] + gk.astype(np.float64) * voxel_size_f64
             ones = np.ones_like(xs, dtype=np.float64)
             centers_h = np.stack([xs, ys, zs, ones], axis=0)  # (4, M)
 
-            # (5) Project.
             cam = T_cw @ centers_h  # (4, M)
             x_cam = cam[0]
             y_cam = cam[1]
@@ -476,8 +466,8 @@ def from_depth(
     frame_stride: int = 10,
     max_frames: int | None = None,
     dilation: int = 1,
-) -> OcclusionMask:
-    """Build a volumetric occlusion mask from per-frame sensor depth.
+) -> OcclusionFilter:
+    """Build a volumetric occlusion filter from per-frame sensor depth.
 
     Two-stage TSDF-style carving:
 
@@ -511,7 +501,6 @@ def from_depth(
     )
     Ks = [Ks_full[i] for i in idx]
 
-    # Stage 1: bbox from observed depth samples.
     bbox_depth_max = float(depth_max) if depth_max is not None else float(max_depth)
     bbox_min, bbox_max = _depth_bbox_world(
         idx=idx,
@@ -529,7 +518,6 @@ def from_depth(
         raise ValueError(f"bbox has non-positive extent {extent}")
     dims = np.maximum(np.ceil(extent / voxel_size).astype(int), 1)
 
-    # Stage 2: voxel-centric TSDF carve.
     trunc = float(truncation) if truncation is not None else 4.0 * float(voxel_size)
     visible = _carve_visible_grid(
         idx=idx,
@@ -552,7 +540,7 @@ def from_depth(
         visible = binary_dilation(visible, iterations=dilation)
     grid = np.where(visible, 0.0, 1.0)
 
-    return OcclusionMask(
+    return OcclusionFilter(
         grid=grid,
         T_mask_scene=_build_T_mask_scene(bbox_min, voxel_size),
         source="<from_depth>",
@@ -583,8 +571,8 @@ def from_rendered(
     max_frames: int | None = None,
     dilation: int = 1,
     headless: bool = True,
-) -> OcclusionMask:
-    """Build a volumetric mask by rendering ``geom`` per pose, then TSDF-carving.
+) -> OcclusionFilter:
+    """Build a volumetric filter by rendering ``geom`` per pose, then TSDF-carving.
 
     Rendered depth is clean and complete — no holes, no sensor noise. Useful
     when the GT mesh is reliable but the dataset doesn't ship sensor depth.
@@ -617,9 +605,6 @@ def from_rendered(
     idx = _select_frames(len(poses), frames, frames_file, frame_stride, max_frames)
     Ks = [Ks_full[i] for i in idx]
 
-    # Render depth for each selected frame. Pyrender depth lives in the
-    # OpenGL camera frame relative to ``pose_gl``; we feed (pose_gl, "opengl")
-    # into the carving stage so projection and lookup agree.
     rendered_depths: dict[int, np.ndarray] = {}
     pose_gl_list: list[np.ndarray] = []
     W, H = image_size
@@ -640,21 +625,15 @@ def from_rendered(
         _, depth = _render_scene(pyrender, scene, image_size)
         rendered_depths[int(i)] = np.asarray(depth, dtype=np.float64)
 
-    # Build a length-len(poses) sequence so depth_maps[i] indexing works.
     depth_seq: list[np.ndarray] = [
         rendered_depths.get(j, np.zeros((H, W), dtype=np.float64))
         for j in range(len(poses))
     ]
 
-    # Synthetic poses array in OpenGL camera_frame that pairs with rendered depth.
     poses_for_carve = poses.copy()
     for n, i in enumerate(idx):
-        # Pyrender's pose_gl is camera-to-world (T_wc) in OpenGL.
-        # _carve_visible_grid expects "raw" pose + (pose_convention, camera_frame).
-        # Easiest: pre-store the OpenGL T_wc, declare convention "T_wc"+frame "opengl".
         poses_for_carve[i] = pose_gl_list[n]
 
-    # Stage 1: bbox from rendered depth samples.
     bbox_min, bbox_max = _depth_bbox_world(
         idx=idx,
         depth_maps=depth_seq,
@@ -671,7 +650,6 @@ def from_rendered(
         raise ValueError(f"bbox has non-positive extent {extent}")
     dims = np.maximum(np.ceil(extent / voxel_size).astype(int), 1)
 
-    # Stage 2: voxel-centric TSDF carve in the OpenGL frame (matching pyrender).
     trunc = float(truncation) if truncation is not None else 4.0 * float(voxel_size)
     visible = _carve_visible_grid(
         idx=idx,
@@ -694,7 +672,7 @@ def from_rendered(
         visible = binary_dilation(visible, iterations=dilation)
     grid = np.where(visible, 0.0, 1.0)
 
-    return OcclusionMask(
+    return OcclusionFilter(
         grid=grid,
         T_mask_scene=_build_T_mask_scene(bbox_min, voxel_size),
         source="<from_rendered>",

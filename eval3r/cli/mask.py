@@ -26,9 +26,9 @@ from eval3r.datasets import get_dataset
 from eval3r.datasets.base import Asset
 from eval3r.io.geometry import load_mesh
 from eval3r.io.trajectory import Trajectory, load_trajectory_auto
-from eval3r.mask.generate import from_depth, from_rendered
-from eval3r.mask.occlusion import (
-    OcclusionMask,
+from eval3r.filtering.generate import from_depth, from_rendered
+from eval3r.filtering.occlusion import (
+    OcclusionFilter,
     load_occlusion_mask,
     save_occlusion_mask,
 )
@@ -400,7 +400,7 @@ def _gen_from_preset(
     frame_stride: int,
     max_frames: int | None,
     headless: bool,
-) -> OcclusionMask:
+) -> OcclusionFilter:
     if root is None or scene is None:
         raise typer.BadParameter(
             "--preset requires --root and --scene to identify the source data."
@@ -501,7 +501,7 @@ def _gen_from_depth_paths(
     frames_file: str | None,
     frame_stride: int,
     max_frames: int | None,
-) -> OcclusionMask:
+) -> OcclusionFilter:
     if poses_path is None or intrinsics_path is None:
         raise typer.BadParameter(
             "Manual depth mode needs --depth-path, --poses-path, and --intrinsics-path."
@@ -565,7 +565,7 @@ def _gen_from_mesh_paths(
     frame_stride: int,
     max_frames: int | None,
     headless: bool,
-) -> OcclusionMask:
+) -> OcclusionFilter:
     if poses_path is None or intrinsics_path is None:
         raise typer.BadParameter(
             "Manual rendered mode needs --mesh-path, --poses-path, and --intrinsics-path."
@@ -613,7 +613,7 @@ def inspect_cmd(
     json_out: bool = typer.Option(False, "--json"),
 ) -> None:
     """Print mask metadata (shape, voxel size, world bbox, visible fraction)."""
-    m: OcclusionMask = load_occlusion_mask(mask, t_mask_scene)
+    m: OcclusionFilter = load_occlusion_mask(mask, t_mask_scene)
     grid = m.grid
     T = m.T_mask_scene
 
@@ -710,7 +710,7 @@ def visualize_cmd(
     if value not in {"occluded", "visible"}:
         raise typer.BadParameter("--value must be 'occluded' or 'visible'")
 
-    from eval3r.mask.visualize import save_mask_overview, save_mask_point_cloud
+    from eval3r.filtering.visualize import save_mask_overview, save_mask_point_cloud
 
     mask_path = Path(mask)
     grid = np.load(mask_path, mmap_mode="r")

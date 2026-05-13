@@ -10,7 +10,7 @@ from scipy.spatial import cKDTree
 
 from eval3r.alignment import AlignMode, align
 from eval3r.io.geometry import MeshData, PointCloudData
-from eval3r.mask.base import GeometryMask
+from eval3r.filtering.base import BaseFilter
 from eval3r.metric.sampling import SampleMethod, sample_points
 from eval3r.utils.errors import EmptyGeometryError
 from eval3r.utils.typing import Points, Poses
@@ -141,7 +141,7 @@ def evaluate_geometry(
     gt_convention: str = "unspecified",
     pred_timestamps: np.ndarray | None = None,
     gt_timestamps: np.ndarray | None = None,
-    pred_mask: GeometryMask | None = None,
+    pred_mask: BaseFilter | None = None,
 ) -> GeometryEvalResult:
     """Sample → align → compute chamfer / accuracy / completeness / F-score.
 
