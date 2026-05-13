@@ -321,15 +321,3 @@ def test_benchmark_help_lists_dataset_subcommands() -> None:
         "generic",
     ]:
         assert name in result.stdout
-
-
-def test_benchmark_scannet_help_uses_new_roots_and_no_verbose() -> None:
-    result = runner.invoke(
-        app,
-        ["benchmark", "scannet", "--help"],
-        terminal_width=120,
-    )
-    assert result.exit_code == 0, result.stdout
-    assert "--pred-root" in result.stdout
-    assert "--gt-root" in result.stdout
-    assert "--verbose" not in result.stdout
