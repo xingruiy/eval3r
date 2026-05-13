@@ -13,8 +13,9 @@ theme:
 nav:
   - Home: index.md
   - Metrics: metric.md
+  - Benchmark CLI: benchmark.md
   - Trajectory Formats: trajectory.md
-  - Applying Occlusion Masks: apply_masks.md
+  - Occlusion Masks: masks.md
 
 markdown_extensions:
   - admonition

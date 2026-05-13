@@ -8,7 +8,7 @@ import sys
 from rich.console import Console
 from rich.table import Table
 
-from eval3r.prediction.validate import validate_prediction
+from eval3r.manifest.validate import validate_prediction
 
 
 def run(path: str, *, json_out: bool = False) -> None:

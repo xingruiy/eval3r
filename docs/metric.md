@@ -5,7 +5,7 @@
 A typical command looks like this:
 
 ```bash
-e3r metric all pred.ply --gt gt.ply
+e3r metric geometry pred.ply --gt gt.ply
 ```
 
 The input geometry can be either a mesh or a point cloud. When a mesh is provided, `eval3r` first samples points from the mesh surface before computing point-based metrics.
@@ -40,7 +40,7 @@ gt.ply
 A direct evaluation without alignment can be run with:
 
 ```bash
-e3r metric all pred.ply --gt gt.ply
+e3r metric geometry pred.ply --gt gt.ply
 ```
 
 Example output:
@@ -67,7 +67,7 @@ In this case, `align_mode` is `none`, so the prediction and ground truth are com
 The two geometries can be visualized in the same coordinate system using the `--debug-plot` option:
 
 ```bash
-e3r metric all pred.ply --gt gt.ply --debug-plot
+e3r metric geometry pred.ply --gt gt.ply --debug-plot
 ```
 
 ![](images/init.png)
@@ -85,7 +85,7 @@ ICP estimates a rigid transformation between the predicted and ground-truth poin
 Run ICP-aligned evaluation with:
 
 ```bash
-e3r metric all pred.ply --gt gt.ply --align icp
+e3r metric geometry pred.ply --gt gt.ply --align icp
 ```
 
 Example output:
@@ -136,7 +136,7 @@ Even models that predict metric scale may produce slightly inaccurate scale esti
 Run Sim(3)-aligned evaluation with:
 
 ```bash
-e3r metric all pred.ply --gt gt.ply --align sim3
+e3r metric geometry pred.ply --gt gt.ply --align sim3
 ```
 
 Example output:
@@ -387,19 +387,19 @@ Alignment methods require a reasonably good reconstruction or trajectory estimat
 To inspect the alignment quality, use the debug visualization option:
 
 ```bash
-e3r metric all pred.ply --gt gt.ply --align icp --debug-plot
+e3r metric geometry pred.ply --gt gt.ply --align icp --debug-plot
 ```
 
 or:
 
 ```bash
-e3r metric all pred.ply --gt gt.ply --align sim3 --debug-plot
+e3r metric geometry pred.ply --gt gt.ply --align sim3 --debug-plot
 ```
 
 For trajectory-based alignment:
 
 ```bash
-e3r metric all pred.ply --gt gt.ply \
+e3r metric geometry pred.ply --gt gt.ply \
   --align traj_sim3 \
   --pred-traj pred_trajectory.txt \
   --gt-traj gt_trajectory.txt \
@@ -412,16 +412,16 @@ A recommended workflow is:
 
 ```bash
 # 1. Direct comparison
-e3r metric all pred.ply --gt gt.ply --debug-plot
+e3r metric geometry pred.ply --gt gt.ply --debug-plot
 
 # 2. Geometry-based rigid alignment
-e3r metric all pred.ply --gt gt.ply --align icp --debug-plot
+e3r metric geometry pred.ply --gt gt.ply --align icp --debug-plot
 
 # 3. Geometry-based similarity alignment
-e3r metric all pred.ply --gt gt.ply --align sim3 --debug-plot
+e3r metric geometry pred.ply --gt gt.ply --align sim3 --debug-plot
 
 # 4. Trajectory-based similarity alignment, if trajectories are available
-e3r metric all pred.ply --gt gt.ply \
+e3r metric geometry pred.ply --gt gt.ply \
   --align traj_sim3 \
   --pred-traj pred_trajectory.txt \
   --gt-traj gt_trajectory.txt \

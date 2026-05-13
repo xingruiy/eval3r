@@ -65,14 +65,20 @@ def _render_scene(
     pyrender,  # type: ignore[no-untyped-def]
     scene,
     image_size: tuple[int, int],
-) -> np.ndarray:
+) -> tuple[np.ndarray, np.ndarray]:
+    """Render a scene and return ``(color, depth)``.
+
+    ``depth`` is the per-pixel distance along the camera's viewing direction,
+    in the same units as the geometry, with ``0`` for pixels that miss the
+    scene. Pyrender produces depth in the OpenGL camera frame.
+    """
     w, h = image_size
     renderer = pyrender.OffscreenRenderer(viewport_width=w, viewport_height=h)
     try:
-        color, _depth = renderer.render(scene)
+        color, depth = renderer.render(scene)
     finally:
         renderer.delete()
-    return color
+    return color, depth
 
 
 def _save_image(image: np.ndarray, path: PathLike) -> Path:
@@ -105,7 +111,7 @@ def render_geometry(
         intrinsics=intrinsics,
         image_size=image_size,
     )
-    img = _render_scene(pyrender, scene, image_size)
+    img, _ = _render_scene(pyrender, scene, image_size)
     return _save_image(img, out_path)
 
 
@@ -138,6 +144,7 @@ def render_compare(
             intrinsics=intrinsics,
             image_size=image_size,
         )
-        panels.append(_render_scene(pyrender, scene, image_size))
+        color, _ = _render_scene(pyrender, scene, image_size)
+        panels.append(color)
     side = np.concatenate(panels, axis=1)
     return _save_image(side, out_path)
