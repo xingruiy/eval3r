@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib
 import multiprocessing as mp
 import os
 import queue
@@ -165,7 +166,7 @@ def _evaluate_one(
     pred_descriptor: dict[str, Any] | None,
     gt_path: Path | None,
     gt_asset: Asset,
-    gt_pose_file_payload: _PoseFilePayload | None = None,
+    gt_pose_loader_payload: _PoseLoaderPayload | None = None,
     crop_volume: CropVolume | None = None,
     scene_thresholds: tuple[float, ...] | None = None,
     config: BenchmarkConfig | None = None,
@@ -204,13 +205,14 @@ def _evaluate_one(
         gt_pose_convention = "unspecified"
         gt_timestamps: np.ndarray | None = None
         if isinstance(config.align, str) and config.align.startswith("traj_"):
-            if gt_pose_file_payload is not None:
-                from eval3r.io.trajectory import load_trajectory_auto
-
-                gt_traj = load_trajectory_auto(
-                    Path(gt_pose_file_payload["path"]),
-                    convention=gt_pose_file_payload["convention"],
-                )
+            if gt_pose_loader_payload is not None:
+                cls_mod = importlib.import_module(gt_pose_loader_payload["module"])
+                cls_obj: Any = cls_mod
+                for part in gt_pose_loader_payload["qualname"].split("."):
+                    cls_obj = getattr(cls_obj, part)
+                adapter = cls_obj.__new__(cls_obj)
+                adapter.__dict__.update(gt_pose_loader_payload["state"])
+                gt_traj = adapter.load_poses(scene_id)
                 gt_poses = gt_traj.poses
                 gt_pose_convention = gt_traj.convention
                 gt_timestamps = gt_traj.timestamps
@@ -322,9 +324,10 @@ def _pred_descriptor(rp: ResolvedPrediction | None) -> dict[str, Any] | None:
     return {"kind": rp["kind"], "path": str(rp["path"])}
 
 
-class _PoseFilePayload(TypedDict):
-    path: str
-    convention: str
+class _PoseLoaderPayload(TypedDict):
+    module: str
+    qualname: str
+    state: dict[str, Any]
 
 
 BenchmarkJob = tuple[
@@ -332,7 +335,7 @@ BenchmarkJob = tuple[
     dict[str, Any] | None,
     Path | None,
     Asset,
-    _PoseFilePayload | None,
+    _PoseLoaderPayload | None,
     CropVolume | None,
     tuple[float, ...] | None,
 ]
@@ -436,16 +439,20 @@ def _run_jobs_parallel(
     return outcomes
 
 
-def _gt_pose_file_payload(
+def _gt_pose_loader_payload(
     dataset: DatasetAdapter, scene_id: str, align: AlignMode
-) -> _PoseFilePayload | None:
+) -> _PoseLoaderPayload | None:
     if not (isinstance(align, str) and align.startswith("traj_")):
         return None
     try:
         pose_path = dataset.asset_path(scene_id, Asset.POSES)
     except Exception:
         return None
-    return {"path": str(pose_path), "convention": "unspecified"}
+    return {
+        "module": dataset.__class__.__module__,
+        "qualname": dataset.__class__.__qualname__,
+        "state": dict(dataset.__dict__),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -530,7 +537,7 @@ def run_benchmark(
                 _pred_descriptor(rp),
                 gt_path,
                 gt_asset,
-                _gt_pose_file_payload(dataset, sid, cfg.align),
+                _gt_pose_loader_payload(dataset, sid, cfg.align),
                 crop_vol,
                 scene_thr,
             )
