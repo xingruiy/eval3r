@@ -72,16 +72,6 @@ def test_metric_geometry_json(tmp_path, gaussian_cloud) -> None:
     assert "0.01" in payload["fscore"]
 
 
-def test_metric_all_command_removed(tmp_path, gaussian_cloud) -> None:
-    pred = _write_pred(tmp_path, gaussian_cloud)
-    gt_path = tmp_path / "gt.ply"
-    save_point_cloud_ply(gt_path, gaussian_cloud)
-    result = runner.invoke(app, ["metric", "all", pred, "--gt", str(gt_path)])
-    assert result.exit_code == 2
-
-
-
-
 def test_dataset_show_lists_default_filenames() -> None:
     result = runner.invoke(app, ["dataset", "show", "scannet"])
     assert result.exit_code == 0

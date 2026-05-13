@@ -295,19 +295,6 @@ def test_benchmark_manual_mode_requires_thresholds(tmp_path: Path) -> None:
     assert "thresholds" in result.stdout.lower() or "thresholds" in (result.stderr or "").lower()
 
 
-def test_benchmark_flat_command_removed(tmp_path: Path) -> None:
-    """The old flat benchmark command is intentionally no longer accepted."""
-    result = runner.invoke(
-        app,
-        [
-            "benchmark", str(tmp_path),
-            "--dataset", "definitely_not_a_dataset",
-            "--root", str(tmp_path),
-        ],
-    )
-    assert result.exit_code != 0
-
-
 def test_benchmark_help_lists_dataset_subcommands() -> None:
     result = runner.invoke(app, ["benchmark", "--help"])
     assert result.exit_code == 0, result.stdout

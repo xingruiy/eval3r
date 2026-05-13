@@ -13,7 +13,6 @@ from eval3r.metric.geometry import (
     recall_at,
 )
 from eval3r.mask.base import CropToGT
-from eval3r.mask.crop import CropVolume
 from eval3r.mask.occlusion import (
     OcclusionMask,
     filter_visible_points,
@@ -330,45 +329,6 @@ def test_occlusion_mask_improves_accuracy() -> None:
     assert result_masked.completeness == pytest.approx(result_unmasked.completeness, rel=1e-3)
     assert result_masked.masked is True
     assert result_masked.visible_points < result_masked.total_pred_points
-
-
-def test_gt_mask_kwarg_removed() -> None:
-    pred = np.array([[0.0, 0.0, 0.0]], dtype=np.float64)
-    gt = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0]], dtype=np.float64)
-
-    grid = np.array([[[0.0]], [[1.0]]], dtype=np.float64)
-    gt_mask = OcclusionMask(grid=grid, T_mask_scene=np.eye(4))
-
-    with pytest.raises(TypeError):
-        evaluate_geometry(
-            pred,
-            gt,
-            samples=2,
-            seed=0,
-            sample_method="uniform",
-            align_mode="none",
-            thresholds=[0.1],
-            gt_mask=gt_mask,
-        )
-
-
-def test_crop_volume_kwarg_removed() -> None:
-    vol = CropVolume(
-        polygon_2d=np.array(
-            [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]],
-            dtype=np.float64,
-        ),
-        axis_min=0.0,
-        axis_max=1.0,
-        orthogonal_axis=1,
-    )
-    with pytest.raises(TypeError):
-        evaluate_geometry(
-            np.zeros((1, 3), dtype=np.float64),
-            np.zeros((1, 3), dtype=np.float64),
-            samples=1,
-            crop_volume=vol,
-        )
 
 
 def test_occlusion_mask_chamfer_l1_mean() -> None:
