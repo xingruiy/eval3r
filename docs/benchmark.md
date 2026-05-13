@@ -6,21 +6,21 @@ per-scene CSV/JSON breakdown. It is the multi-scene counterpart of
 [`e3r metric`](metric.md).
 
 ```text
-e3r benchmark <preds_root> [--dataset <name>] --root <gt_root> [...options]
+e3r benchmark <dataset> --pred-root <preds_root> --gt-root <gt_root> [...options]
 ```
 
-The first positional is **always** the predictions root — one subdirectory per
-scene (or any structure the prediction locator can resolve, e.g. a manifest).
+The dataset is a subcommand such as `scannet`, `tanks-temples`, or `generic`.
+`--pred-root` points at predictions — one subdirectory per scene (or any
+structure the prediction locator can resolve, e.g. a manifest).
 
 ## Two modes
 
-`e3r benchmark` decides what ground truth to load based on whether
-`--dataset` is given:
+`e3r benchmark` decides what ground truth to load based on the subcommand:
 
 | Mode               | Trigger                          | GT layout        | Thresholds & sampling |
 | ------------------ | -------------------------------- | ---------------- | --------------------- |
-| Registered dataset | `--dataset <name>`               | adapter class    | dataset preset        |
-| Manual             | omit `--dataset`, pass `--gt-path` | path template  | required on the CLI   |
+| Registered dataset | `e3r benchmark <dataset>`        | adapter class    | dataset preset        |
+| Manual             | `e3r benchmark generic`          | path template    | required on the CLI   |
 
 ## Mode 1: registered dataset
 
@@ -30,9 +30,9 @@ understands (`scannet`, `replica`, `dtu`, `eth3d`, `tum_rgbd`,
 [preset](#presets) supplies sensible defaults.
 
 ```bash
-e3r benchmark outputs/scannet \
-    --dataset scannet \
-    --root /data/scannet \
+e3r benchmark scannet \
+    --pred-root outputs/scannet \
+    --gt-root /data/scannet \
     --split /data/scannet/splits/scannetv2_test.txt \
     --thresholds 0.05 --workers 8 \
     --out results.json --csv results.csv
@@ -43,21 +43,24 @@ To reshape an adapter's expected layout (different filenames or subdirs), pass
 `e3r dataset show <name>` for the list.
 
 ```bash
-e3r benchmark outputs/eth3d --dataset eth3d \
-    --root /data/eth3d -o track=dslr
+e3r benchmark eth3d \
+    --pred-root outputs/eth3d \
+    --gt-root /data/eth3d -o track=dslr
 
-e3r benchmark outputs/tum --dataset tum_rgbd \
-    --root /data/tum -o intrinsics_fx=535.4 -o intrinsics_cx=320.1
+e3r benchmark tum-rgbd \
+    --pred-root outputs/tum \
+    --gt-root /data/tum -o intrinsics_fx=535.4 -o intrinsics_cx=320.1
 ```
 
-## Mode 2: manual layout (no adapter)
+## Mode 2: generic layout
 
-Use this when your data does not match any registered adapter. Omit
-`--dataset` and point at the ground truth via a `{scene_id}` template:
+Use this when your data does not match any registered adapter. Use the
+`generic` subcommand and point at the ground truth via a `{scene_id}` template:
 
 ```bash
-e3r benchmark outputs/mine \
-    --root /data/mydataset \
+e3r benchmark generic \
+    --pred-root outputs/mine \
+    --gt-root /data/mydataset \
     --gt-path '{scene_id}/gt.ply' \
     --scenes-file splits/val.txt \
     --thresholds 0.05 --align none --unit m
@@ -67,7 +70,7 @@ The GT file may be a mesh (any trimesh-loadable format with faces) or a point cl
 
 ### Required flags in manual mode
 
-- `--root`: directory the `--gt-path` template is resolved against.
+- `--gt-root`: directory the `--gt-path` template is resolved against.
 - `--gt-path`: path template with `{scene_id}` substitution.
 - A scene source — exactly one of:
   - `--scenes 's1,s2,s3'` (inline comma-separated list)
@@ -127,8 +130,9 @@ results, paths, errors) and `--csv result.csv` for a flat per-scene table.
 
 | Flag                          | Purpose                                                   |
 | ----------------------------- | --------------------------------------------------------- |
-| `--dataset NAME`              | Use a registered adapter. Omit for manual mode.           |
-| `--root PATH`                 | Ground-truth filesystem root. Always required.            |
+| `<dataset>`                   | Dataset subcommand, e.g. `scannet`, `generic`.            |
+| `--pred-root PATH`            | Predictions root. Always required.                        |
+| `--gt-root PATH`              | Ground-truth filesystem root. Always required.            |
 | `--split PATH`                | Scene-id list. Optional for adapters that auto-discover.  |
 | `--gt-path TEMPLATE`          | Manual-mode GT template (e.g. `{scene_id}/gt.ply`).       |
 | `--scenes "id1,id2"`          | Manual-mode inline scene list.                            |

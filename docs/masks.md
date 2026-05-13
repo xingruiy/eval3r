@@ -148,18 +148,18 @@ Use a mask root plus path patterns relative to that root:
 Benchmark masks are always applied to predicted points only.
 
 ```bash
-e3r benchmark outputs/scannet \
-  --dataset scannet \
-  --root /data/scannet \
+e3r benchmark scannet \
+  --pred-root outputs/scannet \
+  --gt-root /data/scannet \
   --mask-dir /data/scannet_masks
 ```
 
 Flat layouts are supported by including `{scene_id}` in the filename:
 
 ```bash
-e3r benchmark outputs/scannet \
-  --dataset scannet \
-  --root /data/scannet \
+e3r benchmark scannet \
+  --pred-root outputs/scannet \
+  --gt-root /data/scannet \
   --mask-dir /data/scannet_masks \
   --mask-pattern "{scene_id}_mask.npy" \
   --t-mask-scene-pattern "{scene_id}_T_mask_scene.txt"

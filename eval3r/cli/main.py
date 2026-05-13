@@ -27,10 +27,11 @@ app.add_typer(render_cmd.app, name="render", help="Render mesh / point cloud / c
 app.add_typer(mask_cmd.app, name="mask", help="Generate / inspect occlusion masks.")
 app.add_typer(preset_cmd.app, name="preset", help="Inspect dataset presets.")
 app.add_typer(datasets_cmd.app, name="dataset", help="Inspect / validate dataset adapters.")
-app.command(
+app.add_typer(
+    benchmark_cmd.app,
     name="benchmark",
-    help="Run a method against a dataset split (registered or manual layout).",
-)(benchmark_cmd.run_cmd)
+    help="Run a method against a dataset split.",
+)
 
 
 @app.command()

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import numpy as np
@@ -7,6 +8,7 @@ import pytest
 
 from eval3r import PredictionWriter
 from eval3r.benchmark import BenchmarkConfig, run_benchmark
+from eval3r.benchmark import core as benchmark_core
 from eval3r.datasets import ScanNetAdapter
 from eval3r.io.geometry import save_mesh_ply
 from eval3r.prediction import PredictionLocator
@@ -97,6 +99,30 @@ def test_run_benchmark_workers_2_matches_workers_1(tmp_path: Path) -> None:
     assert r1.coverage == r2.coverage
     assert r1.summary["chamfer"]["mean"] == pytest.approx(r2.summary["chamfer"]["mean"])
     assert r1.summary["chamfer"]["std"] == pytest.approx(r2.summary["chamfer"]["std"])
+
+
+def test_abrupt_worker_exit_marked_failed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    ds, _ = _make_dataset(tmp_path)
+    preds = _make_preds_root(tmp_path)
+    original_evaluate_one = benchmark_core._evaluate_one
+
+    def crash_one_scene(*args, **kwargs):
+        if args[0] == "s2":
+            os._exit(70)
+        return original_evaluate_one(*args, **kwargs)
+
+    monkeypatch.setattr(benchmark_core, "_evaluate_one", crash_one_scene)
+
+    cfg = BenchmarkConfig(samples=2048, seed=0, workers=2, thresholds=(0.05,))
+    result = run_benchmark(ds, preds, config=cfg, progress=False)
+
+    statuses = {o.scene_id: o.status for o in result.scenes}
+    assert statuses == {"s1": "ok", "s2": "failed", "s3": "missing_pred"}
+    assert result.coverage["n_evaluated"] == 1
+    assert result.coverage["n_failed"] == 1
+    failed = next(o for o in result.scenes if o.scene_id == "s2")
+    assert failed.error is not None
+    assert "Worker process exited abruptly with exit code 70" in failed.error
 
 
 def test_corrupted_pred_marked_failed(tmp_path: Path) -> None:

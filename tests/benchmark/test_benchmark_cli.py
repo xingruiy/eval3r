@@ -32,9 +32,9 @@ def test_benchmark_scannet_json_out(tmp_path: Path) -> None:
     result = runner.invoke(
         app,
         [
-            "benchmark", str(preds),
-            "--dataset", "scannet",
-            "--root", str(ds_root),
+            "benchmark", "scannet",
+            "--pred-root", str(preds),
+            "--gt-root", str(ds_root),
             "--split", str(split),
             "--samples", "2048",
             "--seed", "0",
@@ -96,9 +96,9 @@ def test_benchmark_json_marks_missing_scene_mask(tmp_path: Path) -> None:
     result = runner.invoke(
         app,
         [
-            "benchmark", str(preds),
-            "--dataset", "scannet",
-            "--root", str(ds_root),
+            "benchmark", "scannet",
+            "--pred-root", str(preds),
+            "--gt-root", str(ds_root),
             "--split", str(split),
             "--samples", "2048",
             "--seed", "0",
@@ -129,9 +129,9 @@ def test_benchmark_mask_patterns_support_flat_layout(tmp_path: Path) -> None:
     result = runner.invoke(
         app,
         [
-            "benchmark", str(preds),
-            "--dataset", "scannet",
-            "--root", str(ds_root),
+            "benchmark", "scannet",
+            "--pred-root", str(preds),
+            "--gt-root", str(ds_root),
             "--split", str(split),
             "--samples", "2048",
             "--seed", "0",
@@ -168,9 +168,9 @@ def test_benchmark_mask_patterns_support_nested_layout(tmp_path: Path) -> None:
     result = runner.invoke(
         app,
         [
-            "benchmark", str(preds),
-            "--dataset", "scannet",
-            "--root", str(ds_root),
+            "benchmark", "scannet",
+            "--pred-root", str(preds),
+            "--gt-root", str(ds_root),
             "--split", str(split),
             "--samples", "2048",
             "--seed", "0",
@@ -198,9 +198,9 @@ def test_benchmark_mask_patterns_must_be_relative(tmp_path: Path) -> None:
     result = runner.invoke(
         app,
         [
-            "benchmark", str(preds),
-            "--dataset", "scannet",
-            "--root", str(ds_root),
+            "benchmark", "scannet",
+            "--pred-root", str(preds),
+            "--gt-root", str(ds_root),
             "--split", str(split),
             "--samples", "2048",
             "--seed", "0",
@@ -215,8 +215,8 @@ def test_benchmark_mask_patterns_must_be_relative(tmp_path: Path) -> None:
     assert "--mask-pattern must be relative to --mask-dir" in result.output
 
 
-def test_benchmark_manual_mode(tmp_path: Path) -> None:
-    """Omitting --dataset enters manual mode via GenericAdapter + --gt-path."""
+def test_benchmark_generic_mode(tmp_path: Path) -> None:
+    """The generic subcommand benchmarks a manual `{scene_id}` GT layout."""
     gt_root = tmp_path / "ds"
     save_mesh_ply(gt_root / "s1" / "gt.ply", CUBE_VERTS, CUBE_FACES)
     save_mesh_ply(gt_root / "s2" / "gt.ply", CUBE_VERTS, CUBE_FACES)
@@ -229,8 +229,9 @@ def test_benchmark_manual_mode(tmp_path: Path) -> None:
     result = runner.invoke(
         app,
         [
-            "benchmark", str(preds),
-            "--root", str(gt_root),
+            "benchmark", "generic",
+            "--pred-root", str(preds),
+            "--gt-root", str(gt_root),
             "--gt-path", "{scene_id}/gt.ply",
             "--scenes", "s1,s2",
             "--samples", "2048",
@@ -257,8 +258,9 @@ def test_benchmark_manual_mode_requires_thresholds(tmp_path: Path) -> None:
     result = runner.invoke(
         app,
         [
-            "benchmark", str(preds),
-            "--root", str(gt_root),
+            "benchmark", "generic",
+            "--pred-root", str(preds),
+            "--gt-root", str(gt_root),
             "--gt-path", "{scene_id}/gt.ply",
             "--scenes", "s1",
         ],
@@ -267,8 +269,8 @@ def test_benchmark_manual_mode_requires_thresholds(tmp_path: Path) -> None:
     assert "thresholds" in result.stdout.lower() or "thresholds" in (result.stderr or "").lower()
 
 
-def test_benchmark_unknown_dataset_errors(tmp_path: Path) -> None:
-    """Unknown --dataset name surfaces as a hard error, no silent fallback."""
+def test_benchmark_flat_command_removed(tmp_path: Path) -> None:
+    """The old flat benchmark command is intentionally no longer accepted."""
     result = runner.invoke(
         app,
         [
@@ -278,3 +280,25 @@ def test_benchmark_unknown_dataset_errors(tmp_path: Path) -> None:
         ],
     )
     assert result.exit_code != 0
+
+
+def test_benchmark_help_lists_dataset_subcommands() -> None:
+    result = runner.invoke(app, ["benchmark", "--help"])
+    assert result.exit_code == 0, result.stdout
+    for name in [
+        "scannet",
+        "tanks-temples",
+        "tum-rgbd",
+        "replica",
+        "dtu",
+        "eth3d",
+        "generic",
+    ]:
+        assert name in result.stdout
+
+
+def test_benchmark_scannet_help_uses_new_roots() -> None:
+    result = runner.invoke(app, ["benchmark", "scannet", "--help"])
+    assert result.exit_code == 0, result.stdout
+    assert "--pred-root" in result.stdout
+    assert "--gt-root" in result.stdout

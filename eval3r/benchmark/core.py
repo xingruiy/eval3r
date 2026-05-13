@@ -2,12 +2,14 @@
 
 from __future__ import annotations
 
+import multiprocessing as mp
 import os
+import queue
+import time
 import traceback
-from concurrent.futures import ProcessPoolExecutor, as_completed
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Callable, Literal
 
 import numpy as np
 
@@ -132,7 +134,7 @@ class BenchmarkResult:
 
 
 # ---------------------------------------------------------------------------
-# Worker — must be top-level so ProcessPoolExecutor can pickle it.
+# Worker — must be top-level so multiprocessing can pickle it.
 # ---------------------------------------------------------------------------
 
 
@@ -308,6 +310,117 @@ def _pred_descriptor(rp: ResolvedPrediction | None) -> dict[str, Any] | None:
     return {"kind": rp["kind"], "path": str(rp["path"])}
 
 
+BenchmarkJob = tuple[
+    str,
+    dict[str, Any] | None,
+    Path | None,
+    Asset,
+    np.ndarray | None,
+    str,
+    np.ndarray | None,
+    CropVolume | None,
+    tuple[float, ...] | None,
+]
+
+
+def _evaluate_one_process(
+    result_queue: mp.Queue, job: BenchmarkJob, config: BenchmarkConfig
+) -> None:
+    result_queue.put(_evaluate_one(*job, config))
+
+
+def _abrupt_worker_failure(job: BenchmarkJob, exitcode: int | None) -> SceneOutcome:
+    return SceneOutcome(
+        scene_id=job[0],
+        status="failed",
+        error=f"Worker process exited abruptly with exit code {exitcode}.",
+        pred_path=Path(job[1]["path"]) if job[1] else None,
+        gt_path=job[2],
+    )
+
+
+def _run_jobs_parallel(
+    jobs: list[BenchmarkJob],
+    cfg: BenchmarkConfig,
+    *,
+    on_outcome: Callable[[SceneOutcome], None],
+) -> list[SceneOutcome]:
+    ctx = mp.get_context()
+    active: list[tuple[mp.Process, mp.Queue, BenchmarkJob]] = []
+    outcomes: list[SceneOutcome] = []
+    next_job = 0
+    max_workers = max(1, cfg.workers)
+
+    def start_more() -> None:
+        nonlocal next_job
+        while next_job < len(jobs) and len(active) < max_workers:
+            job = jobs[next_job]
+            next_job += 1
+            result_queue = ctx.Queue(maxsize=1)
+            proc = ctx.Process(
+                target=_evaluate_one_process,
+                args=(result_queue, job, cfg),
+            )
+            proc.start()
+            active.append((proc, result_queue, job))
+
+    def finish(
+        proc: mp.Process,
+        result_queue: mp.Queue,
+        job: BenchmarkJob,
+        outcome: SceneOutcome,
+    ) -> None:
+        proc.join()
+        result_queue.close()
+        result_queue.join_thread()
+        active.remove((proc, result_queue, job))
+        outcomes.append(outcome)
+        on_outcome(outcome)
+        start_more()
+
+    try:
+        start_more()
+        while active:
+            made_progress = False
+            for proc, result_queue, job in list(active):
+                try:
+                    outcome = result_queue.get_nowait()
+                except queue.Empty:
+                    outcome = None
+
+                if outcome is not None:
+                    finish(proc, result_queue, job, outcome)
+                    made_progress = True
+                    continue
+
+                if not proc.is_alive():
+                    proc.join()
+                    try:
+                        outcome = result_queue.get(timeout=0.2)
+                    except queue.Empty:
+                        outcome = _abrupt_worker_failure(job, proc.exitcode)
+                    result_queue.close()
+                    result_queue.join_thread()
+                    active.remove((proc, result_queue, job))
+                    outcomes.append(outcome)
+                    on_outcome(outcome)
+                    start_more()
+                    made_progress = True
+
+            if not made_progress and active:
+                time.sleep(0.05)
+    except BaseException:
+        for proc, result_queue, _job in active:
+            if proc.is_alive():
+                proc.terminate()
+            proc.join()
+            result_queue.close()
+            result_queue.join_thread()
+        raise
+
+    return outcomes
+
+
 # ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
@@ -345,19 +458,7 @@ def run_benchmark(
     # state across processes.
     want_traj = isinstance(cfg.align, str) and cfg.align.startswith("traj_")
     gt_asset = _gt_asset(dataset)
-    jobs: list[
-        tuple[
-            str,
-            dict[str, Any] | None,
-            Path | None,
-            Asset,
-            np.ndarray | None,
-            str,
-            np.ndarray | None,
-            CropVolume | None,
-            tuple[float, ...] | None,
-        ]
-    ] = []
+    jobs: list[BenchmarkJob] = []
     for sid in scenes:
         rp = loc.resolve(sid)
         if rp is None and cfg.fail_on_missing:
@@ -443,12 +544,11 @@ def run_benchmark(
             if progress:
                 _log_outcome(outcomes[-1])
     else:
-        with ProcessPoolExecutor(max_workers=cfg.workers) as ex:
-            futures = {ex.submit(_evaluate_one, *j, cfg): j[0] for j in jobs}
-            for fut in as_completed(futures):
-                outcomes.append(fut.result())
-                if progress:
-                    _log_outcome(outcomes[-1])
+        outcomes = _run_jobs_parallel(
+            jobs,
+            cfg,
+            on_outcome=_log_outcome if progress else lambda _: None,
+        )
         outcomes.sort(key=lambda o: scenes.index(o.scene_id))
 
     coverage = {

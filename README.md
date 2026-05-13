@@ -126,9 +126,9 @@ preds_root/
 Run benchmark:
 
 ```bash
-e3r benchmark preds_root \
-  --dataset scannet \
-  --root /path/to/scannet \
+e3r benchmark scannet \
+  --pred-root preds_root \
+  --gt-root /path/to/scannet \
   --split split.txt \
   --align sim3 \
   --workers 8 \
@@ -141,7 +141,7 @@ Useful options:
 - `--samples 200000` points sampled per scene
 - `--thresholds 0.05` threshold(s) for F-score-like metrics
 - `--debug-plot` to save visual diagnostics
-- `--pred-filename` to map custom prediction filenames
+- `--pred-pattern` to map custom prediction filenames
 
 Trajectory-based benchmark alignment example:
 
