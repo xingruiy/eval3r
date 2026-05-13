@@ -12,7 +12,7 @@ import typer
 
 import numpy as np
 
-from eval3r.align import AlignMode
+from eval3r.alignment import AlignMode
 from eval3r.datasets import Asset, get_dataset
 from eval3r.io.geometry import load_mesh, load_point_cloud
 from eval3r.io.trajectory import Trajectory, load_trajectory_auto

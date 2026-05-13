@@ -13,7 +13,7 @@ from typing import Any, Callable, Literal
 
 import numpy as np
 
-from eval3r.align import AlignMode
+from eval3r.alignment import AlignMode
 from eval3r.benchmark.aggregate import aggregate, aggregate_all
 from eval3r.datasets.base import Asset, DatasetAdapter
 from eval3r.mask.base import CropToGT

@@ -6,8 +6,9 @@ from typing import Literal
 
 import numpy as np
 
-from eval3r.align.icp import icp
-from eval3r.align.similarity import AlignResult, umeyama
+from eval3r.alignment.icp import ICPAligner
+from eval3r.alignment.base import AlignResult, umeyama
+from eval3r.alignment.trajectory import TrajectoryAligner
 from eval3r.utils.errors import AlignmentError
 from eval3r.utils.typing import Points, Poses
 
@@ -46,15 +47,11 @@ def align(
                 f"align mode '{mode}' requires pred_poses and gt_poses "
                 f"(both (T, 4, 4) arrays)."
             )
-        from eval3r.align.trajectory import align_trajectory
-
-        return align_trajectory(
-            pred_poses, gt_poses, mode,  # type: ignore[arg-type]
+        return TrajectoryAligner(
+            estimate_scale=(mode == "traj_sim3"),
             pred_convention=pred_convention,
             gt_convention=gt_convention,
-            pred_timestamps=pred_timestamps,
-            gt_timestamps=gt_timestamps,
-        )
+        ).align(pred_poses, gt_poses, pred_timestamps=pred_timestamps, gt_timestamps=gt_timestamps)
     if correspondences:
         if mode in ("scale", "se3", "sim3"):
             return umeyama(source, target, mode=mode)
@@ -63,15 +60,15 @@ def align(
             f"use 'scale', 'se3', or 'sim3'."
         )
     if mode == "icp":
-        return icp(source, target)
+        return ICPAligner().align(source, target)
     if mode == "se3":
-        return icp(source, target, estimate_scale=False)
+        return ICPAligner(estimate_scale=False).align(source, target)
     if mode == "sim3":
         # Rigid ICP first to lock correspondences, then refine with scale.
         # Single-pass ICP-with-scale collapses to wrong local minima when
         # source and target differ in scale by more than a small factor.
-        rigid = icp(source, target, estimate_scale=False)
-        return icp(source, target, estimate_scale=True, init=rigid)
+        rigid = ICPAligner(estimate_scale=False).align(source, target)
+        return ICPAligner(estimate_scale=True).align(source, target, init=rigid)
     if mode == "scale":
         # crude isotropic-scale-only fit: ratio of bbox extents.
         src = np.asarray(source, dtype=np.float64)
@@ -85,4 +82,4 @@ def align(
     raise AlignmentError(f"Unknown alignment mode: {mode!r}")
 
 
-__all__ = ["align", "AlignMode", "AlignResult", "umeyama", "icp"]
+__all__ = ["align", "AlignMode", "AlignResult", "umeyama", "ICPAligner", "TrajectoryAligner"]

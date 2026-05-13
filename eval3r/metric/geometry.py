@@ -8,7 +8,7 @@ from typing import Any, Literal
 import numpy as np
 from scipy.spatial import cKDTree
 
-from eval3r.align import AlignMode, align
+from eval3r.alignment import AlignMode, align
 from eval3r.io.geometry import MeshData, PointCloudData
 from eval3r.mask.base import GeometryMask
 from eval3r.metric.sampling import SampleMethod, sample_points

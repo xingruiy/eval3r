@@ -3,8 +3,8 @@ from __future__ import annotations
 import numpy as np
 import pytest
 
-from eval3r.align import align
-from eval3r.align.similarity import umeyama
+from eval3r.alignment import align
+from eval3r.alignment.base import umeyama
 
 
 def _random_rotation(rng: np.random.Generator) -> np.ndarray:

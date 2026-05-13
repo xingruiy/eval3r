@@ -7,7 +7,7 @@ from typing import Literal
 
 import numpy as np
 
-from eval3r.align.trajectory import align_trajectory, cam_positions
+from eval3r.alignment.trajectory import TrajectoryAligner, cam_positions
 from eval3r.utils.typing import Poses
 
 TrajAlignMode = Literal["traj_se3", "traj_sim3"]
@@ -45,15 +45,13 @@ def evaluate_trajectory(
     trajectories have different lengths, frames are matched by nearest
     timestamp; ATE is computed only on matched pairs.
     """
-    from eval3r.align.trajectory import _match_by_timestamp
+    from eval3r.alignment.trajectory import _match_by_timestamp
 
-    al = align_trajectory(
-        pred_poses, gt_poses, mode,
+    al = TrajectoryAligner(
+        estimate_scale=(mode == "traj_sim3"),
         pred_convention=pred_convention,
         gt_convention=gt_convention,
-        pred_timestamps=pred_timestamps,
-        gt_timestamps=gt_timestamps,
-    )
+    ).align(pred_poses, gt_poses, pred_timestamps=pred_timestamps, gt_timestamps=gt_timestamps)
     pred_pos = cam_positions(pred_poses, pred_convention)
     gt_pos = cam_positions(gt_poses, gt_convention)
 

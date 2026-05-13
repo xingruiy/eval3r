@@ -79,7 +79,7 @@ def save_debug_plot(
     ax.legend(loc="upper right")
 
     if pred_poses is not None and gt_poses is not None:
-        from eval3r.align.trajectory import cam_positions
+        from eval3r.alignment.trajectory import cam_positions
 
         if pred_convention not in ("T_wc", "T_cw") or gt_convention not in ("T_wc", "T_cw"):
             # Pose metadata can be present for non-trajectory workflows where

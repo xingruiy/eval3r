@@ -11,7 +11,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from eval3r.align import AlignMode
+from eval3r.alignment import AlignMode
 from eval3r.benchmark.core import BenchmarkConfig, run_benchmark
 from eval3r.datasets.base import Asset, DatasetAdapter
 from eval3r.metric.geometry import ChamferVariant
