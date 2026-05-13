@@ -500,6 +500,47 @@ def test_cli_gen_manual_depth_with_pattern(tmp_path: Path) -> None:
     assert len(kept) == 1
 
 
+def test_cli_gen_manual_depth_with_pattern_nonzero_and_gaps(tmp_path: Path) -> None:
+    """Pattern discovery supports non-zero starts and sparse frame ids."""
+    imageio = pytest.importorskip("imageio.v3")
+
+    H, W = 16, 16
+    K = _identity_intrinsics(W, H, 100.0)
+
+    depth_dir = tmp_path / "depth"
+    poses_dir = tmp_path / "poses"
+    depth_dir.mkdir()
+    poses_dir.mkdir()
+    K_path = tmp_path / "K.txt"
+    np.savetxt(K_path, K)
+
+    depth = np.full((H, W), 1.0, dtype=np.float32)
+    for i in (1, 3):
+        imageio.imwrite(depth_dir / f"{i:06d}.png", (depth * 1000).astype(np.uint16))
+        np.savetxt(poses_dir / f"{i:06d}.txt", np.eye(4))
+
+    out_dir = tmp_path / "mask"
+    result = runner.invoke(
+        app,
+        [
+            "mask", "gen",
+            "--depth-path", str(depth_dir),
+            "--depth-pattern", "{frame:06d}.png",
+            "--poses-path", str(poses_dir),
+            "--poses-pattern", "{frame:06d}.txt",
+            "--intrinsics-path", str(K_path),
+            "--depth-scale", "1000",
+            "--pose-convention", "T_cw",
+            "--camera-frame", "opencv",
+            "--max-depth", "2.0",
+            "--voxel-size", "0.05",
+            "--frame-stride", "1",
+            "--out-dir", str(out_dir),
+        ],
+    )
+    assert result.exit_code == 0, result.stdout
+
+
 def test_cli_gen_inspect_round_trip(tmp_path: Path) -> None:
     """Generate a tiny mask via CLI, then inspect prints sane metadata."""
     imageio = pytest.importorskip("imageio.v3")

@@ -17,6 +17,7 @@ Pattern syntax is Python ``str.format`` with a ``{frame}`` field.
 from __future__ import annotations
 
 import re
+import string
 from pathlib import Path
 
 import numpy as np
@@ -83,24 +84,20 @@ def _resolve_per_frame_paths(
             f"files; got file {path}. Pass a directory plus --{asset_label}-pattern."
         )
     if pattern is not None:
-        files: list[Path] = []
-        i = 0
-        consecutive_misses = 0
-        while consecutive_misses < 1:
-            candidate = path / pattern.format(frame=i)
-            if candidate.exists():
-                files.append(candidate)
-                consecutive_misses = 0
-            else:
-                consecutive_misses += 1
-            i += 1
-            if i > 1_000_000:  # pragma: no cover - safety bound
-                break
+        files: list[tuple[int, Path]] = []
+        frame_pattern = _frame_pattern_regex(pattern)
+        for candidate in path.iterdir():
+            if not candidate.is_file():
+                continue
+            m = frame_pattern.fullmatch(candidate.name)
+            if m is None:
+                continue
+            files.append((int(m.group("frame")), candidate))
         if not files:
             raise typer.BadParameter(
                 f"No {asset_label} files matched pattern {pattern!r} under {path}"
             )
-        return files
+        return [p for _, p in sorted(files, key=lambda item: item[0])]
 
     matches = sorted(path.glob(default_glob), key=_natural_key)
     if not matches:
@@ -112,6 +109,40 @@ def _resolve_per_frame_paths(
 
 
 _NUM_RE = re.compile(r"(\d+)")
+
+
+def _frame_pattern_regex(pattern: str) -> re.Pattern[str]:
+    parts = []
+    found_frame = False
+    for literal, field_name, format_spec, conversion in string.Formatter().parse(
+        pattern
+    ):
+        parts.append(re.escape(literal))
+        if field_name is None:
+            continue
+        if conversion:
+            raise typer.BadParameter(
+                f"Unsupported conversion in pattern {pattern!r}: !{conversion}"
+            )
+        if field_name != "frame":
+            raise typer.BadParameter(
+                f"Unsupported field {{{field_name}}} in pattern {pattern!r}; "
+                "only {frame} is allowed."
+            )
+        found_frame = True
+        if format_spec.endswith("d"):
+            width = format_spec[:-1]
+            if width.isdigit():
+                parts.append(rf"(?P<frame>\d{{{int(width)}}})")
+            else:
+                parts.append(r"(?P<frame>\d+)")
+        else:
+            parts.append(r"(?P<frame>\d+)")
+    if not found_frame:
+        raise typer.BadParameter(
+            f"Pattern {pattern!r} must include a {{frame}} field."
+        )
+    return re.compile("".join(parts))
 
 
 def _natural_key(p: Path) -> tuple:
