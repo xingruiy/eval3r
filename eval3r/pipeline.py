@@ -11,6 +11,7 @@ from eval3r.alignment.base import AlignResult, IdentityAligner
 from eval3r.filtering.base import BaseFilter
 from eval3r.io.geometry import MeshData, PointCloudData
 from eval3r.metrics.base import GeometryMetric
+from eval3r.metrics.metric3d import _nn_dists
 from eval3r.sampling.base import PointSampler
 from eval3r.utils.typing import Points
 
@@ -93,6 +94,8 @@ class Pipeline:
         self,
         pred: Points | PointCloudData | MeshData,
         gt: Points | PointCloudData | MeshData,
+        *,
+        debug_plot_path: str | Path | None = None,
     ) -> PipelineResult:
         """Run sample → align → filter → metric and return a :class:`PipelineResult`."""
         cfg = self.config
@@ -118,9 +121,26 @@ class Pipeline:
         for f in self.filters:
             pred_aligned, n_visible, n_total = f.filter_points(pred_aligned)
 
+        if debug_plot_path is not None:
+            from eval3r.utils.debug_plot import save_debug_plot
+            save_debug_plot(
+                gt_pts, pred_aligned, str(debug_plot_path),
+                al.mode, al.scale,
+                rotation=al.rotation, translation=al.translation,
+                pred_poses=al.pred_poses,
+                gt_poses=al.gt_poses,
+                pred_convention=al.pred_convention,
+                gt_convention=al.gt_convention,
+                matched_pred_idx=al.matched_pred_idx,
+                matched_gt_idx=al.matched_gt_idx,
+            )
+
+        d_pg = _nn_dists(pred_aligned, gt_pts) if self.metrics else None
+        d_gp = _nn_dists(gt_pts, pred_aligned) if self.metrics else None
+
         values: dict[str, Any] = {}
         for m in self.metrics:
-            values[m.name] = m(pred_aligned, gt_pts)
+            values[m.name] = m(pred_aligned, gt_pts, d_pg=d_pg, d_gp=d_gp)
 
         return PipelineResult(
             values=values,

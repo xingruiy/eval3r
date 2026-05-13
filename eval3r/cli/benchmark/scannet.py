@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -9,7 +10,6 @@ import typer
 from eval3r.benchmark.scannet import ScanNetBenchmark, ScanNetBenchmarkConfig
 from eval3r.cli.benchmark._common import run_and_emit, validate_relative_pattern
 from eval3r.manifest.discovery import PredictionLocator
-from pathlib import Path
 
 
 def command(
@@ -26,7 +26,7 @@ def command(
     bbox_margin: Annotated[float, typer.Option("--crop-margin")] = 0.10,
     aligner: Annotated[str, typer.Option("--aligner")] = "none",
     sampler: Annotated[str, typer.Option("--sampler")] = "area",
-    metrics: Annotated[list[str], typer.Option("--metric")] = ["chamfer", "fscore@0.05"],
+    metrics: Annotated[list[str], typer.Option("--metric")] = ["chamfer", "accuracy", "completeness", "fscore@0.05"],
     samples: Annotated[int, typer.Option("--samples")] = 200_000,
     seed: Annotated[int, typer.Option("--seed")] = 42,
     workers: Annotated[int | None, typer.Option("--workers")] = None,

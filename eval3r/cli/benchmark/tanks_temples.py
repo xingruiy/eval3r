@@ -26,7 +26,7 @@ def command(
     threshold_multiplier: Annotated[float, typer.Option("--threshold-multiplier")] = 1.0,
     aligner: Annotated[str, typer.Option("--aligner")] = "none",
     sampler: Annotated[str, typer.Option("--sampler")] = "area",
-    metrics: Annotated[list[str], typer.Option("--metric")] = ["chamfer", "fscore@0.05"],
+    metrics: Annotated[list[str], typer.Option("--metric")] = ["chamfer", "accuracy", "completeness", "fscore@0.05"],
     samples: Annotated[int, typer.Option("--samples")] = 200_000,
     seed: Annotated[int, typer.Option("--seed")] = 42,
     workers: Annotated[int | None, typer.Option("--workers")] = None,

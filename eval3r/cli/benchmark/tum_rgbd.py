@@ -25,7 +25,7 @@ def command(
     gt_point_cloud_filename: Annotated[str | None, typer.Option("--gt-point-cloud-filename")] = None,
     aligner: Annotated[str, typer.Option("--aligner")] = "none",
     sampler: Annotated[str, typer.Option("--sampler")] = "area",
-    metrics: Annotated[list[str], typer.Option("--metric")] = ["chamfer", "fscore@0.05"],
+    metrics: Annotated[list[str], typer.Option("--metric")] = ["chamfer", "accuracy", "completeness", "fscore@0.05"],
     samples: Annotated[int, typer.Option("--samples")] = 200_000,
     seed: Annotated[int, typer.Option("--seed")] = 42,
     workers: Annotated[int | None, typer.Option("--workers")] = None,

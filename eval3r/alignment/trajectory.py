@@ -109,4 +109,8 @@ class TrajectoryAligner:
         result.mode = mode
         result.matched_pred_idx = pred_idx
         result.matched_gt_idx = gt_idx
+        result.pred_poses = self.pred_poses
+        result.gt_poses = self.gt_poses
+        result.pred_convention = self.pred_convention
+        result.gt_convention = self.gt_convention
         return result

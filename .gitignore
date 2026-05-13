@@ -15,6 +15,5 @@ venv/
 *.swp
 .DS_Store
 .CLAUDE
-debug_plots/
-VFM-Recon-data
-*.json
+.eval3r
+.vscode

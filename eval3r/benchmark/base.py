@@ -12,6 +12,7 @@ import time
 import traceback
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
+from datetime import datetime
 from functools import partial
 from pathlib import Path
 from typing import Any, Callable, ClassVar, Literal
@@ -45,7 +46,7 @@ class BenchmarkConfig:
     sampler: str = "area"
     aligner: str = "none"
     metrics: list[str] = field(
-        default_factory=lambda: ["chamfer", "fscore@0.05"]
+        default_factory=lambda: ["chamfer", "accuracy", "completeness", "fscore@0.05"]
     )
     samples: int = 200_000
     seed: int = 42
@@ -56,7 +57,7 @@ class BenchmarkConfig:
     missing_distance_default: float = 1.0
     missing_fscore_default: float = 0.0
     verbose: bool = False
-    debug_plot: bool = False
+    debug_plot: bool = True
     # Trajectory alignment — only used when aligner starts with "traj_"
     pred_pose_dir: str | None = None
     pred_pose_file: str = "{scene_id}.txt"
@@ -91,6 +92,7 @@ class BenchmarkResult:
     """Mean / median / std / n over **all** scenes; missing get defaults."""
     coverage: dict[str, int]
     config: dict[str, Any]
+    work_dir: Path = field(default_factory=lambda: Path("."))
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -237,9 +239,11 @@ def _resolve_mask_pattern(mask_dir: str, pattern: str, scene_id: str) -> Path:
 
 
 def _make_work_dir(dataset_name: str) -> Path:
+    now = datetime.now()
     ts = str(time.time()).encode()
     h = hashlib.sha1(ts).hexdigest()[:8]
-    work_dir = Path(".eval3r") / "benchmarks" / f"{dataset_name}-{h}"
+    folder = f"{now.strftime('%Y-%m-%d-%H-%M-%S')}-{dataset_name}-{h}"
+    work_dir = Path(".eval3r") / "benchmarks" / folder
     work_dir.mkdir(parents=True, exist_ok=True)
     return work_dir
 
@@ -351,6 +355,7 @@ def _build_result(
     outcomes: list[SceneOutcome],
     scenes: list[str],
     cfg: BenchmarkConfig,
+    work_dir: Path,
 ) -> BenchmarkResult:
     outcomes_by_id = {o.scene_id: o for o in outcomes}
     ordered = [outcomes_by_id[sid] for sid in scenes if sid in outcomes_by_id]
@@ -375,6 +380,7 @@ def _build_result(
         ),
         coverage=coverage,
         config=dataclasses.asdict(cfg),
+        work_dir=work_dir,
     )
 
 
@@ -414,6 +420,8 @@ class BaseBenchmark(ABC):
         locator: PredictionLocator | None = None,
     ) -> BenchmarkResult:
         work_dir = _make_work_dir(self.dataset_name)
+        (work_dir / "scene_results").mkdir(exist_ok=True)
+        (work_dir / "debug_plots").mkdir(exist_ok=True)
         scenes = self._list_scenes(split)
         loc = locator or PredictionLocator(preds_root=self.pred_root)
         jobs: list[BenchmarkJob] = [
@@ -441,7 +449,7 @@ class BaseBenchmark(ABC):
         else:
             outcomes = _run_jobs_parallel(jobs, fn, workers=self.cfg.workers)
 
-        result = _build_result(self.dataset_name, split, outcomes, scenes, self.cfg)
+        result = _build_result(self.dataset_name, split, outcomes, scenes, self.cfg, work_dir)
         (work_dir / "results.json").write_text(json.dumps(result.to_dict(), indent=2))
         return result
 

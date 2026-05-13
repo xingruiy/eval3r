@@ -115,6 +115,12 @@ def run_and_emit(
     if csv:
         write_csv(Path(csv), payload)
         typer.echo(f"benchmark: wrote CSV results to {csv}", err=True)
+    else:
+        auto_csv = result.work_dir / "results.csv"
+        write_csv(auto_csv, payload)
+        typer.echo(f"benchmark: wrote CSV results to {auto_csv}", err=True)
+
+    typer.echo(f"benchmark: run artefacts in {result.work_dir}", err=True)
     if json_out:
         print(json.dumps(payload, indent=2))
         return

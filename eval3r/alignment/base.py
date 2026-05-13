@@ -35,6 +35,10 @@ class AlignResult:
     mode: str
     matched_pred_idx: np.ndarray | None = None
     matched_gt_idx: np.ndarray | None = None
+    pred_poses: np.ndarray | None = None
+    gt_poses: np.ndarray | None = None
+    pred_convention: str = "unspecified"
+    gt_convention: str = "unspecified"
 
     def transform(self, points: Points) -> Points:
         pts = np.asarray(points, dtype=np.float64)

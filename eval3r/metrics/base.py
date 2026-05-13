@@ -13,7 +13,14 @@ class GeometryMetric(ABC):
     name: str = ""
 
     @abstractmethod
-    def __call__(self, pred: Points, gt: Points) -> float | tuple[float, ...]: ...
+    def __call__(
+        self,
+        pred: Points,
+        gt: Points,
+        *,
+        d_pg: np.ndarray | None = None,
+        d_gp: np.ndarray | None = None,
+    ) -> float | tuple[float, ...]: ...
 
 
 class DepthMetric(ABC):

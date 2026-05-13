@@ -38,7 +38,7 @@ def _make_benchmark(tmp_path: Path, *, workers: int = 1, **kw):
     split = make_scannet_root(tmp_path / "ds", ["s1", "s2", "s3"])
     cfg = ScanNetBenchmarkConfig(
         samples=4096, seed=0, workers=workers,
-        metrics=["chamfer", "fscore@0.05"],
+        metrics=["chamfer", "accuracy", "completeness", "fscore@0.05"],
         **kw,
     )
     preds = _make_preds_root(tmp_path)
@@ -62,7 +62,7 @@ def test_summary_all_respects_overrides(tmp_path: Path) -> None:
     split = make_scannet_root(tmp_path / "ds", ["s1", "s2", "s3"])
     cfg = ScanNetBenchmarkConfig(
         samples=4096, seed=0, workers=1,
-        metrics=["chamfer", "fscore@0.05"],
+        metrics=["chamfer", "accuracy", "completeness", "fscore@0.05"],
         missing_distance_default=2.5,
         missing_fscore_default=0.1,
     )
@@ -78,7 +78,7 @@ def test_summary_all_respects_overrides(tmp_path: Path) -> None:
 
 def test_summary_all_when_zero_succeed(tmp_path: Path) -> None:
     split = make_scannet_root(tmp_path / "ds", ["s1", "s2", "s3"])
-    cfg = ScanNetBenchmarkConfig(samples=4096, seed=0, workers=1, metrics=["chamfer", "fscore@0.05"])
+    cfg = ScanNetBenchmarkConfig(samples=4096, seed=0, workers=1, metrics=["chamfer", "accuracy", "completeness", "fscore@0.05"])
     result = ScanNetBenchmark(
         gt_root=tmp_path / "ds",
         pred_root=tmp_path / "no_preds",
@@ -95,7 +95,7 @@ def test_workers_2_matches_workers_1(tmp_path: Path) -> None:
 
     def _run(workers):
         cfg = ScanNetBenchmarkConfig(
-            samples=4096, seed=0, workers=workers, metrics=["chamfer", "fscore@0.05"]
+            samples=4096, seed=0, workers=workers, metrics=["chamfer", "accuracy", "completeness", "fscore@0.05"]
         )
         return ScanNetBenchmark(gt_root=tmp_path / "ds", pred_root=preds, cfg=cfg).run(
             split=str(split)

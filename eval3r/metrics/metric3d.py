@@ -57,11 +57,20 @@ class ChamferDistance(GeometryMetric):
         self.squared = squared
         self.reduction = reduction
 
-    def __call__(self, pred: Points, gt: Points) -> float:
-        d_pg = _nn_dists(pred, gt)
+    def __call__(
+        self,
+        pred: Points,
+        gt: Points,
+        *,
+        d_pg: np.ndarray | None = None,
+        d_gp: np.ndarray | None = None,
+    ) -> float:
+        if d_pg is None:
+            d_pg = _nn_dists(pred, gt)
         if not self.bidirectional:
             return float((d_pg ** 2).mean() if self.squared else d_pg.mean())
-        d_gp = _nn_dists(gt, pred)
+        if d_gp is None:
+            d_gp = _nn_dists(gt, pred)
         val = (
             (d_pg ** 2).mean() + (d_gp ** 2).mean()
             if self.squared
@@ -75,8 +84,17 @@ class Accuracy(GeometryMetric):
 
     name = "accuracy"
 
-    def __call__(self, pred: Points, gt: Points) -> float:
-        return float(_nn_dists(pred, gt).mean())
+    def __call__(
+        self,
+        pred: Points,
+        gt: Points,
+        *,
+        d_pg: np.ndarray | None = None,
+        d_gp: np.ndarray | None = None,
+    ) -> float:
+        if d_pg is None:
+            d_pg = _nn_dists(pred, gt)
+        return float(d_pg.mean())
 
 
 class Completeness(GeometryMetric):
@@ -84,8 +102,17 @@ class Completeness(GeometryMetric):
 
     name = "completeness"
 
-    def __call__(self, pred: Points, gt: Points) -> float:
-        return float(_nn_dists(gt, pred).mean())
+    def __call__(
+        self,
+        pred: Points,
+        gt: Points,
+        *,
+        d_pg: np.ndarray | None = None,
+        d_gp: np.ndarray | None = None,
+    ) -> float:
+        if d_gp is None:
+            d_gp = _nn_dists(gt, pred)
+        return float(d_gp.mean())
 
 
 class Precision(GeometryMetric):
@@ -95,8 +122,17 @@ class Precision(GeometryMetric):
         self.threshold = threshold
         self.name = f"precision@{threshold}"
 
-    def __call__(self, pred: Points, gt: Points) -> float:
-        return float((_nn_dists(pred, gt) < self.threshold).mean())
+    def __call__(
+        self,
+        pred: Points,
+        gt: Points,
+        *,
+        d_pg: np.ndarray | None = None,
+        d_gp: np.ndarray | None = None,
+    ) -> float:
+        if d_pg is None:
+            d_pg = _nn_dists(pred, gt)
+        return float((d_pg < self.threshold).mean())
 
 
 class Recall(GeometryMetric):
@@ -106,8 +142,17 @@ class Recall(GeometryMetric):
         self.threshold = threshold
         self.name = f"recall@{threshold}"
 
-    def __call__(self, pred: Points, gt: Points) -> float:
-        return float((_nn_dists(gt, pred) < self.threshold).mean())
+    def __call__(
+        self,
+        pred: Points,
+        gt: Points,
+        *,
+        d_pg: np.ndarray | None = None,
+        d_gp: np.ndarray | None = None,
+    ) -> float:
+        if d_gp is None:
+            d_gp = _nn_dists(gt, pred)
+        return float((d_gp < self.threshold).mean())
 
 
 class FScore(GeometryMetric):
@@ -117,9 +162,20 @@ class FScore(GeometryMetric):
         self.threshold = threshold
         self.name = f"fscore@{threshold}"
 
-    def __call__(self, pred: Points, gt: Points) -> tuple[float, float, float]:
-        p = Precision(self.threshold)(pred, gt)
-        r = Recall(self.threshold)(pred, gt)
+    def __call__(
+        self,
+        pred: Points,
+        gt: Points,
+        *,
+        d_pg: np.ndarray | None = None,
+        d_gp: np.ndarray | None = None,
+    ) -> tuple[float, float, float]:
+        if d_pg is None:
+            d_pg = _nn_dists(pred, gt)
+        if d_gp is None:
+            d_gp = _nn_dists(gt, pred)
+        p = float((d_pg < self.threshold).mean())
+        r = float((d_gp < self.threshold).mean())
         f = 2 * p * r / (p + r) if (p + r) > 0 else 0.0
         return float(f), float(p), float(r)
 
