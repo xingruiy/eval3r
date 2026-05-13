@@ -9,7 +9,7 @@ import time
 import traceback
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Literal
+from typing import Any, Callable, Literal, TypedDict
 
 import numpy as np
 
@@ -165,7 +165,7 @@ def _evaluate_one(
     pred_descriptor: dict[str, Any] | None,
     gt_path: Path | None,
     gt_asset: Asset,
-    dataset: DatasetAdapter | None = None,
+    gt_pose_file_payload: _PoseFilePayload | None = None,
     crop_volume: CropVolume | None = None,
     scene_thresholds: tuple[float, ...] | None = None,
     config: BenchmarkConfig | None = None,
@@ -204,14 +204,16 @@ def _evaluate_one(
         gt_pose_convention = "unspecified"
         gt_timestamps: np.ndarray | None = None
         if isinstance(config.align, str) and config.align.startswith("traj_"):
-            if dataset is not None:
-                try:
-                    gt_traj = dataset.load_poses(scene_id)
-                    gt_poses = gt_traj.poses
-                    gt_pose_convention = gt_traj.convention
-                    gt_timestamps = gt_traj.timestamps
-                except Exception:
-                    pass
+            if gt_pose_file_payload is not None:
+                from eval3r.io.trajectory import load_trajectory_auto
+
+                gt_traj = load_trajectory_auto(
+                    Path(gt_pose_file_payload["path"]),
+                    convention=gt_pose_file_payload["convention"],
+                )
+                gt_poses = gt_traj.poses
+                gt_pose_convention = gt_traj.convention
+                gt_timestamps = gt_traj.timestamps
 
             if rp["kind"] == "manifest" and rp["reader"] is not None:
                 try:
@@ -320,12 +322,17 @@ def _pred_descriptor(rp: ResolvedPrediction | None) -> dict[str, Any] | None:
     return {"kind": rp["kind"], "path": str(rp["path"])}
 
 
+class _PoseFilePayload(TypedDict):
+    path: str
+    convention: str
+
+
 BenchmarkJob = tuple[
     str,
     dict[str, Any] | None,
     Path | None,
     Asset,
-    DatasetAdapter | None,
+    _PoseFilePayload | None,
     CropVolume | None,
     tuple[float, ...] | None,
 ]
@@ -429,6 +436,18 @@ def _run_jobs_parallel(
     return outcomes
 
 
+def _gt_pose_file_payload(
+    dataset: DatasetAdapter, scene_id: str, align: AlignMode
+) -> _PoseFilePayload | None:
+    if not (isinstance(align, str) and align.startswith("traj_")):
+        return None
+    try:
+        pose_path = dataset.asset_path(scene_id, Asset.POSES)
+    except Exception:
+        return None
+    return {"path": str(pose_path), "convention": "unspecified"}
+
+
 # ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
@@ -511,7 +530,7 @@ def run_benchmark(
                 _pred_descriptor(rp),
                 gt_path,
                 gt_asset,
-                dataset,
+                _gt_pose_file_payload(dataset, sid, cfg.align),
                 crop_vol,
                 scene_thr,
             )
