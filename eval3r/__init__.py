@@ -1,6 +1,7 @@
 """eval3r — toolkit for saving, evaluating, and visualizing 3D reconstruction predictions."""
 
 from eval3r._version import __version__
+from eval3r.pipeline import EvalConfig, Pipeline, PipelineResult
 from eval3r.benchmark import (
     BenchmarkConfig,
     BenchmarkResult,
@@ -20,6 +21,9 @@ from eval3r.metrics.metric3d import evaluate_geometry
 
 __all__ = [
     "__version__",
+    "EvalConfig",
+    "Pipeline",
+    "PipelineResult",
     "PredictionWriter",
     "PredictionReader",
     "PredictionLocator",
