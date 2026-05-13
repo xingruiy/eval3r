@@ -444,10 +444,9 @@ def _gt_pose_loader_payload(
 ) -> _PoseLoaderPayload | None:
     if not (isinstance(align, str) and align.startswith("traj_")):
         return None
-    try:
-        pose_path = dataset.asset_path(scene_id, Asset.POSES)
-    except Exception:
-        return None
+    # Avoid resolving Asset.POSES in the parent process. Some adapters derive
+    # trajectories without exposing a standalone pose asset path, and workers
+    # should still use adapter-specific load_poses(scene_id) parsing.
     return {
         "module": dataset.__class__.__module__,
         "qualname": dataset.__class__.__qualname__,
