@@ -9,14 +9,14 @@ from eval3r.filtering.occlusion import (
     filter_visible_points,
     load_occlusion_mask,
 )
-from eval3r.metric.geometry import (
-    accuracy,
-    chamfer_distance,
-    completeness,
+from eval3r.metrics.metric3d import (
+    Accuracy,
+    ChamferDistance,
+    Completeness,
+    FScore,
+    Precision,
+    Recall,
     evaluate_geometry,
-    fscore_at,
-    precision_at,
-    recall_at,
 )
 from eval3r.utils.errors import EmptyGeometryError
 
@@ -29,26 +29,26 @@ def _grid(n: int = 10) -> np.ndarray:
 
 def test_chamfer_identical_is_zero() -> None:
     pts = _grid()
-    for variant in (
-        "l1_mean_bidirectional",
-        "l1_sum_bidirectional",
-        "l2_squared",
-        "l2_unsquared",
-    ):
-        assert chamfer_distance(pts, pts, variant=variant) == pytest.approx(0.0, abs=1e-12)
+    configs = [
+        ChamferDistance(),                               # l1_mean_bidirectional
+        ChamferDistance(reduction="sum"),                # l1_sum_bidirectional
+        ChamferDistance(squared=True, reduction="sum"),  # l2_squared
+    ]
+    for cd in configs:
+        assert cd(pts, pts) == pytest.approx(0.0, abs=1e-12)
 
 
 def test_accuracy_completeness_translated() -> None:
     pts = _grid()
     shifted = pts + np.array([0.05, 0.0, 0.0])
     # Each shifted point's nearest neighbour in pts is offset by [0.05, 0, 0].
-    assert accuracy(shifted, pts) == pytest.approx(0.05, abs=1e-6)
-    assert completeness(shifted, pts) == pytest.approx(0.05, abs=1e-6)
+    assert Accuracy()(shifted, pts) == pytest.approx(0.05, abs=1e-6)
+    assert Completeness()(shifted, pts) == pytest.approx(0.05, abs=1e-6)
 
 
 def test_fscore_perfect() -> None:
     pts = _grid()
-    f, p, r = fscore_at(pts, pts, threshold=0.01)
+    f, p, r = FScore(0.01)(pts, pts)
     assert (f, p, r) == (1.0, 1.0, 1.0)
 
 
@@ -57,27 +57,23 @@ def test_fscore_outliers_reduce() -> None:
     rng = np.random.default_rng(0)
     outliers = rng.uniform(low=10, high=20, size=(50, 3))
     polluted = np.concatenate([pts, outliers], axis=0)
-    f_clean, _, _ = fscore_at(pts, pts, threshold=0.05)
-    f_polluted, _, _ = fscore_at(polluted, pts, threshold=0.05)
+    f_clean, _, _ = FScore(0.05)(pts, pts)
+    f_polluted, _, _ = FScore(0.05)(polluted, pts)
     assert f_polluted < f_clean
 
 
 def test_precision_recall_threshold_consistency() -> None:
     pts = _grid()
     shifted = pts + np.array([0.04, 0.0, 0.0])
-    p_low = precision_at(shifted, pts, 0.01)
-    p_high = precision_at(shifted, pts, 0.05)
-    assert p_low == pytest.approx(0.0)
-    assert p_high == pytest.approx(1.0)
-    r_low = recall_at(shifted, pts, 0.01)
-    r_high = recall_at(shifted, pts, 0.05)
-    assert r_low == pytest.approx(0.0)
-    assert r_high == pytest.approx(1.0)
+    assert Precision(0.01)(shifted, pts) == pytest.approx(0.0)
+    assert Precision(0.05)(shifted, pts) == pytest.approx(1.0)
+    assert Recall(0.01)(shifted, pts) == pytest.approx(0.0)
+    assert Recall(0.05)(shifted, pts) == pytest.approx(1.0)
 
 
 def test_chamfer_rejects_empty() -> None:
     with pytest.raises(EmptyGeometryError):
-        chamfer_distance(np.zeros((0, 3)), np.zeros((1, 3)))
+        ChamferDistance()(np.zeros((0, 3)), np.zeros((1, 3)))
 
 
 def test_evaluate_geometry_with_align_se3() -> None:
@@ -112,7 +108,7 @@ def test_evaluate_geometry_with_align_sim3() -> None:
 def test_duplicate_points_do_not_break() -> None:
     pts = _grid()
     dup = np.concatenate([pts, pts], axis=0)
-    assert chamfer_distance(dup, pts) == pytest.approx(0.0, abs=1e-12)
+    assert ChamferDistance()(dup, pts) == pytest.approx(0.0, abs=1e-12)
 
 
 def test_sampling_is_deterministic() -> None:

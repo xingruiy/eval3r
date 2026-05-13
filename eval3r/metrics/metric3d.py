@@ -9,8 +9,9 @@ import numpy as np
 from scipy.spatial import cKDTree
 
 from eval3r.alignment import AlignMode, align
-from eval3r.io.geometry import MeshData, PointCloudData
 from eval3r.filtering.base import BaseFilter
+from eval3r.io.geometry import MeshData, PointCloudData
+from eval3r.metrics.base import GeometryMetric
 from eval3r.sampling import SampleMethod, sample_points
 from eval3r.utils.errors import EmptyGeometryError
 from eval3r.utils.typing import Points, Poses
@@ -32,55 +33,86 @@ def _nn_dists(a: Points, b: Points) -> np.ndarray:
     return d
 
 
-def chamfer_distance(
-    pred: Points,
-    gt: Points,
-    *,
-    variant: ChamferVariant = "l1_mean_bidirectional",
-) -> float:
-    """Bidirectional Chamfer with explicit variant.
+class ChamferDistance(GeometryMetric):
+    """Bidirectional Chamfer distance with decomposed configuration.
 
-    - l1_mean_bidirectional: 0.5 * (mean(|p-q|) + mean(|q-p|))
-    - l1_sum_bidirectional:        mean(|p-q|) + mean(|q-p|)
-    - l2_squared:           mean(|p-q|^2) + mean(|q-p|^2)
-    - l2_unsquared:         mean(|p-q|)   + mean(|q-p|)   (= l1_sum_bidirectional)
+    - ``bidirectional``: include both pred→gt and gt→pred directions
+    - ``squared``: square the NN distances before averaging (like l2_squared)
+    - ``reduction``: ``"mean"`` halves the bidirectional sum (l1_mean); ``"sum"`` does not
+
+    Default (``bidirectional=True, squared=False, reduction="mean"``) matches the
+    former ``l1_mean_bidirectional`` variant: ``0.5 * (mean(d_pg) + mean(d_gp))``.
     """
-    d_pg = _nn_dists(pred, gt)
-    d_gp = _nn_dists(gt, pred)
-    if variant == "l1_mean_bidirectional":
-        return float(0.5 * (d_pg.mean() + d_gp.mean()))
-    if variant == "l1_sum_bidirectional":
-        return float(d_pg.mean() + d_gp.mean())
-    if variant == "l2_squared":
-        return float((d_pg**2).mean() + (d_gp**2).mean())
-    if variant == "l2_unsquared":
-        return float(d_pg.mean() + d_gp.mean())
-    raise ValueError(f"Unknown chamfer variant: {variant!r}")
+
+    def __init__(
+        self,
+        *,
+        bidirectional: bool = True,
+        squared: bool = False,
+        reduction: Literal["mean", "sum"] = "mean",
+    ) -> None:
+        self.bidirectional = bidirectional
+        self.squared = squared
+        self.reduction = reduction
+
+    def __call__(self, pred: Points, gt: Points) -> float:
+        d_pg = _nn_dists(pred, gt)
+        if not self.bidirectional:
+            return float((d_pg ** 2).mean() if self.squared else d_pg.mean())
+        d_gp = _nn_dists(gt, pred)
+        val = (
+            (d_pg ** 2).mean() + (d_gp ** 2).mean()
+            if self.squared
+            else d_pg.mean() + d_gp.mean()
+        )
+        return float(val / 2.0 if self.reduction == "mean" else val)
 
 
-def accuracy(pred: Points, gt: Points) -> float:
+class Accuracy(GeometryMetric):
     """Mean nearest-neighbour distance from pred to gt."""
-    return float(_nn_dists(pred, gt).mean())
+
+    def __call__(self, pred: Points, gt: Points) -> float:
+        return float(_nn_dists(pred, gt).mean())
 
 
-def completeness(pred: Points, gt: Points) -> float:
+class Completeness(GeometryMetric):
     """Mean nearest-neighbour distance from gt to pred."""
-    return float(_nn_dists(gt, pred).mean())
+
+    def __call__(self, pred: Points, gt: Points) -> float:
+        return float(_nn_dists(gt, pred).mean())
 
 
-def precision_at(pred: Points, gt: Points, threshold: float) -> float:
-    return float((_nn_dists(pred, gt) < threshold).mean())
+class Precision(GeometryMetric):
+    """Fraction of pred points within ``threshold`` of their nearest gt point."""
+
+    def __init__(self, threshold: float) -> None:
+        self.threshold = threshold
+
+    def __call__(self, pred: Points, gt: Points) -> float:
+        return float((_nn_dists(pred, gt) < self.threshold).mean())
 
 
-def recall_at(pred: Points, gt: Points, threshold: float) -> float:
-    return float((_nn_dists(gt, pred) < threshold).mean())
+class Recall(GeometryMetric):
+    """Fraction of gt points within ``threshold`` of their nearest pred point."""
+
+    def __init__(self, threshold: float) -> None:
+        self.threshold = threshold
+
+    def __call__(self, pred: Points, gt: Points) -> float:
+        return float((_nn_dists(gt, pred) < self.threshold).mean())
 
 
-def fscore_at(pred: Points, gt: Points, threshold: float) -> tuple[float, float, float]:
-    p = precision_at(pred, gt, threshold)
-    r = recall_at(pred, gt, threshold)
-    f = 2 * p * r / (p + r) if (p + r) > 0 else 0.0
-    return float(f), float(p), float(r)
+class FScore(GeometryMetric):
+    """F-score at ``threshold``, returning ``(f, precision, recall)``."""
+
+    def __init__(self, threshold: float) -> None:
+        self.threshold = threshold
+
+    def __call__(self, pred: Points, gt: Points) -> tuple[float, float, float]:
+        p = Precision(self.threshold)(pred, gt)
+        r = Recall(self.threshold)(pred, gt)
+        f = 2 * p * r / (p + r) if (p + r) > 0 else 0.0
+        return float(f), float(p), float(r)
 
 
 @dataclass
@@ -196,7 +228,7 @@ def evaluate_geometry(
             matched_gt_idx=al.matched_gt_idx,
         )
 
-    # Step 4 - Compute metrics
+    # Step 4 - Compute metrics (NN distances computed once, reused across all metrics)
     d_pg = _nn_dists(pred_aligned, gt_pts)
     d_gp = _nn_dists(gt_pts, pred_aligned)
 

@@ -24,13 +24,13 @@ from eval3r.io.geometry import (
     load_mesh,
     load_point_cloud,
 )
-from eval3r.metric.geometry import (
+from eval3r.metrics.metric3d import (
     ChamferVariant,
     GeometryEvalResult,
     evaluate_geometry,
 )
-from eval3r.sampling import SampleMethod
 from eval3r.prediction.discovery import PredictionLocator, ResolvedPrediction
+from eval3r.sampling import SampleMethod
 from eval3r.utils.errors import MissingArtifactError, NotSupportedError
 from eval3r.utils.logging import get_logger
 from eval3r.utils.typing import PathLike

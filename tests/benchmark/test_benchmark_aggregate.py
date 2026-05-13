@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from eval3r.benchmark.aggregate import aggregate, collect_values
 from eval3r.benchmark.core import SceneOutcome
-from eval3r.metric.geometry import GeometryEvalResult
+from eval3r.metrics.metric3d import GeometryEvalResult
 
 
 def _scene(scene_id: str, tau: float, f_value: float) -> SceneOutcome:

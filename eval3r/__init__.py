@@ -13,7 +13,7 @@ from eval3r.datasets import (
     get_dataset,
     list_datasets,
 )
-from eval3r.metric.geometry import evaluate_geometry
+from eval3r.metrics.metric3d import evaluate_geometry
 from eval3r.prediction.discovery import PredictionLocator
 from eval3r.prediction.reader import PredictionReader
 from eval3r.prediction.writer import PredictionWriter

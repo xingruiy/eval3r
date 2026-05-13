@@ -8,6 +8,7 @@ from typing import Any
 import numpy as np
 from numpy.typing import NDArray
 
+from eval3r.metrics.base import DepthMetric
 from eval3r.utils.errors import Eval3rError
 
 
@@ -37,56 +38,73 @@ def _valid_mask(
     return m
 
 
-def abs_rel(
-    pred: NDArray[np.floating],
-    gt: NDArray[np.floating],
-    mask: NDArray[np.bool_] | None = None,
-) -> float:
+class AbsRel(DepthMetric):
     """Mean absolute relative error: mean(|pred - gt| / gt)."""
-    m = _valid_mask(pred, gt, mask)
-    return float(np.mean(np.abs(pred[m] - gt[m]) / gt[m]))
+
+    def __call__(
+        self,
+        pred: NDArray[np.floating],
+        gt: NDArray[np.floating],
+        mask: NDArray[np.bool_] | None = None,
+    ) -> float:
+        m = _valid_mask(pred, gt, mask)
+        return float(np.mean(np.abs(pred[m] - gt[m]) / gt[m]))
 
 
-def sq_rel(
-    pred: NDArray[np.floating],
-    gt: NDArray[np.floating],
-    mask: NDArray[np.bool_] | None = None,
-) -> float:
+class SqRel(DepthMetric):
     """Mean squared relative error: mean((pred - gt)² / gt)."""
-    m = _valid_mask(pred, gt, mask)
-    return float(np.mean((pred[m] - gt[m]) ** 2 / gt[m]))
+
+    def __call__(
+        self,
+        pred: NDArray[np.floating],
+        gt: NDArray[np.floating],
+        mask: NDArray[np.bool_] | None = None,
+    ) -> float:
+        m = _valid_mask(pred, gt, mask)
+        return float(np.mean((pred[m] - gt[m]) ** 2 / gt[m]))
 
 
-def rmse(
-    pred: NDArray[np.floating],
-    gt: NDArray[np.floating],
-    mask: NDArray[np.bool_] | None = None,
-) -> float:
+class RMSE(DepthMetric):
     """Root mean squared error: sqrt(mean((pred - gt)²))."""
-    m = _valid_mask(pred, gt, mask)
-    return float(np.sqrt(np.mean((pred[m] - gt[m]) ** 2)))
+
+    def __call__(
+        self,
+        pred: NDArray[np.floating],
+        gt: NDArray[np.floating],
+        mask: NDArray[np.bool_] | None = None,
+    ) -> float:
+        m = _valid_mask(pred, gt, mask)
+        return float(np.sqrt(np.mean((pred[m] - gt[m]) ** 2)))
 
 
-def rmse_log(
-    pred: NDArray[np.floating],
-    gt: NDArray[np.floating],
-    mask: NDArray[np.bool_] | None = None,
-) -> float:
+class RMSELog(DepthMetric):
     """RMSE in log space: sqrt(mean((log(pred) - log(gt))²))."""
-    m = _valid_mask(pred, gt, mask)
-    return float(np.sqrt(np.mean((np.log(pred[m]) - np.log(gt[m])) ** 2)))
+
+    def __call__(
+        self,
+        pred: NDArray[np.floating],
+        gt: NDArray[np.floating],
+        mask: NDArray[np.bool_] | None = None,
+    ) -> float:
+        m = _valid_mask(pred, gt, mask)
+        return float(np.sqrt(np.mean((np.log(pred[m]) - np.log(gt[m])) ** 2)))
 
 
-def delta_accuracy(
-    pred: NDArray[np.floating],
-    gt: NDArray[np.floating],
-    threshold: float,
-    mask: NDArray[np.bool_] | None = None,
-) -> float:
-    """Fraction of pixels where max(pred/gt, gt/pred) < threshold."""
-    m = _valid_mask(pred, gt, mask)
-    ratio = np.maximum(pred[m] / gt[m], gt[m] / pred[m])
-    return float(np.mean(ratio < threshold))
+class DeltaAccuracy(DepthMetric):
+    """Fraction of pixels where max(pred/gt, gt/pred) < ``threshold``."""
+
+    def __init__(self, threshold: float) -> None:
+        self.threshold = threshold
+
+    def __call__(
+        self,
+        pred: NDArray[np.floating],
+        gt: NDArray[np.floating],
+        mask: NDArray[np.bool_] | None = None,
+    ) -> float:
+        m = _valid_mask(pred, gt, mask)
+        ratio = np.maximum(pred[m] / gt[m], gt[m] / pred[m])
+        return float(np.mean(ratio < self.threshold))
 
 
 @dataclass

@@ -8,7 +8,7 @@ from typing import Any
 from rich.console import Console
 from rich.table import Table
 
-from eval3r.metric.geometry import GeometryEvalResult
+from eval3r.metrics.metric3d import GeometryEvalResult
 
 
 def render_geometry_table(result: GeometryEvalResult, *, title: str | None = None) -> Table:
@@ -44,7 +44,7 @@ def print_geometry_result(
     (console or Console()).print(render_geometry_table(result))
 
 
-from eval3r.metric.depth import DepthEvalResult
+from eval3r.metrics.metric2d import DepthEvalResult
 
 
 def render_depth_table(result: DepthEvalResult, *, title: str | None = None) -> Table:

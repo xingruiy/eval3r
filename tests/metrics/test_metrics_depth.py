@@ -2,16 +2,15 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-
-from eval3r.metric.depth import (
+from eval3r.metrics.metric2d import (
+    AbsRel,
+    DeltaAccuracy,
     DepthEvalResult,
-    abs_rel,
-    delta_accuracy,
+    RMSELog,
+    SqRel,
     depth_metrics,
-    rmse,
-    rmse_log,
-    sq_rel,
 )
+
 from eval3r.utils.errors import Eval3rError
 
 
@@ -43,14 +42,14 @@ def test_delta_zero_for_large_error() -> None:
     pred = _depth()
     gt = np.full_like(pred, 100.0)
     # ratio = max(2/100, 100/2) = 50, well above 1.25
-    assert delta_accuracy(pred, gt, 1.25) == pytest.approx(0.0)
+    assert DeltaAccuracy(1.25)(pred, gt) == pytest.approx(0.0)
 
 
 def test_delta_one_for_small_error() -> None:
     pred = _depth()
     gt = np.full_like(pred, 2.01)
     # ratio = max(2/2.01, 2.01/2) ≈ 1.005 < 1.25
-    assert delta_accuracy(pred, gt, 1.25) == pytest.approx(1.0)
+    assert DeltaAccuracy(1.25)(pred, gt) == pytest.approx(1.0)
 
 
 def test_mask_excludes_pixels() -> None:
@@ -91,15 +90,15 @@ def test_abs_rel_sq_rel_individual() -> None:
     pred = np.full((8, 8), 3.0, dtype=np.float32)
     gt = np.full((8, 8), 2.0, dtype=np.float32)
     # For each pixel: |3-2|/2 = 0.5, (3-2)²/2 = 0.5
-    assert abs_rel(pred, gt) == pytest.approx(0.5)
-    assert sq_rel(pred, gt) == pytest.approx(0.5)
+    assert AbsRel()(pred, gt) == pytest.approx(0.5)
+    assert SqRel()(pred, gt) == pytest.approx(0.5)
 
 
 def test_rmse_log_with_ratio() -> None:
     pred = np.full((8, 8), 4.0, dtype=np.float32)
     gt = np.full((8, 8), 2.0, dtype=np.float32)
     expected = np.sqrt((np.log(4.0) - np.log(2.0)) ** 2)
-    assert rmse_log(pred, gt) == pytest.approx(expected, abs=1e-6)
+    assert RMSELog()(pred, gt) == pytest.approx(expected, abs=1e-6)
 
 
 def test_to_dict() -> None:
@@ -117,9 +116,9 @@ def test_to_dict() -> None:
 def test_delta2_delta3_stricter() -> None:
     pred = np.full((16, 16), 2.0, dtype=np.float32)
     gt = np.full((16, 16), 1.9, dtype=np.float32)
-    d1 = delta_accuracy(pred, gt, 1.25)
-    d2 = delta_accuracy(pred, gt, 1.25 ** 2)
-    d3 = delta_accuracy(pred, gt, 1.25 ** 3)
+    d1 = DeltaAccuracy(1.25)(pred, gt)
+    d2 = DeltaAccuracy(1.25 ** 2)(pred, gt)
+    d3 = DeltaAccuracy(1.25 ** 3)(pred, gt)
     assert d1 == pytest.approx(1.0)
     assert d2 == pytest.approx(1.0)
     assert d3 == pytest.approx(1.0)
@@ -139,8 +138,8 @@ def test_finite_check_excludes_nan_and_inf() -> None:
 def test_delta_with_threshold() -> None:
     d = _depth(8, 8)
     # ratio is exactly 1.0, so threshold 1.0 is strict (1.0 < 1.0 = false)
-    assert delta_accuracy(d, d, 1.0) == pytest.approx(0.0)
-    assert delta_accuracy(d, d, 1.01) == pytest.approx(1.0)
+    assert DeltaAccuracy(1.0)(d, d) == pytest.approx(0.0)
+    assert DeltaAccuracy(1.01)(d, d) == pytest.approx(1.0)
 
 
 def test_shape_mismatch_pred_gt_raises() -> None:
