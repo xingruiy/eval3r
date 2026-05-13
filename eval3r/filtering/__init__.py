@@ -10,7 +10,7 @@ from __future__ import annotations
 from eval3r.filtering.base import BaseFilter
 from eval3r.filtering.bbox import BBoxFilter
 from eval3r.filtering.occlusion.generate import from_depth, from_rendered
-from eval3r.filtering.occlusion.occlusion import (
+from eval3r.filtering.occlusion.mask import (
     OcclusionFilter,
     filter_visible_points,
     load_occlusion_mask,

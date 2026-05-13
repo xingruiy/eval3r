@@ -254,7 +254,7 @@ def _evaluate_one(
         pred_mask = None
         mask_missing = False
         if config.mask_dir is not None:
-            from eval3r.filtering.occlusion.occlusion import load_occlusion_mask
+            from eval3r.filtering.occlusion.mask import load_occlusion_mask
 
             mask_path = _resolve_mask_pattern(
                 config.mask_dir, config.mask_pattern, scene_id

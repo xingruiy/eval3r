@@ -200,7 +200,7 @@ def _load_pred_mask(
             "Masking requires both --mask and --t-mask-scene, or neither."
         )
     if mask_path is not None and t_mask_scene_path is not None:
-        from eval3r.filtering.occlusion.occlusion import load_occlusion_mask
+        from eval3r.filtering.occlusion.mask import load_occlusion_mask
         return load_occlusion_mask(mask_path, t_mask_scene_path)
     return None
 

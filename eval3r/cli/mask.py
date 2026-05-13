@@ -25,7 +25,7 @@ import typer
 from eval3r.datasets import get_dataset
 from eval3r.datasets.base import Asset
 from eval3r.filtering.occlusion.generate import from_depth, from_rendered
-from eval3r.filtering.occlusion.occlusion import (
+from eval3r.filtering.occlusion.mask import (
     OcclusionFilter,
     load_occlusion_mask,
     save_occlusion_mask,

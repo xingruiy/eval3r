@@ -19,7 +19,7 @@ from eval3r.filtering.occlusion.generate import (
     _to_T_wc,
     from_depth,
 )
-from eval3r.filtering.occlusion.occlusion import (
+from eval3r.filtering.occlusion.mask import (
     filter_visible_points,
     load_occlusion_mask,
     save_occlusion_mask,
