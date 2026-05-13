@@ -4,8 +4,8 @@ import json
 import warnings
 
 from eval3r import PredictionWriter
-from eval3r.prediction.manifest import MANIFEST_FILENAME
-from eval3r.prediction.validate import validate_prediction
+from eval3r.manifest.manifest import MANIFEST_FILENAME
+from eval3r.manifest.validate import validate_prediction
 
 
 def test_validate_clean(tmp_path, gaussian_cloud) -> None:

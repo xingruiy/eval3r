@@ -6,8 +6,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal, TypedDict
 
-from eval3r.prediction.manifest import MANIFEST_FILENAME
-from eval3r.prediction.reader import PredictionReader
+from eval3r.manifest.manifest import MANIFEST_FILENAME
+from eval3r.manifest.reader import PredictionReader
 from eval3r.utils.typing import PathLike
 
 

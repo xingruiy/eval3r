@@ -11,7 +11,7 @@ from eval3r.benchmark import BenchmarkConfig, run_benchmark
 from eval3r.benchmark import core as benchmark_core
 from eval3r.datasets import ScanNetAdapter
 from eval3r.io.geometry import save_mesh_ply
-from eval3r.prediction import PredictionLocator
+from eval3r.manifest import PredictionLocator
 from tests.helpers._fake_scannet import CUBE_FACES, CUBE_VERTS, make_scannet_root
 
 

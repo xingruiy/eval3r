@@ -14,8 +14,8 @@ import numpy as np
 
 from eval3r.io.geometry import save_mesh_ply, save_point_cloud_ply
 from eval3r.io.trajectory import save_trajectory_kitti, save_trajectory_tum
-from eval3r.prediction._hash import relpath, sha256_file
-from eval3r.prediction.manifest import (
+from eval3r.manifest._hash import relpath, sha256_file
+from eval3r.manifest.manifest import (
     MANIFEST_FILENAME,
     Artifact,
     CameraSection,

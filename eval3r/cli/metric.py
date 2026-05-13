@@ -14,9 +14,9 @@ from eval3r.alignment import AlignMode
 from eval3r.datasets import Asset, get_dataset
 from eval3r.io.geometry import load_mesh, load_point_cloud
 from eval3r.io.trajectory import Trajectory, load_trajectory_auto
+from eval3r.manifest.reader import PredictionReader
 from eval3r.metrics.metric2d import depth_metrics
 from eval3r.metrics.metric3d import ChamferVariant, evaluate_geometry
-from eval3r.prediction.reader import PredictionReader
 from eval3r.presets import PRESETS
 from eval3r.report.table import print_depth_result, print_geometry_result
 from eval3r.sampling import SampleMethod

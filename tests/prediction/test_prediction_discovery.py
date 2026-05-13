@@ -6,7 +6,7 @@ import numpy as np
 
 from eval3r import PredictionWriter
 from eval3r.io.geometry import save_mesh_ply, save_point_cloud_ply
-from eval3r.prediction import PredictionLocator
+from eval3r.manifest import PredictionLocator
 from tests.helpers._fake_scannet import CUBE_FACES, CUBE_VERTS
 
 

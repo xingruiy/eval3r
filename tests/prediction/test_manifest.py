@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from eval3r._version import FORMAT_VERSION, __version__
-from eval3r.prediction.manifest import (
+from eval3r.manifest.manifest import (
     CoordinateSystem,
     Manifest,
     PoseConvention,

@@ -9,8 +9,8 @@ from typing import Any
 
 from eval3r.io.geometry import MeshData, PointCloudData, load_mesh, load_point_cloud
 from eval3r.io.trajectory import Trajectory, load_trajectory_auto
-from eval3r.prediction._hash import sha256_file
-from eval3r.prediction.manifest import MANIFEST_FILENAME, Artifact, Manifest
+from eval3r.manifest._hash import sha256_file
+from eval3r.manifest.manifest import MANIFEST_FILENAME, Artifact, Manifest
 from eval3r.utils.errors import (
     CorruptedArtifactError,
     ManifestError,

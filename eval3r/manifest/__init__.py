@@ -1,18 +1,18 @@
-from eval3r.prediction.discovery import (
+from eval3r.manifest.discovery import (
     PredictionLocator,
     ResolvedPrediction,
     find_predictions,
 )
-from eval3r.prediction.manifest import (
+from eval3r.manifest.manifest import (
     MANIFEST_FILENAME,
     CoordinateSystem,
     Manifest,
     PoseConvention,
     Unit,
 )
-from eval3r.prediction.reader import PredictionReader
-from eval3r.prediction.validate import ValidationReport, validate_prediction
-from eval3r.prediction.writer import PredictionWriter
+from eval3r.manifest.reader import PredictionReader
+from eval3r.manifest.validate import ValidationReport, validate_prediction
+from eval3r.manifest.writer import PredictionWriter
 
 __all__ = [
     "MANIFEST_FILENAME",

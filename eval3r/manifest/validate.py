@@ -10,8 +10,8 @@ import numpy as np
 
 from eval3r.io.geometry import load_mesh, load_point_cloud
 from eval3r.io.trajectory import load_trajectory_tum
-from eval3r.prediction._hash import sha256_file
-from eval3r.prediction.manifest import (
+from eval3r.manifest._hash import sha256_file
+from eval3r.manifest.manifest import (
     MANIFEST_FILENAME,
     Artifact,
     CoordinateSystem,

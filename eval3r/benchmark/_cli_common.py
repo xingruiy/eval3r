@@ -14,8 +14,8 @@ from rich.table import Table
 from eval3r.alignment import AlignMode
 from eval3r.benchmark.core import BenchmarkConfig, run_benchmark
 from eval3r.datasets.base import Asset, DatasetAdapter
+from eval3r.manifest.discovery import PredictionLocator
 from eval3r.metrics.metric3d import ChamferVariant
-from eval3r.prediction.discovery import PredictionLocator
 
 
 def summary_table(result_dict: dict, *, summary_key: str, title: str) -> Table:
