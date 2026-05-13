@@ -563,16 +563,6 @@ def test_cli_gen_depth_and_mesh_paths_are_mutually_exclusive(tmp_path: Path) -> 
     assert "mutually exclusive" in result.output.lower()
 
 
-def test_cli_gen_no_inputs_errors(tmp_path: Path) -> None:
-    result = runner.invoke(
-        app,
-        ["mask", "gen", "--out-dir", str(tmp_path / "out")],
-        env={"NO_COLOR": "1", "TERM": "dumb"},
-    )
-    assert result.exit_code != 0
-    assert "--preset" in result.output and "--depth-path" in result.output
-
-
 def test_cli_gen_help_uses_single_max_depth_option() -> None:
     result = runner.invoke(
         app,
@@ -620,20 +610,6 @@ def test_cli_gen_max_depth_requires_at_least_one_valid_bbox_pixel(tmp_path: Path
     )
     assert result.exit_code != 0
     assert "depth-derived bbox" in result.output
-
-
-def test_cli_gen_preset_requires_root_and_scene(tmp_path: Path) -> None:
-    result = runner.invoke(
-        app,
-        [
-            "mask", "gen",
-            "--preset", "replica",
-            "--out-dir", str(tmp_path / "out"),
-        ],
-        env={"NO_COLOR": "1", "TERM": "dumb"},
-    )
-    assert result.exit_code != 0
-    assert "--root" in result.output and "--scene" in result.output
 
 
 def test_cli_gen_depth_count_mismatch(tmp_path: Path) -> None:

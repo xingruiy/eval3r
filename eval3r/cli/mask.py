@@ -1,11 +1,8 @@
 """``e3r mask`` — generate, inspect, and visualize volumetric occlusion masks.
 
 A single ``e3r mask gen`` command builds masks via TSDF-style carving. It
-accepts three input shapes:
+accepts two input shapes:
 
-- ``--preset NAME --root <path> --scene <id>`` — registered dataset adapter
-  loads depth/poses/intrinsics (or mesh+poses+intrinsics if depth isn't
-  available).
 - ``--depth-path <dir> --depth-pattern '{frame:06d}.png' …`` — manual sensor
   depth mode.
 - ``--mesh-path <mesh.ply> --image-size 640x480 …`` — manual rendered-depth
@@ -22,8 +19,6 @@ from pathlib import Path
 import numpy as np
 import typer
 
-from eval3r.datasets import get_dataset
-from eval3r.datasets.base import Asset
 from eval3r.filtering.occlusion.generate import from_depth, from_rendered
 from eval3r.filtering.occlusion.mask import (
     OcclusionFilter,
@@ -32,7 +27,6 @@ from eval3r.filtering.occlusion.mask import (
 )
 from eval3r.io.geometry import load_mesh
 from eval3r.io.trajectory import Trajectory, load_trajectory_auto
-from eval3r.presets import PRESETS
 
 app = typer.Typer(
     no_args_is_help=True,
@@ -53,18 +47,6 @@ def _parse_image_size(spec: str) -> tuple[int, int]:
             f"--image-size must be WxH (e.g. 640x480), got {spec!r}"
         )
     return int(m.group(1)), int(m.group(2))
-
-
-def _parse_adapter_opts(raw: list[str]) -> dict[str, str]:
-    result: dict[str, str] = {}
-    for item in raw:
-        if "=" not in item:
-            raise typer.BadParameter(
-                f"Adapter opt must be key=value, got: {item!r}"
-            )
-        k, v = item.split("=", 1)
-        result[k.strip()] = v.strip()
-    return result
 
 
 def _resolve_per_frame_paths(
@@ -165,21 +147,6 @@ def _load_poses_any(
     return poses, "unspecified"
 
 
-def _adapter_for_preset(
-    preset_name: str,
-    *,
-    root: str,
-    adapter_opts: dict[str, str],
-):
-    if preset_name not in PRESETS:
-        raise typer.BadParameter(
-            f"unknown preset: {preset_name!r}; available: {sorted(PRESETS)}"
-        )
-    dataset_name = PRESETS[preset_name].get("dataset", preset_name)
-    cls = get_dataset(dataset_name)
-    return cls(root, validate_on_init=False, **adapter_opts)  # type: ignore[arg-type]
-
-
 # ---------------------------------------------------------------------------
 # gen — single command, branches on inputs
 # ---------------------------------------------------------------------------
@@ -188,17 +155,6 @@ def _adapter_for_preset(
 @app.command("gen")
 def gen_cmd(
     out_dir: str = typer.Option(..., "--out-dir", help="Output directory."),
-    # --- preset mode ---
-    preset: str | None = typer.Option(
-        None, "--preset",
-        help="Registered preset (e.g. scannet, replica). Requires --root and --scene.",
-    ),
-    root: str | None = typer.Option(None, "--root"),
-    scene: str | None = typer.Option(None, "--scene"),
-    adapter_opt: list[str] = typer.Option(
-        [], "-o", "--adapter-opt",
-        help="Adapter override key=value (repeatable). Only valid with --preset.",
-    ),
     # --- manual depth mode ---
     depth_path: str | None = typer.Option(
         None, "--depth-path",
@@ -273,8 +229,6 @@ def gen_cmd(
 
     Branches on inputs:
 
-    - ``--preset NAME --root … --scene …`` → adapter mode
-      (depth path if available, else rendered).
     - ``--depth-path …`` → manual depth carving.
     - ``--mesh-path …`` → manual rendered carving (requires ``--image-size``).
     """
@@ -287,40 +241,7 @@ def gen_cmd(
             "--depth-path and --mesh-path are mutually exclusive."
         )
 
-    adapter_opts = _parse_adapter_opts(adapter_opt)
-
-    if preset is not None:
-        if any(x is not None for x in (depth_path, mesh_path, poses_path, intrinsics_path)):
-            raise typer.BadParameter(
-                "--preset is mutually exclusive with manual --depth-path / "
-                "--mesh-path / --poses-path / --intrinsics-path."
-            )
-        mask = _gen_from_preset(
-            preset=preset,
-            root=root,
-            scene=scene,
-            adapter_opts=adapter_opts,
-            image_size=image_size,
-            voxel_size=voxel_size,
-            margin=margin,
-            pose_convention=pose_convention,
-            camera_frame=camera_frame,
-            depth_scale=depth_scale,
-            max_depth=max_depth,
-            near=near,
-            truncation=truncation,
-            dilation=dilation,
-            frames=frames,
-            frames_file=frames_file,
-            frame_stride=frame_stride,
-            max_frames=max_frames,
-            headless=headless,
-        )
-    elif depth_path is not None:
-        if adapter_opts:
-            raise typer.BadParameter(
-                "-o / --adapter-opt requires --preset; manual mode uses explicit paths."
-            )
+    if depth_path is not None:
         mask = _gen_from_depth_paths(
             depth_path=depth_path,
             depth_pattern=depth_pattern,
@@ -342,10 +263,6 @@ def gen_cmd(
             max_frames=max_frames,
         )
     elif mesh_path is not None:
-        if adapter_opts:
-            raise typer.BadParameter(
-                "-o / --adapter-opt requires --preset; manual mode uses explicit paths."
-            )
         mask = _gen_from_mesh_paths(
             mesh_path=mesh_path,
             poses_path=poses_path,
@@ -369,7 +286,6 @@ def gen_cmd(
     else:
         raise typer.BadParameter(
             "Specify one of:\n"
-            "  --preset NAME --root <path> --scene <id>\n"
             "  --depth-path <dir> --poses-path <…> --intrinsics-path <K.txt>\n"
             "  --mesh-path <ply> --poses-path <…> --intrinsics-path <K.txt> --image-size WxH"
         )
@@ -378,107 +294,6 @@ def gen_cmd(
     typer.echo(f"wrote {mp}")
     typer.echo(f"wrote {tp}")
 
-
-def _gen_from_preset(
-    *,
-    preset: str,
-    root: str | None,
-    scene: str | None,
-    adapter_opts: dict[str, str],
-    image_size: str,
-    voxel_size: float,
-    margin: float,
-    pose_convention: str,
-    camera_frame: str,
-    depth_scale: float,
-    max_depth: float,
-    near: float,
-    truncation: float | None,
-    dilation: int,
-    frames: str | None,
-    frames_file: str | None,
-    frame_stride: int,
-    max_frames: int | None,
-    headless: bool,
-) -> OcclusionFilter:
-    if root is None or scene is None:
-        raise typer.BadParameter(
-            "--preset requires --root and --scene to identify the source data."
-        )
-    adapter = _adapter_for_preset(preset, root=root, adapter_opts=adapter_opts)
-
-    # Decide depth-path vs rendered-path based on adapter capabilities.
-    has_depth = Asset.DEPTH in adapter.supported_assets
-    has_pose_K = (
-        Asset.POSES in adapter.supported_assets
-        and Asset.INTRINSICS_DEPTH in adapter.supported_assets
-    )
-    has_mesh_pose_K = (
-        Asset.MESH in adapter.supported_assets
-        and Asset.POSES in adapter.supported_assets
-        and Asset.INTRINSICS_DEPTH in adapter.supported_assets
-    )
-
-    traj = adapter.load_poses(scene) if has_pose_K else None
-    K = adapter.load_intrinsics_depth(scene) if has_pose_K else None
-    convention = (
-        traj.convention
-        if traj is not None and traj.convention in ("T_cw", "T_wc")
-        else pose_convention
-    )
-
-    if has_depth and has_pose_K:
-        n = len(traj.poses)  # type: ignore[union-attr]
-        depth_maps = [adapter.load_depth(scene, i) for i in range(n)]
-        return from_depth(
-            depth_maps,
-            traj.poses,  # type: ignore[union-attr]
-            K,  # type: ignore[arg-type]
-            voxel_size=voxel_size,
-            margin=margin,
-            pose_convention=convention,  # type: ignore[arg-type]
-            camera_frame=camera_frame,  # type: ignore[arg-type]
-            depth_scale=depth_scale,
-            depth_max=max_depth,
-            max_depth=max_depth,
-            near=near,
-            truncation=truncation,
-            frames=frames,
-            frames_file=frames_file,
-            frame_stride=frame_stride,
-            max_frames=max_frames,
-            dilation=dilation,
-        )
-    if has_mesh_pose_K:
-        geom = adapter.load_mesh(scene)
-        return from_rendered(
-            geom,
-            traj.poses,  # type: ignore[union-attr]
-            K,  # type: ignore[arg-type]
-            _parse_image_size(image_size),
-            voxel_size=voxel_size,
-            margin=margin,
-            pose_convention=convention,  # type: ignore[arg-type]
-            camera_frame=camera_frame,  # type: ignore[arg-type]
-            max_depth=max_depth,
-            near=near,
-            truncation=truncation,
-            frames=frames,
-            frames_file=frames_file,
-            frame_stride=frame_stride,
-            max_frames=max_frames,
-            dilation=dilation,
-            headless=headless,
-        )
-    needed = {Asset.POSES, Asset.INTRINSICS_DEPTH} | (
-        {Asset.DEPTH} if not has_mesh_pose_K else {Asset.MESH}
-    )
-    missing = needed - adapter.supported_assets
-    raise typer.BadParameter(
-        f"adapter {adapter.name!r} cannot serve mask gen: missing assets "
-        f"{sorted(a.value for a in missing)}. Use manual mode "
-        f"(explicit --depth-path or --mesh-path) instead."
-    )
 
 
 def _gen_from_depth_paths(
