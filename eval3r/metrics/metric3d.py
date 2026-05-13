@@ -44,6 +44,8 @@ class ChamferDistance(GeometryMetric):
     former ``l1_mean_bidirectional`` variant: ``0.5 * (mean(d_pg) + mean(d_gp))``.
     """
 
+    name = "chamfer"
+
     def __init__(
         self,
         *,
@@ -71,12 +73,16 @@ class ChamferDistance(GeometryMetric):
 class Accuracy(GeometryMetric):
     """Mean nearest-neighbour distance from pred to gt."""
 
+    name = "accuracy"
+
     def __call__(self, pred: Points, gt: Points) -> float:
         return float(_nn_dists(pred, gt).mean())
 
 
 class Completeness(GeometryMetric):
     """Mean nearest-neighbour distance from gt to pred."""
+
+    name = "completeness"
 
     def __call__(self, pred: Points, gt: Points) -> float:
         return float(_nn_dists(gt, pred).mean())
@@ -87,6 +93,7 @@ class Precision(GeometryMetric):
 
     def __init__(self, threshold: float) -> None:
         self.threshold = threshold
+        self.name = f"precision@{threshold}"
 
     def __call__(self, pred: Points, gt: Points) -> float:
         return float((_nn_dists(pred, gt) < self.threshold).mean())
@@ -97,6 +104,7 @@ class Recall(GeometryMetric):
 
     def __init__(self, threshold: float) -> None:
         self.threshold = threshold
+        self.name = f"recall@{threshold}"
 
     def __call__(self, pred: Points, gt: Points) -> float:
         return float((_nn_dists(gt, pred) < self.threshold).mean())
@@ -107,6 +115,7 @@ class FScore(GeometryMetric):
 
     def __init__(self, threshold: float) -> None:
         self.threshold = threshold
+        self.name = f"fscore@{threshold}"
 
     def __call__(self, pred: Points, gt: Points) -> tuple[float, float, float]:
         p = Precision(self.threshold)(pred, gt)

@@ -4,13 +4,13 @@ from __future__ import annotations
 
 import typer
 
-from eval3r.benchmark import dtu
-from eval3r.benchmark import eth3d
-from eval3r.benchmark import generic
-from eval3r.benchmark import replica
-from eval3r.benchmark import scannet
-from eval3r.benchmark import tanks_temples
-from eval3r.benchmark import tum_rgbd
+from eval3r.cli.benchmark import dtu
+from eval3r.cli.benchmark import eth3d
+from eval3r.cli.benchmark import generic
+from eval3r.cli.benchmark import replica
+from eval3r.cli.benchmark import scannet
+from eval3r.cli.benchmark import tanks_temples
+from eval3r.cli.benchmark import tum_rgbd
 
 app = typer.Typer(
     no_args_is_help=True,

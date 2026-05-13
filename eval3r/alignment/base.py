@@ -13,6 +13,18 @@ from eval3r.utils.typing import Points
 AlignMode = Literal["scale", "se3", "sim3"]
 
 
+class IdentityAligner:
+    """No-op aligner — returns an identity AlignResult."""
+
+    def align(self, source: Points, target: Points) -> "AlignResult":
+        return AlignResult(
+            scale=1.0,
+            rotation=np.eye(3),
+            translation=np.zeros(3),
+            mode="none",
+        )
+
+
 @dataclass
 class AlignResult:
     """Result of estimating ``aligned = scale * R @ source.T + t.T``."""

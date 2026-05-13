@@ -10,6 +10,8 @@ from eval3r.utils.typing import Points
 
 
 class GeometryMetric(ABC):
+    name: str = ""
+
     @abstractmethod
     def __call__(self, pred: Points, gt: Points) -> float | tuple[float, ...]: ...
 

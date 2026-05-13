@@ -1,61 +1,72 @@
-"""Tests for the aggregate / collect_values helpers."""
+"""Tests for the aggregate / collect_values helpers in benchmark.base."""
 
 from __future__ import annotations
 
-from eval3r.benchmark.aggregate import aggregate, collect_values
-from eval3r.benchmark.core import SceneOutcome
-from eval3r.metrics.metric3d import EvalResult3D
+from eval3r.benchmark.base import SceneOutcome, aggregate, collect_values
+from eval3r.pipeline import PipelineResult
 
 
-def _scene(scene_id: str, tau: float, f_value: float) -> SceneOutcome:
-    return SceneOutcome(
-        scene_id=scene_id,
-        status="ok",
-        result=EvalResult3D(
-            chamfer=0.0,
-            chamfer_variant="l1_mean_bidirectional",
-            accuracy=0.0,
-            completeness=0.0,
-            fscore={tau: {"f": f_value, "precision": f_value, "recall": f_value}},
-        ),
+def _pipeline_result(**values) -> PipelineResult:
+    return PipelineResult(
+        values=values,
+        n_samples=1000,
+        n_visible=1000,
+        n_total=1000,
+        align_mode="none",
+        align_scale=1.0,
     )
 
 
-def test_collect_values_default_keeps_per_tau_columns() -> None:
+def _scene(scene_id: str, **values) -> SceneOutcome:
+    return SceneOutcome(
+        scene_id=scene_id,
+        status="ok",
+        result=_pipeline_result(**values),
+    )
+
+
+def test_collect_values_float_metrics() -> None:
     outcomes = [
-        _scene("s1", 0.01, 0.6),
-        _scene("s2", 0.05, 0.8),
+        _scene("s1", chamfer=0.01, accuracy=0.02),
+        _scene("s2", chamfer=0.03, accuracy=0.04),
     ]
-    out = collect_values(outcomes, thresholds=(0.05,))
-    # Default (pooled=False) emits one column per τ — and seeds 0.05 with
-    # exactly the scene that used 0.05.
-    assert out["f@0.01"] == [0.6]
-    assert out["f@0.05"] == [0.8]
-    assert "f" not in out
+    out = collect_values(outcomes)
+    assert out["chamfer"] == [0.01, 0.03]
+    assert out["accuracy"] == [0.02, 0.04]
 
 
-def test_collect_values_pooled_flattens_into_canonical() -> None:
+def test_collect_values_tuple_metrics() -> None:
     outcomes = [
-        _scene("s1", 0.01, 0.6),
-        _scene("s2", 0.05, 0.8),
+        _scene("s1", **{"fscore@0.05": (0.8, 0.85, 0.75)}),
+        _scene("s2", **{"fscore@0.05": (0.6, 0.7, 0.55)}),
     ]
-    out = collect_values(outcomes, pooled=True)
-    # Each scene contributes its own scene-τ f-score to the same list,
-    # regardless of which τ produced it. Order = sorted by τ.
-    assert out["f"] == [0.6, 0.8]
-    assert out["precision"] == [0.6, 0.8]
-    assert out["recall"] == [0.6, 0.8]
-    # No per-τ columns when pooled.
-    assert "f@0.01" not in out
-    assert "f@0.05" not in out
+    out = collect_values(outcomes)
+    assert out["fscore@0.05_f"] == [0.8, 0.6]
+    assert out["fscore@0.05_precision"] == [0.85, 0.7]
+    assert out["fscore@0.05_recall"] == [0.75, 0.55]
+    assert "fscore@0.05" not in out
 
 
-def test_aggregate_pooled_mean_is_unweighted() -> None:
+def test_collect_values_skips_non_ok() -> None:
     outcomes = [
-        _scene("s1", 0.01, 0.6),
-        _scene("s2", 0.05, 0.8),
+        _scene("s1", chamfer=0.01),
+        SceneOutcome(scene_id="s2", status="missing_pred"),
+        SceneOutcome(scene_id="s3", status="failed", error="oops"),
     ]
-    summary = aggregate(outcomes, pooled=True)
-    # Mean across scenes at their own τ — no τ weighting.
-    assert summary["f"]["mean"] == 0.7
-    assert summary["f"]["n"] == 2
+    out = collect_values(outcomes)
+    assert out["chamfer"] == [0.01]
+
+
+def test_aggregate_mean() -> None:
+    outcomes = [
+        _scene("s1", chamfer=0.01),
+        _scene("s2", chamfer=0.03),
+    ]
+    summary = aggregate(outcomes)
+    assert summary["chamfer"]["mean"] == 0.02
+    assert summary["chamfer"]["n"] == 2
+
+
+def test_aggregate_empty() -> None:
+    summary = aggregate([])
+    assert summary == {}
