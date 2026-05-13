@@ -156,9 +156,12 @@ def evaluate_geometry(
     after alignment and before metric computation. The mask is interpreted
     in the post-alignment frame; GT points are not filtered.
     """
+
+    # Step 1 - Sample points
     pred_pts = sample_points(pred, samples, method=sample_method, seed=seed)
     gt_pts = sample_points(gt, samples, method=sample_method, seed=seed + 1)
 
+    # Step 2 - (Optional) Align points
     al = align(
         pred_pts, gt_pts, mode=align_mode,
         pred_poses=pred_poses, gt_poses=gt_poses,
@@ -169,6 +172,8 @@ def evaluate_geometry(
 
     n_visible = len(pred_aligned)
     total_pred_points = len(pred_aligned)
+
+    # Step 3 - (Optional) Filter points
     if pred_mask is not None:
         pred_aligned, n_visible, total_pred_points = pred_mask.filter_points(pred_aligned)
 
@@ -191,6 +196,7 @@ def evaluate_geometry(
             matched_gt_idx=al.matched_gt_idx,
         )
 
+    # Step 4 - Compute metrics
     d_pg = _nn_dists(pred_aligned, gt_pts)
     d_gp = _nn_dists(gt_pts, pred_aligned)
 
@@ -230,49 +236,3 @@ def evaluate_geometry(
         visible_points=n_visible,
         total_pred_points=total_pred_points,
     )
-
-
-class Evaluator:
-    """Thin facade for library users.
-
-    Example::
-
-        ev = Evaluator(samples=100_000, seed=42, align_mode="none")
-        result = ev.evaluate(pred_points, gt_points)
-    """
-
-    def __init__(
-        self,
-        *,
-        samples: int = 200_000,
-        seed: int = 42,
-        sample_method: SampleMethod = "area",
-        align_mode: AlignMode = "none",
-        thresholds: list[float] | tuple[float, ...] = (0.05,),
-        chamfer_variant: ChamferVariant = "l1_mean_bidirectional",
-    ) -> None:
-        self.samples = samples
-        self.seed = seed
-        self.sample_method = sample_method
-        self.align_mode = align_mode
-        self.thresholds = list(thresholds)
-        self.chamfer_variant = chamfer_variant
-
-    def evaluate(
-        self,
-        pred: Points | PointCloudData | MeshData,
-        gt: Points | PointCloudData | MeshData,
-        *,
-        pred_mask: GeometryMask | None = None,
-    ) -> GeometryEvalResult:
-        return evaluate_geometry(
-            pred,
-            gt,
-            samples=self.samples,
-            seed=self.seed,
-            sample_method=self.sample_method,
-            align_mode=self.align_mode,
-            thresholds=self.thresholds,
-            chamfer_variant=self.chamfer_variant,
-            pred_mask=pred_mask,
-        )

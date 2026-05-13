@@ -9,7 +9,6 @@ from eval3r.metric.depth import (
 )
 from eval3r.metric.geometry import (
     ChamferVariant,
-    Evaluator,
     GeometryEvalResult,
     accuracy,
     chamfer_distance,
@@ -22,7 +21,6 @@ from eval3r.metric.geometry import (
 from eval3r.metric.sampling import SampleMethod, sample_points
 
 __all__ = [
-    "Evaluator",
     "GeometryEvalResult",
     "ChamferVariant",
     "evaluate_geometry",
