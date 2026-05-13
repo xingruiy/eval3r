@@ -84,20 +84,10 @@ def _resolve_per_frame_paths(
             f"files; got file {path}. Pass a directory plus --{asset_label}-pattern."
         )
     if pattern is not None:
-        files: list[tuple[int, Path]] = []
-        frame_pattern = _frame_pattern_regex(pattern)
-        for candidate in path.iterdir():
-            if not candidate.is_file():
-                continue
-            m = frame_pattern.fullmatch(candidate.name)
-            if m is None:
-                continue
-            files.append((int(m.group("frame")), candidate))
-        if not files:
-            raise typer.BadParameter(
-                f"No {asset_label} files matched pattern {pattern!r} under {path}"
-            )
-        return [p for _, p in sorted(files, key=lambda item: item[0])]
+        files = _resolve_per_frame_paths_with_ids(
+            path, pattern, asset_label=asset_label
+        )
+        return [p for _, p in files]
 
     matches = sorted(path.glob(default_glob), key=_natural_key)
     if not matches:
@@ -106,6 +96,36 @@ def _resolve_per_frame_paths(
             f"pass --{asset_label}-pattern to be explicit."
         )
     return matches
+
+
+def _resolve_per_frame_paths_with_ids(
+    path: Path,
+    pattern: str,
+    *,
+    asset_label: str,
+) -> list[tuple[int, Path]]:
+    """Enumerate patterned files and return ``(frame_id, path)`` pairs."""
+    if not path.exists():
+        raise typer.BadParameter(f"--{asset_label}-path does not exist: {path}")
+    if path.is_file():
+        raise typer.BadParameter(
+            f"--{asset_label}-path must be a directory when discovering per-frame "
+            f"files; got file {path}. Pass a directory plus --{asset_label}-pattern."
+        )
+    files: list[tuple[int, Path]] = []
+    frame_pattern = _frame_pattern_regex(pattern)
+    for candidate in path.iterdir():
+        if not candidate.is_file():
+            continue
+        m = frame_pattern.fullmatch(candidate.name)
+        if m is None:
+            continue
+        files.append((int(m.group("frame")), candidate))
+    if not files:
+        raise typer.BadParameter(
+            f"No {asset_label} files matched pattern {pattern!r} under {path}"
+        )
+    return sorted(files, key=lambda item: item[0])
 
 
 _NUM_RE = re.compile(r"(\d+)")
@@ -537,10 +557,26 @@ def _gen_from_depth_paths(
         raise typer.BadParameter(
             "Manual depth mode needs --depth-path, --poses-path, and --intrinsics-path."
         )
+    depth_root = Path(depth_path)
+    poses_root = Path(poses_path)
     depth_files = _resolve_per_frame_paths(
-        Path(depth_path), depth_pattern, asset_label="depth", default_glob="*.png"
+        depth_root, depth_pattern, asset_label="depth", default_glob="*.png"
     )
-    poses, used_convention = _load_poses_any(Path(poses_path), poses_pattern)
+    poses, used_convention = _load_poses_any(poses_root, poses_pattern)
+    if depth_pattern is not None and poses_pattern is not None and poses_root.is_dir():
+        depth_pairs = _resolve_per_frame_paths_with_ids(
+            depth_root, depth_pattern, asset_label="depth"
+        )
+        pose_pairs = _resolve_per_frame_paths_with_ids(
+            poses_root, poses_pattern, asset_label="poses"
+        )
+        depth_ids = [i for i, _ in depth_pairs]
+        pose_ids = [i for i, _ in pose_pairs]
+        if depth_ids != pose_ids:
+            raise typer.BadParameter(
+                "Depth and pose frame IDs do not align for patterned inputs; "
+                f"depth frames={depth_ids} poses={pose_ids}."
+            )
     if len(poses) != len(depth_files):
         raise typer.BadParameter(
             f"Got {len(depth_files)} depth files but {len(poses)} poses; counts must match."
