@@ -108,7 +108,7 @@ class DeltaAccuracy(DepthMetric):
 
 
 @dataclass
-class DepthEvalResult:
+class EvalResult2D:
     abs_rel: float
     sq_rel: float
     rmse: float
@@ -137,7 +137,7 @@ def depth_metrics(
     pred: NDArray[np.floating],
     gt: NDArray[np.floating],
     mask: NDArray[np.bool_] | None = None,
-) -> DepthEvalResult:
+) -> EvalResult2D:
     """Compute all standard depth metrics at once."""
     m = _valid_mask(pred, gt, mask)
     n_valid = int(np.sum(m))
@@ -146,7 +146,7 @@ def depth_metrics(
     diff = pred_v - gt_v
     ratio = np.maximum(pred_v / gt_v, gt_v / pred_v)
 
-    return DepthEvalResult(
+    return EvalResult2D(
         abs_rel=float(np.mean(np.abs(diff) / gt_v)),
         sq_rel=float(np.mean((diff**2) / gt_v)),
         rmse=float(np.sqrt(np.mean(diff**2))),

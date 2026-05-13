@@ -2,15 +2,15 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
+
 from eval3r.metrics.metric2d import (
     AbsRel,
     DeltaAccuracy,
-    DepthEvalResult,
+    EvalResult2D,
     RMSELog,
     SqRel,
     depth_metrics,
 )
-
 from eval3r.utils.errors import Eval3rError
 
 

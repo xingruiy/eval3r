@@ -2,7 +2,7 @@ from eval3r.metrics.metric2d import (
     RMSE,
     AbsRel,
     DeltaAccuracy,
-    DepthEvalResult,
+    EvalResult2D,
     RMSELog,
     SqRel,
     depth_metrics,
@@ -12,8 +12,8 @@ from eval3r.metrics.metric3d import (
     ChamferDistance,
     ChamferVariant,
     Completeness,
+    EvalResult3D,
     FScore,
-    GeometryEvalResult,
     Precision,
     Recall,
     evaluate_geometry,
@@ -21,7 +21,7 @@ from eval3r.metrics.metric3d import (
 from eval3r.sampling import SampleMethod, sample_points
 
 __all__ = [
-    "GeometryEvalResult",
+    "EvalResult3D",
     "ChamferVariant",
     "evaluate_geometry",
     "ChamferDistance",
@@ -30,7 +30,7 @@ __all__ = [
     "Precision",
     "Recall",
     "FScore",
-    "DepthEvalResult",
+    "EvalResult2D",
     "depth_metrics",
     "AbsRel",
     "SqRel",

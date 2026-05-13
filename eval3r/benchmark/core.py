@@ -27,7 +27,7 @@ from eval3r.io.geometry import (
 from eval3r.manifest.discovery import PredictionLocator, ResolvedPrediction
 from eval3r.metrics.metric3d import (
     ChamferVariant,
-    GeometryEvalResult,
+    EvalResult3D,
     evaluate_geometry,
 )
 from eval3r.sampling import SampleMethod
@@ -89,7 +89,7 @@ SceneStatus = Literal["ok", "missing_pred", "missing_gt", "failed"]
 class SceneOutcome:
     scene_id: str
     status: SceneStatus
-    result: GeometryEvalResult | None = None
+    result: EvalResult3D | None = None
     error: str | None = None
     pred_path: Path | None = None
     gt_path: Path | None = None

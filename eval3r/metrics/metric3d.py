@@ -116,7 +116,7 @@ class FScore(GeometryMetric):
 
 
 @dataclass
-class GeometryEvalResult:
+class EvalResult3D:
     chamfer: float
     chamfer_variant: ChamferVariant
     accuracy: float
@@ -174,7 +174,7 @@ def evaluate_geometry(
     pred_timestamps: np.ndarray | None = None,
     gt_timestamps: np.ndarray | None = None,
     pred_mask: BaseFilter | None = None,
-) -> GeometryEvalResult:
+) -> EvalResult3D:
     """Sample → align → compute chamfer / accuracy / completeness / F-score.
 
     When *debug_plot_path* is set, a 3D scatter plot of the aligned
@@ -253,7 +253,7 @@ def evaluate_geometry(
         f = 2 * p * r / (p + r) if (p + r) > 0 else 0.0
         fdict[float(thr)] = {"f": f, "precision": p, "recall": r}
 
-    return GeometryEvalResult(
+    return EvalResult3D(
         chamfer=cd,
         chamfer_variant=chamfer_variant,
         accuracy=acc,

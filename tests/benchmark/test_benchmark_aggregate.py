@@ -4,14 +4,14 @@ from __future__ import annotations
 
 from eval3r.benchmark.aggregate import aggregate, collect_values
 from eval3r.benchmark.core import SceneOutcome
-from eval3r.metrics.metric3d import GeometryEvalResult
+from eval3r.metrics.metric3d import EvalResult3D
 
 
 def _scene(scene_id: str, tau: float, f_value: float) -> SceneOutcome:
     return SceneOutcome(
         scene_id=scene_id,
         status="ok",
-        result=GeometryEvalResult(
+        result=EvalResult3D(
             chamfer=0.0,
             chamfer_variant="l1_mean_bidirectional",
             accuracy=0.0,

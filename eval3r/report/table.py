@@ -8,10 +8,10 @@ from typing import Any
 from rich.console import Console
 from rich.table import Table
 
-from eval3r.metrics.metric3d import GeometryEvalResult
+from eval3r.metrics.metric3d import EvalResult3D
 
 
-def render_geometry_table(result: GeometryEvalResult, *, title: str | None = None) -> Table:
+def render_geometry_table(result: EvalResult3D, *, title: str | None = None) -> Table:
     table = Table(title=title or "eval3r — geometry metrics", show_lines=False)
     table.add_column("metric", style="cyan", no_wrap=True)
     table.add_column("value", style="white")
@@ -33,7 +33,7 @@ def render_geometry_table(result: GeometryEvalResult, *, title: str | None = Non
 
 
 def print_geometry_result(
-    result: GeometryEvalResult,
+    result: EvalResult3D,
     *,
     as_json: bool = False,
     console: Console | None = None,
@@ -44,10 +44,10 @@ def print_geometry_result(
     (console or Console()).print(render_geometry_table(result))
 
 
-from eval3r.metrics.metric2d import DepthEvalResult
+from eval3r.metrics.metric2d import EvalResult2D
 
 
-def render_depth_table(result: DepthEvalResult, *, title: str | None = None) -> Table:
+def render_depth_table(result: EvalResult2D, *, title: str | None = None) -> Table:
     table = Table(title=title or "eval3r — depth metrics", show_lines=False)
     table.add_column("metric", style="cyan", no_wrap=True)
     table.add_column("value", style="white")
@@ -65,7 +65,7 @@ def render_depth_table(result: DepthEvalResult, *, title: str | None = None) -> 
 
 
 def print_depth_result(
-    result: DepthEvalResult,
+    result: EvalResult2D,
     *,
     as_json: bool = False,
     console: Console | None = None,
