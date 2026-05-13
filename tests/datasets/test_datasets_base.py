@@ -56,3 +56,17 @@ def test_default_loaders_raise_not_supported() -> None:
         with pytest.raises(NotSupportedError):
             fn()
     assert ds.supports(Asset.MESH) is False
+
+
+def test_supported_assets_detects_intrinsics_override() -> None:
+    class _IntrinsicsOnly(DatasetAdapter):
+        name = "_intrinsics_only_"
+
+        def list_scenes(self, split=None):
+            return ["scene"]
+
+        def load_intrinsics(self, scene_id: str):
+            return super().load_intrinsics(scene_id)
+
+    ds = _IntrinsicsOnly()
+    assert ds.supports(Asset.INTRINSICS) is True

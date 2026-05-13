@@ -68,6 +68,7 @@ class DatasetAdapter(ABC):
             (Asset.POINT_CLOUD, self.load_point_cloud),
             (Asset.DEPTH, self.load_depth),
             (Asset.COLOR, self.load_color),
+            (Asset.INTRINSICS, self.load_intrinsics),
             (Asset.INTRINSICS_DEPTH, self.load_intrinsics_depth),
             (Asset.INTRINSICS_COLOR, self.load_intrinsics_color),
             (Asset.POSES, self.load_poses),
