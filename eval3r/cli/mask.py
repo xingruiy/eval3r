@@ -24,14 +24,14 @@ import typer
 
 from eval3r.datasets import get_dataset
 from eval3r.datasets.base import Asset
-from eval3r.io.geometry import load_mesh
-from eval3r.io.trajectory import Trajectory, load_trajectory_auto
-from eval3r.filtering.generate import from_depth, from_rendered
-from eval3r.filtering.occlusion import (
+from eval3r.filtering.occlusion.generate import from_depth, from_rendered
+from eval3r.filtering.occlusion.occlusion import (
     OcclusionFilter,
     load_occlusion_mask,
     save_occlusion_mask,
 )
+from eval3r.io.geometry import load_mesh
+from eval3r.io.trajectory import Trajectory, load_trajectory_auto
 from eval3r.presets import PRESETS
 
 app = typer.Typer(
@@ -710,7 +710,7 @@ def visualize_cmd(
     if value not in {"occluded", "visible"}:
         raise typer.BadParameter("--value must be 'occluded' or 'visible'")
 
-    from eval3r.filtering.visualize import save_mask_overview, save_mask_point_cloud
+    from eval3r.filtering.occlusion.visualize import save_mask_overview, save_mask_point_cloud
 
     mask_path = Path(mask)
     grid = np.load(mask_path, mmap_mode="r")

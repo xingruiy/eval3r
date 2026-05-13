@@ -17,7 +17,7 @@ Both share a two-stage core:
    ``≤ depth_at_pixel + truncation`` (free space + thin TSDF band past surface).
    Voxels behind the observed surface stay occluded.
 
-The consumer (:func:`eval3r.filtering.occlusion.filter_visible_points`) samples
+The consumer (:func:`eval3r.filtering.occlusion.occlusion.filter_visible_points`) samples
 the mask with trilinear interpolation, so visible voxels are dilated by one
 cell by default; pass ``dilation=0`` for a crisp mask.
 """
@@ -30,12 +30,11 @@ from pathlib import Path
 import numpy as np
 from scipy.ndimage import binary_dilation
 
+from eval3r.filtering.occlusion.occlusion import OcclusionFilter
 from eval3r.io.geometry import MeshData
-from eval3r.filtering.occlusion import OcclusionFilter
 from eval3r.render.camera import CameraFrame, PoseFrame, to_pyrender_pose
 from eval3r.utils.optional import optional_import
 from eval3r.utils.typing import PathLike
-
 
 # ---------------------------------------------------------------------------
 # Shared helpers

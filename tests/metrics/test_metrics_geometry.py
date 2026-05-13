@@ -4,7 +4,7 @@ import numpy as np
 import pytest
 
 from eval3r.filtering.bbox import BBoxFilter
-from eval3r.filtering.occlusion import (
+from eval3r.filtering.occlusion.occlusion import (
     OcclusionFilter,
     filter_visible_points,
     load_occlusion_mask,

@@ -10,8 +10,7 @@ import pytest
 from typer.testing import CliRunner
 
 from eval3r.cli.main import app
-from eval3r.io.geometry import MeshData, save_mesh_ply
-from eval3r.filtering.generate import (
+from eval3r.filtering.occlusion.generate import (
     _backproject,
     _frustum_corners_world,
     _points_to_mask,
@@ -20,11 +19,12 @@ from eval3r.filtering.generate import (
     _to_T_wc,
     from_depth,
 )
-from eval3r.filtering.occlusion import (
+from eval3r.filtering.occlusion.occlusion import (
     filter_visible_points,
     load_occlusion_mask,
     save_occlusion_mask,
 )
+from eval3r.io.geometry import MeshData, save_mesh_ply
 
 runner = CliRunner(env={"NO_COLOR": "1"})
 
@@ -359,7 +359,7 @@ def _carve_visible_grid_reference(
 
 def test_carve_visible_grid_matches_reference_implementation() -> None:
     """The accelerated carve produces the same visible grid as the pre-AABB reference."""
-    from eval3r.filtering.generate import _carve_visible_grid
+    from eval3r.filtering.occlusion.generate import _carve_visible_grid
 
     rng = np.random.default_rng(0)
     H, W = 32, 32
@@ -703,7 +703,7 @@ def test_cli_mask_visualize_exports_overview_and_point_cloud(tmp_path: Path) -> 
 
 def test_from_rendered_carves_observed_surface_volume() -> None:
     pytest.importorskip("pyrender")
-    from eval3r.filtering.generate import from_rendered
+    from eval3r.filtering.occlusion.generate import from_rendered
 
     sphere = _icosphere(n_subdiv=3, radius=0.5)
 
