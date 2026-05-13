@@ -12,7 +12,7 @@ from eval3r import PredictionWriter
 from eval3r.cli.main import app
 from eval3r.io.geometry import save_point_cloud_ply
 
-runner = CliRunner()
+runner = CliRunner(env={"NO_COLOR": "1"})
 
 
 def _write_pred(tmp_path, gaussian_cloud) -> str:

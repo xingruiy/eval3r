@@ -12,7 +12,7 @@ from eval3r import PredictionWriter
 from eval3r.cli.main import app
 from eval3r.io.geometry import save_mesh_ply
 
-runner = CliRunner()
+runner = CliRunner(env={"NO_COLOR": "1"})
 
 
 def test_e2e_metric_json(tmp_path, cube_mesh) -> None:

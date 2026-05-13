@@ -26,7 +26,7 @@ from eval3r.mask.occlusion import (
     save_occlusion_mask,
 )
 
-runner = CliRunner()
+runner = CliRunner(env={"NO_COLOR": "1"})
 
 
 # ---------------------------------------------------------------------------
