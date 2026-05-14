@@ -102,6 +102,7 @@ class Pipeline:
 
         pred_pts = self.sampler.sample(pred, cfg.samples, seed=cfg.seed)
         gt_pts = self.sampler.sample(gt, cfg.samples, seed=cfg.seed + 1)
+        del pred, gt  # release mesh/cloud memory before alignment + KDTree phase
 
         if self.aligner is None:
             al = AlignResult(

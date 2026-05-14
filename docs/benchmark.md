@@ -39,8 +39,8 @@ e3r benchmark scannet \
 ```
 
 To reshape an adapter's expected layout (different filenames or subdirs), pass
-`-o key=value` overrides. Each adapter exposes its own knobs — see
-`e3r dataset show <name>` for the list.
+`-o key=value` overrides. Run `e3r benchmark <dataset> --help` to see the
+available knobs for each adapter.
 
 ```bash
 e3r benchmark eth3d \
@@ -63,7 +63,7 @@ e3r benchmark generic \
     --gt-root /data/mydataset \
     --gt-path '{scene_id}/gt.ply' \
     --scenes-file splits/val.txt \
-    --thresholds 0.05 --align none --unit m
+    --thresholds 0.05 --aligner none --unit m
 ```
 
 The GT file may be a mesh (any trimesh-loadable format with faces) or a point cloud — eval3r probes the first scene to decide which.
@@ -90,17 +90,16 @@ The GT file may be a mesh (any trimesh-loadable format with faces) or a point cl
 
 ## Presets
 
-Presets live in `eval3r/presets/` and ship one entry per registered dataset.
-Each is a small dict bundling evaluation policy (thresholds, sampling,
-alignment, Chamfer variant, unit), **not** GT layout. Inspect them with:
+Each registered dataset ships built-in defaults for evaluation policy
+(thresholds, sampling, alignment, Chamfer variant, unit). Inspect the
+defaults for a dataset with:
 
 ```bash
-e3r preset list
-e3r preset show scannet
+e3r benchmark <dataset> --help
 ```
 
-Any preset value can be overridden on the CLI (`--thresholds`,
-`--align`, `--samples`, `--seed`, `--chamfer-variant`).
+Any default can be overridden on the CLI (`--thresholds`,
+`--aligner`, `--samples`, `--seed`, `--chamfer-variant`).
 
 ## Output
 
@@ -139,7 +138,7 @@ results, paths, errors) and `--csv result.csv` for a flat per-scene table.
 | `--scenes-file PATH`          | Manual-mode scene file (one id per line).                 |
 | `-o key=value`                | Adapter-specific override (registered mode only).         |
 | `--thresholds X [Y ...]`      | F-score / precision / recall thresholds.                  |
-| `--align {none,sim3,...}`     | Alignment mode applied before metrics.                    |
+| `--aligner {none,icp_se3,...}` | Alignment mode applied before metrics.                   |
 | `--samples N`, `--seed N`     | Override preset sampling defaults.                        |
 | `--mask-dir PATH`             | Root for mask path patterns. See `masks.md`.              |
 | `--out result.json`           | Write full per-scene + summary JSON.                      |

@@ -30,6 +30,28 @@ app.add_typer(
 )
 
 
+
+def _version_callback(value: bool) -> None:
+    if not value:
+        return
+    typer.echo(__version__)
+    raise typer.Exit()
+
+
+@app.callback()
+def main(
+    version: bool = typer.Option(
+        False,
+        "--version",
+        "-v",
+        help="Print the eval3r version and exit.",
+        is_eager=True,
+        callback=_version_callback,
+    ),
+) -> None:
+    """e3r command group."""
+
+
 @app.command()
 def validate(
     path: str = typer.Argument(..., help="Path to a prediction directory."),
@@ -46,12 +68,6 @@ def inspect(
 ) -> None:
     """Print a summary of a prediction directory."""
     inspect_cmd.run(path, json_out=json_out)
-
-
-@app.command(name="version")
-def version_cmd() -> None:
-    """Print the eval3r version."""
-    typer.echo(__version__)
 
 
 if __name__ == "__main__":  # pragma: no cover

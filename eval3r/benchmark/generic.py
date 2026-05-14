@@ -157,7 +157,9 @@ def _evaluate_scene(
 
         pred_geom = _load_pred_geometry(pred_desc, scene_id)
         debug_plot_path = work_dir / "debug_plots" / f"{scene_id}.png" if cfg.debug_plot else None
-        pr = pipe.evaluate(pred_geom, gt_geom, debug_plot_path=debug_plot_path)
+        _pred, _gt = pred_geom, gt_geom
+        del pred_geom, gt_geom
+        pr = pipe.evaluate(_pred, _gt, debug_plot_path=debug_plot_path)
 
         (work_dir / "scene_results" / f"{scene_id}.json").write_text(json.dumps(pr.to_dict(), indent=2))
         return SceneOutcome(
@@ -168,10 +170,15 @@ def _evaluate_scene(
             gt_path=gt_path,
         )
     except Exception:
+        tb = traceback.format_exc()
+        exc_line = tb.strip().splitlines()[-1]
+        (work_dir / "scene_results" / f"{scene_id}.json").write_text(
+            json.dumps({"scene_id": scene_id, "status": "failed", "exception": exc_line, "traceback": tb}, indent=2)
+        )
         return SceneOutcome(
             scene_id=scene_id,
             status="failed",
-            error=traceback.format_exc(limit=8),
+            error=tb,
             pred_path=Path(pred_desc["path"]) if pred_desc else None,
         )
 
