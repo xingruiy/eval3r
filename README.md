@@ -20,11 +20,8 @@ Many reconstruction pipelines fail at the "last mile": prediction artifacts are 
 
 ## Installation
 
-### Base package
-
 ```bash
 pip install eval3r
-pip install eval3r[dev]      # tests, lint, type-check, pre-commit
 ```
 
 ## Command-line overview

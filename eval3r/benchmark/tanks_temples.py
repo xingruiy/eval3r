@@ -228,10 +228,15 @@ def _evaluate_scene(
             gt_path=gt_path,
         )
     except Exception:
+        tb = traceback.format_exc()
+        exc_line = tb.strip().splitlines()[-1]
+        (work_dir / "scene_results" / f"{scene_id}.json").write_text(
+            json.dumps({"scene_id": scene_id, "status": "failed", "exception": exc_line, "traceback": tb}, indent=2)
+        )
         return SceneOutcome(
             scene_id=scene_id,
             status="failed",
-            error=traceback.format_exc(limit=8),
+            error=tb,
             pred_path=Path(pred_desc["path"]) if pred_desc else None,
         )
 

@@ -8,6 +8,7 @@ import json
 import multiprocessing as mp
 import os
 import queue
+import signal
 import time
 import traceback
 from abc import ABC, abstractmethod
@@ -260,14 +261,32 @@ def _worker_process(
     job: BenchmarkJob,
     fn: Callable,
 ) -> None:
+    signal.signal(signal.SIGINT, signal.SIG_IGN)
     result_queue.put(fn(job))
 
 
+def _exit_code_hint(exitcode: int | None) -> str:
+    if exitcode is None or exitcode >= 0:
+        return ""
+    signum = -exitcode
+    try:
+        sig = signal.Signals(signum)
+        name = sig.name
+    except ValueError:
+        return f" (signal {signum})"
+    if sig == signal.SIGKILL:
+        return f" ({name} — killed by the OS, likely out-of-memory; try reducing workers or samples)"
+    if sig == signal.SIGSEGV:
+        return f" ({name} — segmentation fault)"
+    return f" ({name})"
+
+
 def _abrupt_failure(job: BenchmarkJob, exitcode: int | None) -> SceneOutcome:
+    hint = _exit_code_hint(exitcode)
     return SceneOutcome(
         scene_id=job[0],
         status="failed",
-        error=f"Worker process exited abruptly with exit code {exitcode}.",
+        error=f"Worker process exited abruptly with exit code {exitcode}{hint}.",
         pred_path=Path(job[1]["path"]) if job[1] else None,
     )
 
@@ -332,6 +351,9 @@ def _run_jobs_parallel(
                     active.remove((proc, q, job))
                     outcomes.append(outcome)
                     _log.info("benchmark: %s -> %s", outcome.scene_id, outcome.status)
+                    if outcome.status == "failed" and outcome.error:
+                        for line in outcome.error.rstrip().split("\n"):
+                            _log.warning("benchmark:   %s", line)
                     _start_more()
                     made_progress = True
 
@@ -341,7 +363,10 @@ def _run_jobs_parallel(
         for proc, q, _job in active:
             if proc.is_alive():
                 proc.terminate()
-            proc.join()
+            proc.join(timeout=3)
+            if proc.is_alive():
+                proc.kill()
+                proc.join()
             q.close()
             q.join_thread()
         raise
@@ -382,6 +407,44 @@ def _build_result(
         config=dataclasses.asdict(cfg),
         work_dir=work_dir,
     )
+
+
+# ---------------------------------------------------------------------------
+# End-of-run failure summary
+# ---------------------------------------------------------------------------
+
+
+def _log_run_summary(result: BenchmarkResult) -> None:
+    cov = result.coverage
+    n_issues = cov["n_failed"] + cov["n_missing_pred"] + cov["n_missing_gt"]
+    if n_issues == 0:
+        return
+
+    _log.warning(
+        "benchmark: %d/%d scene(s) had issues — %d failed, %d missing_pred, %d missing_gt",
+        n_issues,
+        cov["n_total"],
+        cov["n_failed"],
+        cov["n_missing_pred"],
+        cov["n_missing_gt"],
+    )
+    for o in result.scenes:
+        if o.status == "failed":
+            exc_line = o.error.strip().splitlines()[-1] if o.error else "unknown error"
+            _log.warning("  [failed]       %s: %s", o.scene_id, exc_line)
+        elif o.status == "missing_pred":
+            _log.warning("  [missing_pred] %s: no prediction found", o.scene_id)
+        elif o.status == "missing_gt":
+            _log.warning(
+                "  [missing_gt]   %s: no ground truth (checked: %s)",
+                o.scene_id,
+                o.gt_path,
+            )
+    if cov["n_failed"] > 0:
+        _log.warning(
+            "  Full tracebacks were printed above; per-scene JSON in: %s",
+            result.work_dir / "scene_results",
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -451,6 +514,7 @@ class BaseBenchmark(ABC):
 
         result = _build_result(self.dataset_name, split, outcomes, scenes, self.cfg, work_dir)
         (work_dir / "results.json").write_text(json.dumps(result.to_dict(), indent=2))
+        _log_run_summary(result)
         return result
 
 
