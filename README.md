@@ -4,6 +4,7 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/eval3r.svg)](https://pypi.org/project/eval3r/)
 [![Documentation Status](https://readthedocs.org/projects/eval3r/badge/?version=latest)](https://eval3r.readthedocs.io/en/latest/?badge=latest)
 [![CI](https://github.com/xingruiy/eval3r/actions/workflows/ci.yml/badge.svg)](https://github.com/xingruiy/eval3r/actions/workflows/ci.yml)
+[![License](https://img.shields.io/pypi/l/eval3r.svg)](https://pypi.org/project/eval3r/)
 
 `eval3r` is a Python toolkit for saving, benchmarking, and visualizing 3D reconstruction results with explicit assumptions and reproducible workflows.
 

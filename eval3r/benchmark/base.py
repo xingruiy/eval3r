@@ -291,13 +291,16 @@ def _abrupt_failure(job: BenchmarkJob, exitcode: int | None) -> SceneOutcome:
     )
 
 
+_MP_START_METHOD = "forkserver"
+
+
 def _run_jobs_parallel(
     jobs: list[BenchmarkJob],
     fn: Callable[[BenchmarkJob], SceneOutcome],
     *,
     workers: int,
 ) -> list[SceneOutcome]:
-    ctx = mp.get_context("forkserver")
+    ctx = mp.get_context(_MP_START_METHOD)
     active: list[tuple[mp.Process, mp.Queue, BenchmarkJob]] = []
     outcomes: list[SceneOutcome] = []
     next_job = 0
