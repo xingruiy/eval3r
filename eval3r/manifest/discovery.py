@@ -73,6 +73,8 @@ class PredictionLocator:
         for pat in self.patterns:
             rel = pat.format(scene_id=scene_id)
             for base in (scene_root, *( (self.preds_root,) if self.flat_layout else () )):
+                if base == self.preds_root and rel.endswith(MANIFEST_FILENAME):
+                    continue
                 cand = base / rel
                 if cand.exists():
                     return self._make(scene_id, cand)

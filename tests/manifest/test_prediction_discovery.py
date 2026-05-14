@@ -77,3 +77,30 @@ def test_classifies_point_cloud(tmp_path: Path) -> None:
 def test_returns_none_when_missing(tmp_path: Path) -> None:
     rp = PredictionLocator(preds_root=tmp_path / "preds").resolve("scene_x")
     assert rp is None
+
+
+def test_root_manifest_ignored_in_flat_layout(tmp_path: Path) -> None:
+    root = tmp_path / "preds"
+    root.mkdir()
+    # Only the manifest JSON at root (no per-scene geometry files)
+    (root / "eval3r_prediction.json").write_text("{}")
+    rp = PredictionLocator(preds_root=root).resolve("scene_x")
+    assert rp is None
+
+
+def test_per_scene_manifest_wins_over_root_manifest(tmp_path: Path) -> None:
+    root = tmp_path / "preds"
+    with PredictionWriter(
+        root, scene_id="scene_z", dataset="d", method="m",
+        unit="m", coordinate_system="opengl", pose_convention="T_wc",
+    ) as w:
+        w.save_mesh(CUBE_VERTS, CUBE_FACES)
+    with PredictionWriter(
+        root / "scene_a", scene_id="scene_a", dataset="d", method="m",
+        unit="m", coordinate_system="opengl", pose_convention="T_wc",
+    ) as w:
+        w.save_mesh(CUBE_VERTS, CUBE_FACES)
+    rp = PredictionLocator(preds_root=root).resolve("scene_a")
+    assert rp is not None
+    assert rp["kind"] == "manifest"
+    assert rp["path"] == root / "scene_a"
