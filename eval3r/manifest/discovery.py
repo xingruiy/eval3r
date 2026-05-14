@@ -56,7 +56,7 @@ class PredictionLocator:
     preds_root: Path
     scene_dir: str = "{scene_id}"
     extra_patterns: tuple[str, ...] = ()
-    flat_layout: bool = False
+    flat_layout: bool = True
     """If True, also try patterns directly under ``preds_root`` without the
     per-scene directory (e.g. ``preds_root/scene0707_00.ply``)."""
 
@@ -73,6 +73,8 @@ class PredictionLocator:
         for pat in self.patterns:
             rel = pat.format(scene_id=scene_id)
             for base in (scene_root, *( (self.preds_root,) if self.flat_layout else () )):
+                if base == self.preds_root and rel.endswith(MANIFEST_FILENAME):
+                    continue
                 cand = base / rel
                 if cand.exists():
                     return self._make(scene_id, cand)

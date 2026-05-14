@@ -85,7 +85,7 @@ ICP estimates a rigid transformation between the predicted and ground-truth poin
 Run ICP-aligned evaluation with:
 
 ```bash
-e3r metric geometry pred.ply --gt gt.ply --align icp
+e3r metric geometry pred.ply --gt gt.ply --align icp_se3
 ```
 
 Example output:
@@ -103,7 +103,7 @@ Example output:
 │ samples         │ 200000                      │
 │ seed            │ 42                          │
 │ sample_method   │ area                        │
-│ align_mode      │ icp                         │
+│ align_mode      │ se3                         │
 │ align_scale     │ 1.000000                    │
 └─────────────────┴─────────────────────────────┘
 ```
@@ -136,7 +136,7 @@ Even models that predict metric scale may produce slightly inaccurate scale esti
 Run Sim(3)-aligned evaluation with:
 
 ```bash
-e3r metric geometry pred.ply --gt gt.ply --align sim3
+e3r metric geometry pred.ply --gt gt.ply --align icp_sim3
 ```
 
 Example output:

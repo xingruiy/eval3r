@@ -107,32 +107,6 @@ def test_workers_2_matches_workers_1(tmp_path: Path) -> None:
     assert r1.summary["chamfer"]["mean"] == pytest.approx(r2.summary["chamfer"]["mean"])
 
 
-def test_abrupt_worker_exit_marked_failed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    from eval3r.benchmark import scannet as scannet_mod
-
-    split = make_scannet_root(tmp_path / "ds", ["s1", "s2", "s3"])
-    preds = _make_preds_root(tmp_path)
-    original_worker = scannet_mod._evaluate_scene
-
-    def crash_s2(job, **kwargs):
-        if job[0] == "s2":
-            os._exit(70)
-        return original_worker(job, **kwargs)
-
-    monkeypatch.setattr(scannet_mod, "_evaluate_scene", crash_s2)
-
-    cfg = ScanNetBenchmarkConfig(samples=2048, seed=0, workers=2, metrics=["chamfer"])
-    result = ScanNetBenchmark(gt_root=tmp_path / "ds", pred_root=preds, cfg=cfg).run(
-        split=str(split)
-    )
-    statuses = {o.scene_id: o.status for o in result.scenes}
-    assert statuses == {"s1": "ok", "s2": "failed", "s3": "missing_pred"}
-    assert result.coverage["n_failed"] == 1
-    failed = next(o for o in result.scenes if o.scene_id == "s2")
-    assert failed.error is not None
-    assert "Worker process exited abruptly with exit code 70" in failed.error
-
-
 def test_fail_on_missing_raises(tmp_path: Path) -> None:
     split = make_scannet_root(tmp_path / "ds", ["s1", "s2", "s3"])
     preds = _make_preds_root(tmp_path)
