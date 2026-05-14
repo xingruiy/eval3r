@@ -70,11 +70,5 @@ def inspect(
     inspect_cmd.run(path, json_out=json_out)
 
 
-@app.command(name="version")
-def version_cmd() -> None:
-    """Print the eval3r version."""
-    typer.echo(__version__)
-
-
 if __name__ == "__main__":  # pragma: no cover
     app()

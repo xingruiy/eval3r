@@ -25,14 +25,6 @@ def _write_pred(tmp_path, gaussian_cloud) -> str:
     return str(out)
 
 
-def test_version() -> None:
-    from eval3r._version import __version__
-
-    result = runner.invoke(app, ["version"])
-    assert result.exit_code == 0
-    assert __version__ in result.stdout
-
-
 def test_version_flags() -> None:
     from eval3r._version import __version__
 
