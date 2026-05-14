@@ -297,7 +297,7 @@ def _run_jobs_parallel(
     *,
     workers: int,
 ) -> list[SceneOutcome]:
-    ctx = mp.get_context()
+    ctx = mp.get_context("forkserver")
     active: list[tuple[mp.Process, mp.Queue, BenchmarkJob]] = []
     outcomes: list[SceneOutcome] = []
     next_job = 0

@@ -183,7 +183,9 @@ def _evaluate_scene(
 
         pred_geom = _load_pred_geometry(pred_desc, scene_id)
         debug_plot_path = work_dir / "debug_plots" / f"{scene_id}.png" if cfg.debug_plot else None
-        pr = pipe.evaluate(pred_geom, gt_geom, debug_plot_path=debug_plot_path)
+        _pred, _gt = pred_geom, gt_geom
+        del pred_geom, gt_geom
+        pr = pipe.evaluate(_pred, _gt, debug_plot_path=debug_plot_path)
 
         (work_dir / "scene_results" / f"{scene_id}.json").write_text(json.dumps(pr.to_dict(), indent=2))
         return SceneOutcome(
