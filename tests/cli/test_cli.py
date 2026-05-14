@@ -26,11 +26,23 @@ def _write_pred(tmp_path, gaussian_cloud) -> str:
 
 
 def test_version() -> None:
-    result = runner.invoke(app, ["version"])
-    assert result.exit_code == 0
     from eval3r._version import __version__
 
+    result = runner.invoke(app, ["version"])
+    assert result.exit_code == 0
     assert __version__ in result.stdout
+
+
+def test_version_flags() -> None:
+    from eval3r._version import __version__
+
+    short = runner.invoke(app, ["-v"])
+    assert short.exit_code == 0
+    assert short.stdout.strip() == __version__
+
+    long = runner.invoke(app, ["--version"])
+    assert long.exit_code == 0
+    assert long.stdout.strip() == __version__
 
 
 def test_validate_clean(tmp_path, gaussian_cloud) -> None:
