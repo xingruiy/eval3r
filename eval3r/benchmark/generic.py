@@ -13,7 +13,6 @@ from pathlib import Path
 
 from eval3r.alignment.base import IdentityAligner
 from eval3r.alignment.icp import ICPAligner
-from eval3r.alignment.trajectory import TrajectoryAligner
 from eval3r.benchmark.base import (
     BaseBenchmark,
     BenchmarkConfig,
@@ -28,6 +27,7 @@ from eval3r.io.trajectory import load_trajectory_auto
 from eval3r.metrics.base import GeometryMetric
 from eval3r.metrics.metric3d import Accuracy, ChamferDistance, Completeness, FScore
 from eval3r.pipeline import EvalConfig, Pipeline
+from eval3r.sampling.base import PointSampler
 from eval3r.sampling.importance import ImportanceSampler
 from eval3r.sampling.uniform import UniformSampler
 from eval3r.utils.errors import MissingArtifactError
@@ -90,6 +90,7 @@ def _evaluate_scene(
                 filters.append(occ)
 
         # Aligner
+        aligner: IdentityAligner | ICPAligner = IdentityAligner()
         if cfg.aligner == "none":
             aligner = IdentityAligner()
         elif cfg.aligner == "icp_se3":
@@ -128,6 +129,7 @@ def _evaluate_scene(
             raise ValueError(f"unknown aligner: {cfg.aligner!r}")
 
         # Sampler
+        sampler: PointSampler
         if cfg.sampler in ("area", "uniform"):
             sampler = ImportanceSampler()
         elif cfg.sampler == "vertex":

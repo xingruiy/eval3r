@@ -114,7 +114,7 @@ def error_cmd(
     typer.echo(f"wrote {out}")
 
 
-def _load_any(path: str):  # type: ignore[no-untyped-def]
+def _load_any(path: str):
     try:
         return load_mesh(path)
     except Exception:

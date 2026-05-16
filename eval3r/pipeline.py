@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any
 
 import numpy as np
 
-from eval3r.alignment.base import AlignResult, IdentityAligner
+from eval3r.alignment.base import AlignResult
 from eval3r.filtering.base import BaseFilter
 from eval3r.io.geometry import MeshData, PointCloudData
 from eval3r.metrics.base import GeometryMetric
@@ -112,7 +113,7 @@ class Pipeline:
                 mode="none",
             )
         else:
-            al = self.aligner.align(pred_pts, gt_pts)  # type: ignore[union-attr]
+            al = self.aligner.align(pred_pts, gt_pts)  # type: ignore[attr-defined]
 
         pred_aligned: np.ndarray = (
             al.transform(pred_pts) if al.mode != "none" else pred_pts

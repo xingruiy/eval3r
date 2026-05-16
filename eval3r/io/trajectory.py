@@ -40,7 +40,7 @@ def save_trajectory_tum(
     out = Path(path)
     out.parent.mkdir(parents=True, exist_ok=True)
     lines = []
-    for t, T in zip(timestamps, poses):
+    for t, T in zip(timestamps, poses, strict=False):
         tx, ty, tz = T[:3, 3]
         qx, qy, qz, qw = Rotation.from_matrix(T[:3, :3]).as_quat()
         lines.append(f"{t:.9f} {tx:.9f} {ty:.9f} {tz:.9f} {qx:.9f} {qy:.9f} {qz:.9f} {qw:.9f}")

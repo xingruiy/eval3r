@@ -2,13 +2,12 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, TypedDict
 
 from eval3r.manifest.manifest import MANIFEST_FILENAME
 from eval3r.manifest.reader import PredictionReader
-from eval3r.utils.typing import PathLike
 
 
 class ResolvedPrediction(TypedDict):

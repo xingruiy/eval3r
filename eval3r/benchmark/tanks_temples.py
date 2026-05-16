@@ -22,10 +22,11 @@ from eval3r.benchmark.base import (
 from eval3r.filtering.base import BaseFilter
 from eval3r.filtering.polygon import PolygonFilter
 from eval3r.io.geometry import load_point_cloud
-from eval3r.io.trajectory import load_trajectory_auto
+from eval3r.io.trajectory import Trajectory, load_trajectory_auto
 from eval3r.metrics.base import GeometryMetric
 from eval3r.metrics.metric3d import Accuracy, ChamferDistance, Completeness, FScore
 from eval3r.pipeline import EvalConfig, Pipeline
+from eval3r.sampling.base import PointSampler
 from eval3r.sampling.importance import ImportanceSampler
 from eval3r.sampling.uniform import UniformSampler
 from eval3r.utils.errors import MissingArtifactError
@@ -79,8 +80,7 @@ def _load_alignment(scene_dir: Path, scene_id: str) -> np.ndarray | None:
     return mat if mat.shape == (4, 4) else None
 
 
-def _load_tt_poses(scene_dir: Path, scene_id: str) -> "Trajectory":  # type: ignore[name-defined]
-    from eval3r.io.trajectory import Trajectory
+def _load_tt_poses(scene_dir: Path, scene_id: str) -> Trajectory:
 
     pose_file = scene_dir / f"{scene_id}_COLMAP_SfM.log"
     if not pose_file.exists():
@@ -144,6 +144,7 @@ def _evaluate_scene(
             ]
 
         # Aligner
+        aligner: IdentityAligner | ICPAligner | TrajectoryAligner = IdentityAligner()
         if cfg.aligner == "none":
             aligner = IdentityAligner()
         elif cfg.aligner == "icp_se3":
@@ -188,6 +189,7 @@ def _evaluate_scene(
             raise ValueError(f"unknown aligner: {cfg.aligner!r}")
 
         # Sampler
+        sampler: PointSampler
         if cfg.sampler in ("area", "uniform"):
             sampler = ImportanceSampler()
         elif cfg.sampler == "vertex":

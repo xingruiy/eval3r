@@ -6,7 +6,6 @@ import json
 import traceback
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
 
 import numpy as np
 
@@ -28,6 +27,7 @@ from eval3r.io.trajectory import load_trajectory_auto
 from eval3r.metrics.base import GeometryMetric
 from eval3r.metrics.metric3d import Accuracy, ChamferDistance, Completeness, FScore
 from eval3r.pipeline import EvalConfig, Pipeline
+from eval3r.sampling.base import PointSampler
 from eval3r.sampling.importance import ImportanceSampler
 from eval3r.sampling.uniform import UniformSampler
 from eval3r.utils.errors import MissingArtifactError
@@ -47,7 +47,7 @@ class ScanNetBenchmarkConfig(BenchmarkConfig):
     bbox_margin: float = 0.10
 
 
-def _load_scannet_poses(gt_root: Path, scene_id: str, cfg: ScanNetBenchmarkConfig):  # type: ignore[return]
+def _load_scannet_poses(gt_root: Path, scene_id: str, cfg: ScanNetBenchmarkConfig):
     from eval3r.io.trajectory import Trajectory
     scene_dir = gt_root / cfg.scene_subdir.format(scene_id=scene_id)
     pose_dir = scene_dir / cfg.pose_subdir
@@ -109,6 +109,7 @@ def _evaluate_scene(
             filters.append(BBoxFilter(gv.min(0), gv.max(0), margin=cfg.bbox_margin))
 
         # Aligner
+        aligner: IdentityAligner | ICPAligner | TrajectoryAligner = IdentityAligner()
         if cfg.aligner == "none":
             aligner = IdentityAligner()
         elif cfg.aligner == "icp_se3":
@@ -154,6 +155,7 @@ def _evaluate_scene(
             raise ValueError(f"unknown aligner: {cfg.aligner!r}")
 
         # Sampler
+        sampler: PointSampler
         if cfg.sampler in ("area", "uniform"):
             sampler = ImportanceSampler()
         elif cfg.sampler == "vertex":

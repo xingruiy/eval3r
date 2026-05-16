@@ -13,10 +13,10 @@ from eval3r.manifest.discovery import PredictionLocator
 
 
 def command(
-    pred_root: Annotated[str, typer.Option("--pred-root", help="Predictions root.")] = ...,
-    gt_root: Annotated[str, typer.Option("--gt-root", help="ScanNet dataset root.")] = ...,
+    pred_root: Annotated[str, typer.Option("--pred-root", help="Predictions root.")] = ...,  # type: ignore[assignment]
+    gt_root: Annotated[str, typer.Option("--gt-root", help="ScanNet dataset root.")] = ...,  # type: ignore[assignment]
     split: Annotated[str | None, typer.Option("--split", help="Scene-id list file.")] = None,
-    pred_pattern: Annotated[list[str], typer.Option("--pred-pattern")] = [],
+    pred_pattern: Annotated[list[str] | None, typer.Option("--pred-pattern")] = None,
     scene_subdir: Annotated[str, typer.Option("--scene-subdir")] = "scans/{scene_id}",
     mesh_filename: Annotated[str, typer.Option("--mesh-filename")] = "{scene_id}_vh_clean_2.ply",
     mask_dir: Annotated[str | None, typer.Option("--mask-dir")] = None,
@@ -26,7 +26,7 @@ def command(
     bbox_margin: Annotated[float, typer.Option("--crop-margin")] = 0.10,
     aligner: Annotated[str, typer.Option("--aligner")] = "none",
     sampler: Annotated[str, typer.Option("--sampler")] = "area",
-    metrics: Annotated[list[str], typer.Option("--metric")] = ["chamfer", "accuracy", "completeness", "fscore@0.05"],
+    metrics: Annotated[list[str] | None, typer.Option("--metric")] = None,
     samples: Annotated[int, typer.Option("--samples")] = 200_000,
     seed: Annotated[int, typer.Option("--seed")] = 42,
     workers: Annotated[int | None, typer.Option("--workers")] = None,
@@ -49,7 +49,7 @@ def command(
     cfg = ScanNetBenchmarkConfig(
         sampler=sampler,
         aligner=aligner,
-        metrics=list(metrics),
+        metrics=list(metrics or ["chamfer", "accuracy", "completeness", "fscore@0.05"]),
         samples=samples,
         seed=seed,
         workers=workers if workers is not None else min(8, os.cpu_count() or 1),
@@ -69,7 +69,7 @@ def command(
     )
     locator = PredictionLocator(
         preds_root=Path(pred_root),
-        extra_patterns=tuple(pred_pattern),
+        extra_patterns=tuple(pred_pattern or []),
     )
     result = ScanNetBenchmark(gt_root=gt_root, pred_root=pred_root, cfg=cfg).run(
         split=split, locator=locator

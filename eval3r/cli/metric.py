@@ -10,6 +10,7 @@ import numpy as np
 import typer
 
 from eval3r.alignment import AlignMode
+from eval3r.filtering.base import BaseFilter
 from eval3r.io.geometry import load_mesh, load_point_cloud
 from eval3r.io.trajectory import Trajectory, load_trajectory_auto
 from eval3r.manifest.reader import PredictionReader
@@ -54,7 +55,7 @@ def _warn_if_png_default_scale(path: str, scale: float, scale_flag: str) -> None
         err=True,
     )
 
-def _load_geom(path: str):  # type: ignore[no-untyped-def]
+def _load_geom(path: str):
     p = Path(path)
     if p.is_dir():
         reader = PredictionReader(p)
@@ -82,13 +83,13 @@ def _load_poses(path: str, convention: str) -> Trajectory:
     try:
         return load_trajectory_auto(p, convention=convention)
     except ValueError as e:
-        raise typer.BadParameter(str(e))
+        raise typer.BadParameter(str(e)) from e
 
 
 def _load_pred_mask(
     mask_path: str | None = None,
     t_mask_scene_path: str | None = None,
-) -> object | None:  # OcclusionMask | None
+) -> BaseFilter | None:
     """Load occlusion mask from explicit file paths."""
     if (mask_path is None) != (t_mask_scene_path is None):
         raise typer.BadParameter(

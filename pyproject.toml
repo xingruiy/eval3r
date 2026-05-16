@@ -66,6 +66,9 @@ target-version = "py310"
 select = ["E", "F", "W", "I", "UP", "B", "SIM"]
 ignore = ["E501"]
 
+[tool.ruff.lint.flake8-bugbear]
+extend-immutable-calls = ["typer.Option", "typer.Argument"]
+
 [tool.mypy]
 python_version = "3.10"
 ignore_missing_imports = true

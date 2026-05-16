@@ -43,8 +43,8 @@ def load_mesh(path: PathLike) -> MeshData:
     faces = np.asarray(obj.faces, dtype=np.int64)
     _check_finite(vertices, f"mesh vertices in {p}")
     colors: Colors | None = None
-    if obj.visual.kind == "vertex":
-        colors = np.asarray(obj.visual.vertex_colors[:, :3], dtype=np.uint8)
+    if hasattr(obj.visual, "kind") and obj.visual.kind == "vertex":  # type: ignore[union-attr]
+        colors = np.asarray(obj.visual.vertex_colors[:, :3], dtype=np.uint8)  # type: ignore[union-attr]
     return MeshData(vertices=vertices, faces=faces, vertex_colors=colors)
 
 
@@ -64,8 +64,8 @@ def load_point_cloud(path: PathLike) -> PointCloudData:
     elif isinstance(obj, trimesh.Trimesh):
         points = np.asarray(obj.vertices, dtype=np.float64)
         colors = None
-        if obj.visual.kind == "vertex":
-            colors = np.asarray(obj.visual.vertex_colors[:, :3], dtype=np.uint8)
+        if hasattr(obj.visual, "kind") and obj.visual.kind == "vertex":  # type: ignore[union-attr]
+            colors = np.asarray(obj.visual.vertex_colors[:, :3], dtype=np.uint8)  # type: ignore[union-attr]
     else:
         raise EmptyGeometryError(f"{p} did not load as a point cloud or mesh")
     _check_finite(points, f"point cloud in {p}")

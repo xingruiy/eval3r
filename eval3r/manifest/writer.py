@@ -18,12 +18,9 @@ from eval3r.manifest._hash import relpath, sha256_file
 from eval3r.manifest.manifest import (
     MANIFEST_FILENAME,
     Artifact,
-    CameraSection,
     CoordinateSystem,
-    GeometrySection,
     Manifest,
     PoseConvention,
-    TrajectorySection,
     Unit,
 )
 from eval3r.utils.errors import EvalAssumptionWarning
@@ -87,7 +84,7 @@ class PredictionWriter:
         self._closed = False
 
     # -- context manager --------------------------------------------------
-    def __enter__(self) -> "PredictionWriter":
+    def __enter__(self) -> PredictionWriter:
         return self
 
     def __exit__(

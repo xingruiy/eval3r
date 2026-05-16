@@ -23,7 +23,7 @@ def _enable_headless() -> None:
 
 
 def _build_scene(
-    pyrender,  # type: ignore[no-untyped-def]
+    pyrender,
     *,
     geom: MeshData | PointCloudData,
     camera_pose: np.ndarray,
@@ -62,7 +62,7 @@ def _build_scene(
 
 
 def _render_scene(
-    pyrender,  # type: ignore[no-untyped-def]
+    pyrender,
     scene,
     image_size: tuple[int, int],
 ) -> tuple[np.ndarray, np.ndarray]:

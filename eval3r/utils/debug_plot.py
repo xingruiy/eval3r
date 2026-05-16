@@ -122,15 +122,15 @@ def save_debug_plot(
         gd = gt_dirs[matched_gt_idx]
         frustum_len = max(half_span * 0.05, 0.02)
 
-        for c, d in zip(p, pd):
+        for c, d in zip(p, pd, strict=False):
             tip = c + frustum_len * d
             ax.plot([c[0], tip[0]], [c[1], tip[1]], [c[2], tip[2]], c="#1f77b4", alpha=0.8)
             ax.scatter(c[0], c[1], c[2], c="#1f77b4", s=14, alpha=0.8)
-        for c, d in zip(g, gd):
+        for c, d in zip(g, gd, strict=False):
             tip = c + frustum_len * d
             ax.plot([c[0], tip[0]], [c[1], tip[1]], [c[2], tip[2]], c="#2ca02c", alpha=0.8)
             ax.scatter(c[0], c[1], c[2], c="#2ca02c", s=14, alpha=0.8)
-        for pc, gc in zip(p, g):
+        for pc, gc in zip(p, g, strict=False):
             ax.plot([pc[0], gc[0]], [pc[1], gc[1]], [pc[2], gc[2]], c="#e67e22", alpha=0.4, lw=0.7)
 
     fig.tight_layout()

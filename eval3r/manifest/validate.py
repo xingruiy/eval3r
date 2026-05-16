@@ -91,7 +91,7 @@ def validate_prediction(path: PathLike) -> ValidationReport:
         if p is not None:
             try:
                 mesh = load_mesh(p)
-                ok = np.isfinite(mesh.vertices).all() and len(mesh.vertices) > 0
+                ok = bool(np.isfinite(mesh.vertices).all()) and len(mesh.vertices) > 0
                 report.add("mesh finite & nonempty", ok)
             except Exception as e:
                 report.add("mesh loads", False, str(e))
@@ -101,7 +101,7 @@ def validate_prediction(path: PathLike) -> ValidationReport:
         if p is not None:
             try:
                 pc = load_point_cloud(p)
-                ok = np.isfinite(pc.points).all() and len(pc.points) > 0
+                ok = bool(np.isfinite(pc.points).all()) and len(pc.points) > 0
                 report.add("points finite & nonempty", ok)
             except Exception as e:
                 report.add("point_cloud loads", False, str(e))
