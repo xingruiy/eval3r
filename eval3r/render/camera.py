@@ -31,7 +31,7 @@ def to_pyrender_pose(
     """Convert a 4x4 pose into the OpenGL camera-to-world form pyrender expects."""
     P = np.asarray(pose, dtype=np.float64).reshape(4, 4)
     if pose_convention == "T_cw":
-        P = np.linalg.inv(P)
+        P = np.linalg.inv(P)  # type: ignore[assignment]
     if camera_frame == "opencv":
         P = P @ _CV_TO_GL
     return P

@@ -6,8 +6,8 @@ from typing import Literal
 
 import numpy as np
 
-from eval3r.alignment.icp import ICPAligner
 from eval3r.alignment.base import AlignResult, IdentityAligner, umeyama
+from eval3r.alignment.icp import ICPAligner
 from eval3r.alignment.trajectory import TrajectoryAligner
 from eval3r.utils.errors import AlignmentError
 from eval3r.utils.typing import Points, Poses

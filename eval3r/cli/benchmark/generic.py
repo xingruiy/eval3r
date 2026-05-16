@@ -14,19 +14,19 @@ from eval3r.manifest.discovery import PredictionLocator
 
 
 def command(
-    pred_root: Annotated[str, typer.Option("--pred-root", help="Predictions root.")] = ...,
-    gt_root: Annotated[str, typer.Option("--gt-root", help="Ground-truth root.")] = ...,
-    gt_path: Annotated[str, typer.Option("--gt-path", help="GT geometry template relative to --gt-root.")] = ...,
+    pred_root: Annotated[str, typer.Option("--pred-root", help="Predictions root.")] = ...,  # type: ignore[assignment]
+    gt_root: Annotated[str, typer.Option("--gt-root", help="Ground-truth root.")] = ...,  # type: ignore[assignment]
+    gt_path: Annotated[str, typer.Option("--gt-path", help="GT geometry template relative to --gt-root.")] = ...,  # type: ignore[assignment]
     split: Annotated[str | None, typer.Option("--split", help="Scene-id list file.")] = None,
     scenes_file: Annotated[str | None, typer.Option("--scenes-file")] = None,
     scenes: Annotated[str | None, typer.Option("--scenes", help="Comma-separated scene ids.")] = None,
-    pred_pattern: Annotated[list[str], typer.Option("--pred-pattern")] = [],
+    pred_pattern: Annotated[list[str] | None, typer.Option("--pred-pattern")] = None,
     mask_dir: Annotated[str | None, typer.Option("--mask-dir")] = None,
     mask_pattern: Annotated[str, typer.Option("--mask-pattern")] = "{scene_id}/occlusion_mask.npy",
     t_mask_scene_pattern: Annotated[str, typer.Option("--t-mask-scene-pattern")] = "{scene_id}/T_mask_scene.txt",
     aligner: Annotated[str, typer.Option("--aligner")] = "none",
     sampler: Annotated[str, typer.Option("--sampler")] = "area",
-    metrics: Annotated[list[str], typer.Option("--metric")] = ["chamfer", "accuracy", "completeness", "fscore@0.05"],
+    metrics: Annotated[list[str] | None, typer.Option("--metric")] = None,
     samples: Annotated[int, typer.Option("--samples")] = 200_000,
     seed: Annotated[int, typer.Option("--seed")] = 42,
     workers: Annotated[int | None, typer.Option("--workers")] = None,
@@ -61,7 +61,7 @@ def command(
     cfg = GenericBenchmarkConfig(
         sampler=sampler,
         aligner=aligner,
-        metrics=list(metrics),
+        metrics=list(metrics or ["chamfer", "accuracy", "completeness", "fscore@0.05"]),
         samples=samples,
         seed=seed,
         workers=workers if workers is not None else min(8, os.cpu_count() or 1),
@@ -78,7 +78,7 @@ def command(
     )
     locator = PredictionLocator(
         preds_root=Path(pred_root),
-        extra_patterns=tuple(pred_pattern),
+        extra_patterns=tuple(pred_pattern or []),
     )
     result = GenericBenchmark(
         gt_root=gt_root,

@@ -10,13 +10,13 @@ import os
 import queue
 import signal
 import time
-import traceback
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 from functools import partial
 from pathlib import Path
-from typing import Any, Callable, ClassVar, Literal
+from typing import Any, ClassVar, Literal
 
 import numpy as np
 
@@ -185,7 +185,7 @@ def aggregate_all(
 
     # Pre-seed with configured metrics (ensures keys exist even with 0 successes)
     if seed_metric_names:
-        for key, is_dist in _metric_cfg_to_keys(seed_metric_names):
+        for key, _is_dist in _metric_cfg_to_keys(seed_metric_names):
             values.setdefault(key, [])
 
     padded: dict[str, list[float]] = {}
@@ -312,7 +312,7 @@ def _run_jobs_parallel(
             job = jobs[next_job]
             next_job += 1
             q: mp.Queue = ctx.Queue(maxsize=1)
-            proc = ctx.Process(target=_worker_process, args=(q, job, fn))
+            proc = ctx.Process(target=_worker_process, args=(q, job, fn))  # type: ignore[attr-defined]
             proc.start()
             active.append((proc, q, job))
 

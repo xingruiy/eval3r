@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 import os
-from typing import Union
 
 import numpy as np
 from numpy.typing import NDArray
 
-PathLike = Union[str, os.PathLike[str]]
+PathLike = str | os.PathLike[str]
 
 # Convenience aliases — all are float arrays unless otherwise documented.
 Points = NDArray[np.floating]  # (N, 3)

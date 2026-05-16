@@ -14,7 +14,7 @@ from eval3r.utils.typing import PathLike
 
 def _viridis(t: np.ndarray) -> np.ndarray:
     """Map t in [0, 1] to viridis uint8 RGB."""
-    rgba = cm.viridis(np.clip(t, 0.0, 1.0))
+    rgba = cm.viridis(np.clip(t, 0.0, 1.0))  # type: ignore[attr-defined]
     return (rgba[:, :3] * 255).astype(np.uint8)
 
 

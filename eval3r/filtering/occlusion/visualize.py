@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 
 import numpy as np
 from scipy.ndimage import binary_erosion
@@ -23,7 +23,7 @@ def _selected_voxels(grid: np.ndarray, value: MaskValue) -> np.ndarray:
 def _block_factors(shape: tuple[int, int, int], max_dim: int) -> tuple[int, int, int]:
     if max_dim < 1:
         raise ValueError("max_dim must be >= 1")
-    return tuple(max(1, int(np.ceil(s / max_dim))) for s in shape)
+    return cast(tuple[int, int, int], tuple(max(1, int(np.ceil(s / max_dim))) for s in shape))
 
 
 def _block_mean(mask: np.ndarray, factors: tuple[int, int, int]) -> np.ndarray:

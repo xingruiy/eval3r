@@ -11,7 +11,6 @@ from rich.console import Console
 from rich.table import Table
 
 from eval3r.benchmark.base import BenchmarkResult
-from eval3r.manifest.discovery import PredictionLocator
 
 
 def summary_table(result_dict: dict, *, summary_key: str, title: str) -> Table:
