@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import matplotlib.cm as cm
 import numpy as np
 from scipy.spatial import cKDTree
 
@@ -11,27 +12,10 @@ from eval3r.io.geometry import MeshData, PointCloudData, save_mesh_ply, save_poi
 from eval3r.utils.typing import PathLike
 
 
-def _viridis_like(t: np.ndarray) -> np.ndarray:
-    """Simple piecewise viridis-ish colormap, t in [0, 1] -> uint8 RGB."""
-    t = np.clip(t, 0.0, 1.0)
-    # rough viridis approximation: 4-stop linear interpolation
-    stops = np.array(
-        [
-            [68, 1, 84],
-            [59, 82, 139],
-            [33, 145, 140],
-            [94, 201, 98],
-            [253, 231, 37],
-        ],
-        dtype=np.float64,
-    )
-    n = stops.shape[0] - 1
-    pos = t * n
-    lo = np.floor(pos).astype(int).clip(0, n - 1)
-    hi = (lo + 1).clip(0, n)
-    frac = (pos - lo)[:, None]
-    rgb = stops[lo] * (1 - frac) + stops[hi] * frac
-    return rgb.astype(np.uint8)
+def _viridis(t: np.ndarray) -> np.ndarray:
+    """Map t in [0, 1] to viridis uint8 RGB."""
+    rgba = cm.viridis(np.clip(t, 0.0, 1.0))
+    return (rgba[:, :3] * 255).astype(np.uint8)
 
 
 def render_error_ply(
@@ -51,7 +35,7 @@ def render_error_ply(
     tree = cKDTree(gt_pts)
     d, _ = tree.query(pred_pts, k=1)
     t = d / max(threshold, 1e-12)
-    colors = _viridis_like(t)
+    colors = _viridis(t)
 
     out = Path(out_path)
     if isinstance(pred, MeshData):

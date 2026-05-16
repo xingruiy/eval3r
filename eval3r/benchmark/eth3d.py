@@ -21,7 +21,9 @@ from eval3r.benchmark.base import (
 )
 from eval3r.filtering.base import BaseFilter
 from eval3r.io.geometry import load_mesh, load_point_cloud
-from eval3r.io.trajectory import Trajectory, load_trajectory_auto, _quat_to_rot
+from scipy.spatial.transform import Rotation
+
+from eval3r.io.trajectory import Trajectory, load_trajectory_auto
 from eval3r.metrics.base import GeometryMetric
 from eval3r.metrics.metric3d import Accuracy, ChamferDistance, Completeness, FScore
 from eval3r.pipeline import EvalConfig, Pipeline
@@ -63,7 +65,7 @@ def _parse_colmap_images_txt(path: Path) -> Trajectory:
             continue
         qw, qx, qy, qz = float(parts[1]), float(parts[2]), float(parts[3]), float(parts[4])
         tx, ty, tz = float(parts[5]), float(parts[6]), float(parts[7])
-        poses[i, :3, :3] = _quat_to_rot(qx, qy, qz, qw)
+        poses[i, :3, :3] = Rotation.from_quat([qx, qy, qz, qw]).as_matrix()
         poses[i, :3, 3] = [tx, ty, tz]
     return Trajectory(poses=poses, timestamps=timestamps, convention="T_cw")
 
