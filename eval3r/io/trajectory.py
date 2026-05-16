@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
+from scipy.spatial.transform import Rotation
 
 from eval3r.utils.typing import PathLike, Poses
 
@@ -18,54 +19,6 @@ class Trajectory:
     poses: Poses  # (T, 4, 4)
     timestamps: np.ndarray | None  # (T,) or None
     convention: str  # "T_wc", "T_cw", or "unspecified"
-
-
-def _quat_to_rot(qx: float, qy: float, qz: float, qw: float) -> np.ndarray:
-    n = qx * qx + qy * qy + qz * qz + qw * qw
-    if n == 0.0:
-        return np.eye(3)
-    s = 2.0 / n
-    xx, yy, zz = qx * qx * s, qy * qy * s, qz * qz * s
-    xy, xz, yz = qx * qy * s, qx * qz * s, qy * qz * s
-    wx, wy, wz = qw * qx * s, qw * qy * s, qw * qz * s
-    return np.array(
-        [
-            [1.0 - (yy + zz), xy - wz, xz + wy],
-            [xy + wz, 1.0 - (xx + zz), yz - wx],
-            [xz - wy, yz + wx, 1.0 - (xx + yy)],
-        ],
-        dtype=np.float64,
-    )
-
-
-def _rot_to_quat(R: np.ndarray) -> tuple[float, float, float, float]:
-    """Return (qx, qy, qz, qw)."""
-    t = R[0, 0] + R[1, 1] + R[2, 2]
-    if t > 0:
-        s = np.sqrt(t + 1.0) * 2
-        qw = 0.25 * s
-        qx = (R[2, 1] - R[1, 2]) / s
-        qy = (R[0, 2] - R[2, 0]) / s
-        qz = (R[1, 0] - R[0, 1]) / s
-    elif R[0, 0] > R[1, 1] and R[0, 0] > R[2, 2]:
-        s = np.sqrt(1.0 + R[0, 0] - R[1, 1] - R[2, 2]) * 2
-        qw = (R[2, 1] - R[1, 2]) / s
-        qx = 0.25 * s
-        qy = (R[0, 1] + R[1, 0]) / s
-        qz = (R[0, 2] + R[2, 0]) / s
-    elif R[1, 1] > R[2, 2]:
-        s = np.sqrt(1.0 + R[1, 1] - R[0, 0] - R[2, 2]) * 2
-        qw = (R[0, 2] - R[2, 0]) / s
-        qx = (R[0, 1] + R[1, 0]) / s
-        qy = 0.25 * s
-        qz = (R[1, 2] + R[2, 1]) / s
-    else:
-        s = np.sqrt(1.0 + R[2, 2] - R[0, 0] - R[1, 1]) * 2
-        qw = (R[1, 0] - R[0, 1]) / s
-        qx = (R[0, 2] + R[2, 0]) / s
-        qy = (R[1, 2] + R[2, 1]) / s
-        qz = 0.25 * s
-    return float(qx), float(qy), float(qz), float(qw)
 
 
 def save_trajectory_tum(
@@ -89,7 +42,7 @@ def save_trajectory_tum(
     lines = []
     for t, T in zip(timestamps, poses):
         tx, ty, tz = T[:3, 3]
-        qx, qy, qz, qw = _rot_to_quat(T[:3, :3])
+        qx, qy, qz, qw = Rotation.from_matrix(T[:3, :3]).as_quat()
         lines.append(f"{t:.9f} {tx:.9f} {ty:.9f} {tz:.9f} {qx:.9f} {qy:.9f} {qz:.9f} {qw:.9f}")
     out.write_text("\n".join(lines) + "\n")
     return out
@@ -113,8 +66,7 @@ def load_trajectory_tum(path: PathLike, convention: str = "unspecified") -> Traj
     timestamps = arr[:, 0].copy()
     poses = np.tile(np.eye(4), (arr.shape[0], 1, 1))
     poses[:, :3, 3] = arr[:, 1:4]
-    for i, q in enumerate(arr[:, 4:8]):
-        poses[i, :3, :3] = _quat_to_rot(q[0], q[1], q[2], q[3])
+    poses[:, :3, :3] = Rotation.from_quat(arr[:, 4:8]).as_matrix()
     return Trajectory(poses=poses, timestamps=timestamps, convention=convention)
 
 
