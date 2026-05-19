@@ -5,7 +5,7 @@ from __future__ import annotations
 import numpy as np
 from scipy.spatial import cKDTree
 
-from eval3r.alignment.base import AlignMode, AlignResult, umeyama
+from eval3r.alignment.base import AlignResult, UmeyamaMode, umeyama
 from eval3r.utils.typing import Points
 
 
@@ -55,7 +55,7 @@ class ICPAligner:
             t = tgt.mean(axis=0) - src.mean(axis=0)
 
         prev_rmse = np.inf
-        mode: AlignMode = "sim3" if self.estimate_scale else "se3"
+        mode: UmeyamaMode = "sim3" if self.estimate_scale else "se3"
         for _ in range(self.max_iters):
             warped = (s * src @ R.T) + t
             dists, idx = tree.query(warped, k=1)
