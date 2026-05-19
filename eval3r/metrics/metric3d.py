@@ -156,7 +156,13 @@ class Recall(GeometryMetric):
 
 
 class FScore(GeometryMetric):
-    """F-score at ``threshold``, returning ``(f, precision, recall)``."""
+    """F-score at ``threshold``, returning ``(f, precision, recall)``.
+
+    When precision and recall are both zero (no point within threshold in
+    either direction) the F-score is mathematically undefined; this returns
+    ``float('nan')`` instead of silently reporting ``0.0`` so pathological
+    evaluations are distinguishable from legitimately-bad ones.
+    """
 
     def __init__(self, threshold: float) -> None:
         self.threshold = threshold
@@ -176,7 +182,7 @@ class FScore(GeometryMetric):
             d_gp = _nn_dists(gt, pred)
         p = float((d_pg < self.threshold).mean())
         r = float((d_gp < self.threshold).mean())
-        f = 2 * p * r / (p + r) if (p + r) > 0 else 0.0
+        f = 2 * p * r / (p + r) if (p + r) > 0 else float("nan")
         return float(f), float(p), float(r)
 
 
@@ -315,7 +321,9 @@ def evaluate_geometry(
     for thr in thresholds:
         p = float((d_pg < thr).mean())
         r = float((d_gp < thr).mean())
-        f = 2 * p * r / (p + r) if (p + r) > 0 else 0.0
+        # F-score is undefined when both p and r are zero; emit NaN so callers
+        # can distinguish "no points within threshold" from a true 0.0 score.
+        f = 2 * p * r / (p + r) if (p + r) > 0 else float("nan")
         fdict[float(thr)] = {"f": f, "precision": p, "recall": r}
 
     return EvalResult3D(

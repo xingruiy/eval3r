@@ -20,6 +20,7 @@ from typing import Any, ClassVar, Literal
 
 import numpy as np
 
+from eval3r.filtering.base import BaseFilter
 from eval3r.io.geometry import (
     MeshData,
     PointCloudData,
@@ -232,6 +233,23 @@ def _resolve_mask_pattern(mask_dir: str, pattern: str, scene_id: str) -> Path:
     if rel.is_absolute():
         raise ValueError("Mask path patterns must be relative to mask_dir.")
     return Path(mask_dir) / rel
+
+
+def _try_load_occlusion(
+    scene_id: str, mask_dir: str, mask_pattern: str, t_mask_pattern: str
+) -> BaseFilter | None:
+    """Best-effort occlusion-filter loader shared across dataset benchmarks.
+
+    Returns ``None`` if either the mask or its ``T_mask_scene`` companion file
+    is missing — datasets without occlusion masks should pass without error.
+    """
+    from eval3r.filtering.occlusion.mask import load_occlusion_mask
+
+    mask_path = _resolve_mask_pattern(mask_dir, mask_pattern, scene_id)
+    w2g_path = _resolve_mask_pattern(mask_dir, t_mask_pattern, scene_id)
+    if mask_path.exists() and w2g_path.exists():
+        return load_occlusion_mask(mask_path, w2g_path)
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -533,6 +551,7 @@ __all__ = [
     "_pred_descriptor",
     "_load_pred_geometry",
     "_resolve_mask_pattern",
+    "_try_load_occlusion",
     "_make_work_dir",
     "_run_jobs_parallel",
     "_build_result",

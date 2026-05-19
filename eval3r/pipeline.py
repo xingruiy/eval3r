@@ -137,10 +137,27 @@ class Pipeline:
                 matched_gt_idx=al.matched_gt_idx,
             )
 
+        # If filters removed every prediction point, NN distances are undefined.
+        # Emit NaN for each metric instead of raising — one empty scene shouldn't
+        # abort a benchmark run.
+        if len(pred_aligned) == 0 or len(gt_pts) == 0:
+            values: dict[str, Any] = {}
+            nan = float("nan")
+            for m in self.metrics:
+                values[m.name] = (nan, nan, nan) if m.name.startswith("fscore@") else nan
+            return PipelineResult(
+                values=values,
+                n_samples=cfg.samples,
+                n_visible=n_visible,
+                n_total=n_total,
+                align_mode=al.mode,
+                align_scale=al.scale,
+            )
+
         d_pg = _nn_dists(pred_aligned, gt_pts) if self.metrics else None
         d_gp = _nn_dists(gt_pts, pred_aligned) if self.metrics else None
 
-        values: dict[str, Any] = {}
+        values = {}
         for m in self.metrics:
             values[m.name] = m(pred_aligned, gt_pts, d_pg=d_pg, d_gp=d_gp)
 

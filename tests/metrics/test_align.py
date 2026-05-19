@@ -33,6 +33,15 @@ def test_umeyama_se3_round_trip(rng) -> None:
     assert err < 1e-8
 
 
+def test_umeyama_scale_recovers_uniform_scale(rng) -> None:
+    src = rng.normal(size=(80, 3))
+    s = 3.7
+    tgt = s * src
+    res = umeyama(src, tgt, mode="scale")
+    assert res.scale == pytest.approx(s, rel=1e-9)
+    assert np.allclose(res.rotation, np.eye(3))
+
+
 def test_umeyama_sim3_round_trip(rng) -> None:
     src = rng.normal(size=(96, 3))
     R = _random_rotation(rng)

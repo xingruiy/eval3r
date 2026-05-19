@@ -18,7 +18,7 @@ from eval3r.benchmark.base import (
     BenchmarkJob,
     SceneOutcome,
     _load_pred_geometry,
-    _resolve_mask_pattern,
+    _try_load_occlusion,
 )
 from eval3r.filtering.base import BaseFilter
 from eval3r.filtering.bbox import BBoxFilter
@@ -62,18 +62,6 @@ def _load_scannet_poses(gt_root: Path, scene_id: str, cfg: ScanNetBenchmarkConfi
     poses = np.stack([np.loadtxt(p) for p in files], axis=0)
     timestamps = np.array([float(p.stem) for p in files], dtype=np.float64)
     return Trajectory(poses=poses, timestamps=timestamps, convention="T_wc")
-
-
-def _try_load_occlusion(
-    scene_id: str, mask_dir: str, mask_pattern: str, t_mask_pattern: str
-) -> BaseFilter | None:
-    from eval3r.filtering.occlusion.mask import load_occlusion_mask
-
-    mask_path = _resolve_mask_pattern(mask_dir, mask_pattern, scene_id)
-    w2g_path = _resolve_mask_pattern(mask_dir, t_mask_pattern, scene_id)
-    if mask_path.exists() and w2g_path.exists():
-        return load_occlusion_mask(mask_path, w2g_path)
-    return None
 
 
 def _evaluate_scene(

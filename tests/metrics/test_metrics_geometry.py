@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import math
+
 import numpy as np
 import pytest
 
@@ -50,6 +52,28 @@ def test_fscore_perfect() -> None:
     pts = _grid()
     f, p, r = FScore(0.01)(pts, pts)
     assert (f, p, r) == (1.0, 1.0, 1.0)
+
+
+def test_fscore_zero_zero_is_nan() -> None:
+    """When no pred and no gt point falls within threshold, F-score is undefined.
+
+    Distinct clusters separated by a large distance produce p=r=0; FScore must
+    return NaN so this case is not silently confused with a legitimate 0.0
+    score.
+    """
+    pred = np.array([[0.0, 0.0, 0.0]])
+    gt = np.array([[100.0, 0.0, 0.0]])
+    f, p, r = FScore(0.05)(pred, gt)
+    assert p == 0.0
+    assert r == 0.0
+    assert math.isnan(f)
+
+    result = evaluate_geometry(
+        pred, gt, samples=1, seed=0, align_mode="none", thresholds=[0.05]
+    )
+    assert math.isnan(result.fscore[0.05]["f"])
+    assert result.fscore[0.05]["precision"] == 0.0
+    assert result.fscore[0.05]["recall"] == 0.0
 
 
 def test_fscore_outliers_reduce() -> None:

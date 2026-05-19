@@ -142,9 +142,12 @@ def geometry_cmd(
     gt: str = typer.Option(..., "--gt", help="Ground-truth geometry file or prediction directory."),
     samples: int | None = typer.Option(None, help="Number of samples for metric evaluation."),
     seed: int | None = typer.Option(None, help="RNG seed for sampling."),
-    sample_method: str = typer.Option("area", help="area | vertex | uniform"),
+    sample_method: str = typer.Option(
+        "area", "--sample-method", "--sampler", help="area | vertex | uniform"
+    ),
     align: str | None = typer.Option(
-        None, help="Alignment mode: " + " | ".join(get_args(AlignMode))
+        None, "--align", "--aligner",
+        help="Alignment mode: " + " | ".join(get_args(AlignMode)),
     ),
     thresholds: list[float] | None = typer.Option(None, "--thresholds", help="F-score thresholds."),
     chamfer_variant: str | None = typer.Option(

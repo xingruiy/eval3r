@@ -10,7 +10,7 @@ import numpy as np
 from eval3r.utils.errors import AlignmentError
 from eval3r.utils.typing import Points
 
-AlignMode = Literal["scale", "se3", "sim3"]
+UmeyamaMode = Literal["scale", "se3", "sim3"]
 
 
 class IdentityAligner:
@@ -45,7 +45,7 @@ class AlignResult:
         return (self.scale * pts @ self.rotation.T) + self.translation
 
 
-def umeyama(source: Points, target: Points, *, mode: AlignMode) -> AlignResult:
+def umeyama(source: Points, target: Points, *, mode: UmeyamaMode) -> AlignResult:
     """Estimate the alignment that maps ``source`` onto ``target``.
 
     Both arrays must have shape (N, 3) with N >= 3 and matching N.
@@ -69,6 +69,9 @@ def umeyama(source: Points, target: Points, *, mode: AlignMode) -> AlignResult:
 
     U, D, Vt = np.linalg.svd(cov)
     S = np.eye(3)
+    # Reflection guard, Umeyama 1991 Eq. 40: when det(U @ Vt) < 0 the closed-form
+    # SVD solution would yield a reflection instead of a rotation; flipping the
+    # last singular value's sign forces R back into SO(3).
     if np.linalg.det(U) * np.linalg.det(Vt) < 0:
         S[2, 2] = -1.0
     R = U @ S @ Vt
@@ -84,7 +87,7 @@ def umeyama(source: Points, target: Points, *, mode: AlignMode) -> AlignResult:
         if var_s <= 0:
             raise AlignmentError("scale alignment requires non-degenerate source")
         var_t = float((tgt_c**2).sum() / tgt.shape[0])
-        scale = float(np.sqrt(max(var_t, 0.0) / var_s))
+        scale = float(np.sqrt(var_t / var_s))
         R = np.eye(3)
     else:
         raise AlignmentError(f"umeyama: unknown mode '{mode}'")
