@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+build/
+dist/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Tooling caches
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# mkdocs build output
+site/
+
+# Editors / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Data and credential rules (see CLAUDE.md) — never commit these
+.env
+*.key
+*.pem
+*.token
+cookies.txt
+# Downloaded / proprietary / licensed datasets and large raw assets
+data/
+datasets/raw/
+*.ply
+*.pcd
+!tests/fixtures/**/*.ply

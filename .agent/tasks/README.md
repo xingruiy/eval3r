@@ -9,7 +9,7 @@ relevant `.agent/*.md` docs and the actual code — task notes can be stale.
 
 | # | Task file | Slice | Status |
 |---|-----------|-------|--------|
-| 001 | [001-repo-foundation.md](001-repo-foundation.md) | Package skeleton, pyproject, CI, lint, test, docs build, `e3r --help` | todo |
+| 001 | [001-repo-foundation.md](001-repo-foundation.md) | Package skeleton, pyproject, CI, lint, test, docs build, `e3r --help` | done |
 | 002 | [002-core-schema.md](002-core-schema.md) | Pydantic models from `.agent/schema.md`, serialization tests, fixtures | todo |
 | 003 | [003-protocol-loader-hashing.md](003-protocol-loader-hashing.md) | Protocol YAML loader, canonical hashing, registry, built-in YAMLs | todo |
 | 004 | [004-backend-registry.md](004-backend-registry.md) | Backend registry (selection + version recording), scipy/trimesh/plyfile backends | todo |
@@ -27,7 +27,7 @@ relevant `.agent/*.md` docs and the actual code — task notes can be stale.
 | 016 | [016-reports-diffing.md](016-reports-diffing.md) | Markdown/LaTeX/HTML reports, partial-coverage banners, `e3r diff` | todo |
 | 017 | [017-public-release-docs.md](017-public-release-docs.md) | Release docs, examples, packaging checks, PyPI prep | todo |
 
-**Next task: 001**
+**Next task: 002**
 
 Tasks must be executed in order unless a task's Scope says otherwise; each depends on the
 deliverables of the previous ones (schemas before adapters, metrics before runners, result

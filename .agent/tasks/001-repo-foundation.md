@@ -43,11 +43,34 @@ test runner, docs build, and CI — so every later slice lands on green tooling.
 
 ## Findings
 
-(record during implementation)
+- Implemented on branch `feature/repo-foundation` (off `longhaul`).
+- Package tree generated per `.agent/plan.md` "Repository layout": 82 docstring-only
+  modules across `core/`, `datasets/`, `protocols/`, `metrics/`, `backends/`,
+  `pipeline/stages/`, `reports/`, `cli/`. Each module docstring names the task slice that
+  owns its real logic.
+- `eval3r/cli/main.py` builds the full typer command tree in one module. Command groups:
+  `metric` (`geometry`/`depth`/`pose`), `benchmark` (`run`/`validate`), `dataset`
+  (`inspect`), `protocol` (`show`), plus top-level `diff`. Every leaf command is a stub that
+  raises `NotImplementedError` with an explicit reason naming the owning task (no silent
+  stubs), satisfying CLAUDE.md's error/CLI verbosity rules.
+- `pycolmap` is declared in `dependencies` but not installed locally and not imported by the
+  skeleton (`grep` confirms zero references), so local verification passes without it.
+  Local `pip install -e . --no-deps` used since the rest of the dep set was already present;
+  CI installs the full set.
+- `mkdocs.yml` uses the plain (built-in) theme with `nav: Home only` to keep
+  `mkdocs build --strict` self-contained; other `docs/*.md` deferred to later tasks.
 
 ## Decisions
 
-(record during implementation; e.g. mypy vs pyright, minimum Python version)
+- **Type checker:** mypy (project default per plan). Config: `ignore_missing_imports = true`
+  (untyped scientific deps), `python_version = "3.10"`.
+- **Minimum Python:** 3.10 (local interpreter 3.10.12); CI matrix 3.10 + 3.11.
+- **Version:** `0.3.0` — fresh rewrite line; `longhaul` history is post-`dev` (which ended at
+  0.2.x).
+- **Build backend:** setuptools + wheel.
+- **Dev tooling** (`ruff`, `mypy`, `pytest`, `mkdocs`) declared under `[dependency-groups] dev`,
+  keeping runtime `dependencies` extras-free per CLAUDE.md.
+- `py.typed` marker and serialization tests deferred to task 002 as planned.
 
 ## Verification
 
@@ -63,6 +86,20 @@ mkdocs build
 All commands must pass. Acceptance per `.agent/plan.md`: package imports, `e3r --help` works,
 pytest runs, docs build locally.
 
+Outcomes (feature/repo-foundation):
+
+```text
+e3r --help        -> exit 0, lists metric/benchmark/dataset/protocol/diff
+ruff check .      -> All checks passed!
+pytest            -> 3 passed
+mypy eval3r       -> Success: no issues found in 83 source files
+mkdocs build      -> built (mkdocs build --strict, exit 0)
+import eval3r     -> 0.3.0
+```
+
+Note: local install used `pip install -e . --no-deps` (runtime deps already present; pycolmap
+declare-only and unimported). CI validates the full dependency set.
+
 ## Status
 
-todo
+done
