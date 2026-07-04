@@ -1,189 +1,20 @@
-# eval3r
+# eval3r Final Planning Documents
 
-[![PyPI version](https://img.shields.io/pypi/v/eval3r.svg)](https://pypi.org/project/eval3r/)
-[![Python versions](https://img.shields.io/pypi/pyversions/eval3r.svg)](https://pypi.org/project/eval3r/)
-[![Documentation Status](https://readthedocs.org/projects/eval3r/badge/?version=latest)](https://eval3r.readthedocs.io/en/latest/?badge=latest)
-[![CI](https://github.com/xingruiy/eval3r/actions/workflows/ci.yml/badge.svg)](https://github.com/xingruiy/eval3r/actions/workflows/ci.yml)
-[![License](https://img.shields.io/pypi/l/eval3r.svg)](https://pypi.org/project/eval3r/)
+This folder contains the final planning documents for `eval3r`.
 
-`eval3r` is a Python toolkit for saving, benchmarking, and visualizing 3D reconstruction results with explicit assumptions and reproducible workflows.
-
-## Motivation
-
-Many reconstruction pipelines fail at the "last mile": prediction artifacts are hard to compare, evaluation settings are underspecified, and reproducing numbers from papers can be difficult.
-
-`eval3r` addresses this with:
-
-- a practical CLI (`e3r`) for evaluation tasks,
-- strongly typed I/O for predictions and metrics,
-- optional rendering and debug visualization,
-- and end-to-end benchmark utilities.
-
-## Installation
-
-```bash
-pip install eval3r
-```
-
-## Command-line overview
-
-After installation, `eval3r` exposes the `e3r` command.
-
-```bash
-e3r --help
-e3r -v        # print version
-```
-
-Primary commands:
-
-- `e3r metric ...` — compute 2d/3d metrics for a prediction/GT pair
-- `e3r benchmark ...` — evaluate many scenes and aggregate split-level metrics
-- `e3r render ...` — render geometry and comparison outputs
-- `e3r mask ...` — generate/inspect occlusion masks
-- `e3r validate <prediction_dir>` — validate a prediction directory against manifest rules
-- `e3r inspect <prediction_dir>` — inspect a prediction directory summary
-
-## Quickstart: single-scene geometry evaluation
-
-Assume:
+Files:
 
 ```text
-pred.ply   # prediction
-gt.ply     # ground truth
+.agent/plan.md              main project plan
+.agent/schema.md            core schema and result model
+.agent/protocols.md         protocol rules and built-in protocol templates
+.agent/datasets.md          dataset adapter responsibilities and dataset-specific notes
+.agent/metrics.md           metric definitions, aggregation, and tests
+.agent/backends.md          backend delegation policy and optional dependencies
+.agent/reproducibility.md   result files, hashing, fingerprints, and run metadata
+CLAUDE.md                 rules and guides for coding agents
 ```
 
-### 1) Compute metrics
+The plan intentionally excludes TSDF integration, RGB-D fusion, volumetric fusion, and online mapping. Depth sequences are supported for depth metrics only.
 
-```bash
-e3r metric geometry pred.ply --gt gt.ply
-```
-
-Typical outputs include Chamfer distance, accuracy/completeness, and thresholded precision/recall/F-score.
-
-### 2) Always inspect overlap
-
-```bash
-e3r metric geometry pred.ply --gt gt.ply --debug-plot
-```
-
-If overlap is poor due to coordinate mismatch, metrics are not meaningful yet.
-
-### 3) Select alignment intentionally
-
-Use rigid alignment when scale is trustworthy:
-
-```bash
-e3r metric geometry pred.ply --gt gt.ply --align icp_se3 --debug-plot
-```
-
-Use similarity alignment when scale may drift (common in monocular systems):
-
-```bash
-e3r metric geometry pred.ply --gt gt.ply --align icp_sim3 --debug-plot
-```
-
-Use trajectory-driven alignment when poses are available:
-
-```bash
-e3r metric geometry pred.ply --gt gt.ply \
-  --align traj_sim3 \
-  --pred-poses pred_trajectory.txt \
-  --gt-poses gt_trajectory.txt \
-  --debug-plot
-```
-
-## Quickstart: benchmark a dataset split
-
-Expected prediction layout example:
-
-```text
-preds_root/
-  scene0000_00/
-    mesh.ply
-  scene0001_00/
-    mesh.ply
-```
-
-Run benchmark:
-
-```bash
-e3r benchmark scannet \
-  --pred-root preds_root \
-  --gt-root /path/to/scannet \
-  --split split.txt \
-  --align sim3 \
-  --workers 8 \
-  --out results.json \
-  --csv results.csv
-```
-
-Useful options:
-
-- `--samples 200000` points sampled per scene
-- `--thresholds 0.05` threshold(s) for F-score-like metrics
-- `--debug-plot` to save visual diagnostics
-- `--pred-pattern` to map custom prediction filenames
-
-Trajectory-based benchmark alignment example:
-
-```bash
-e3r benchmark scannet \
-  --pred-root preds_root \
-  --gt-root /path/to/scannet \
-  --split split.txt \
-  --aligner traj_sim3 \
-  --pred-pose-dir pred_poses \
-  --pred-pose-file "{scene_id}.txt" \
-  --pred-pose-convention T_wc
-```
-
-## Prediction format and Python API
-
-`eval3r` includes a manifest-driven prediction format so files are portable and self-described.
-
-Minimal writer example:
-
-```python
-import eval3r as e3r
-
-with e3r.PredictionWriter(
-    "outputs/scannet/scene0799_00",
-    scene_id="scene0799_00",
-    dataset="scannet",
-    method="my_method",
-    unit="m",
-    coordinate_system="opengl",
-    pose_convention="T_wc",
-) as pred:
-    pred.save_point_cloud(points, colors=colors)
-    pred.save_mesh(vertices, faces)
-    pred.save_poses(poses, timestamps=timestamps)
-    pred.save_metadata({"checkpoint": "ckpt.pth"})
-```
-
-When key metadata is missing, the writer records explicit placeholders instead of guessing, enabling downstream validation and auditability.
-
-## Supported workflows
-
-- Scene-level metric inspection during model development.
-- Dataset-level benchmark reporting for ablations and papers.
-- Reproducible artifact exchange between teams using manifest-backed prediction directories.
-- Alignment experiments (`icp_se3`, `icp_sim3`, trajectory-driven variants) with debug plots.
-
-## Documentation
-
-- Docs site: https://eval3r.readthedocs.io/
-- Repository: https://github.com/xingruiy/eval3r
-
-## Development
-
-```bash
-pip install -e .[dev]
-pytest
-```
-
-## License and dataset disclaimer
-
-`eval3r` is released under the MIT License.
-
-This project does **not** redistribute third-party datasets such as ScanNet, Replica, DTU, ETH3D, Tanks & Temples, or TUM RGB-D. You must obtain and use those datasets under their original licenses.
+`.agent/datasets.md` also records adapter capability semantics, local-evaluation status, dataset variants, and assumptions that must be verified before freezing dataset fixtures.
