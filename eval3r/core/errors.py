@@ -12,6 +12,10 @@ class Eval3rError(Exception):
     """Base class for all eval3r errors."""
 
 
+class InvalidGeometryError(Eval3rError):
+    """A point/mesh array had the wrong shape, was empty, or held non-finite values."""
+
+
 class ProtocolError(Eval3rError):
     """A protocol could not be loaded, found, or validated."""
 

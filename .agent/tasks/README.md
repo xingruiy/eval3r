@@ -12,7 +12,7 @@ relevant `.agent/*.md` docs and the actual code — task notes can be stale.
 | 001 | [001-repo-foundation.md](001-repo-foundation.md) | Package skeleton, pyproject, CI, lint, test, docs build, `e3r --help` | done |
 | 002 | [002-core-schema.md](002-core-schema.md) | Pydantic models from `.agent/schema.md`, serialization tests, fixtures | done |
 | 003 | [003-protocol-loader-hashing.md](003-protocol-loader-hashing.md) | Protocol YAML loader, canonical hashing, registry, built-in YAMLs | done |
-| 004 | [004-backend-registry.md](004-backend-registry.md) | Backend registry (selection + version recording), scipy/trimesh/plyfile backends | todo |
+| 004 | [004-backend-registry.md](004-backend-registry.md) | Backend registry (selection + version recording), scipy/trimesh/plyfile backends | done |
 | 005 | [005-geometry-metrics.md](005-geometry-metrics.md) | Point-set geometry metrics with synthetic analytic tests | todo |
 | 006 | [006-result-writer-environment.md](006-result-writer-environment.md) | Run directory writer, JSON/CSV output, environment metadata | todo |
 | 007 | [007-single-file-geometry-runner.md](007-single-file-geometry-runner.md) | Staged single-file geometry runner, `e3r metric geometry`, Python API | todo |
@@ -27,7 +27,7 @@ relevant `.agent/*.md` docs and the actual code — task notes can be stale.
 | 016 | [016-reports-diffing.md](016-reports-diffing.md) | Markdown/LaTeX/HTML reports, partial-coverage banners, `e3r diff` | todo |
 | 017 | [017-public-release-docs.md](017-public-release-docs.md) | Release docs, examples, packaging checks, PyPI prep | todo |
 
-**Next task: 004**
+**Next task: 005**
 
 Tasks must be executed in order unless a task's Scope says otherwise; each depends on the
 deliverables of the previous ones (schemas before adapters, metrics before runners, result
