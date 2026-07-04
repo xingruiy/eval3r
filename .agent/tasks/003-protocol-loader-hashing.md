@@ -47,11 +47,47 @@ sha256 hash, and are discoverable through a protocol registry; `e3r protocol sho
 
 ## Findings
 
-(record during implementation)
+- Loader (`protocols/loader.py`): `load_protocol_file` / `load_protocol_text` /
+  `load_protocol_data`; Pydantic `ValidationError` is reformatted to one `loc: msg` line per
+  failing field and wrapped in `ProtocolValidationError(source, detail, name=...)` so the
+  message names the file and the failing fields. Verified live: an unknown name and an
+  incomplete YAML both fail with explicit, actionable messages.
+- Hashing (`core/hashing.py`): validate → `model_dump(mode="json")` → strip non-semantic keys →
+  `json.dumps(sort_keys=True, separators=(",",":"))` → sha256 → `sha256:` prefix.
+  `canonical_protocol_payload()` is exposed so the exclusion policy is inspectable and tested.
+- Registry (`protocols/registry.py`): discovers `builtin/*.yaml` by stem; `load_protocol`
+  accepts a built-in name or a `.yaml`/`.yml` path. `eval3r.load_protocol` re-exported at
+  top level (plan's public API). CLI `e3r protocol show <name>` + `e3r protocol list`
+  implemented in `cli/protocol.py` (rich tables, verbose policy echo) and wired into `main.py`.
+- Two doc-internal inconsistencies reconciled (both docs updated in the same change):
+  1. `single_depth` uses `valid_region.method: valid_depth`, which was absent from
+     `CullingSpec.method` in `.agent/schema.md`. Added `valid_depth` to the enum in both
+     `.agent/schema.md` and `core/schema.py`, with a note; extended `test_schema` coverage
+     implicitly via protocol load.
+  2. DTU template had `version: 2014` (YAML int) but `DatasetVariant.version` is `str | None`;
+     quoted it as `"2014"` in the built-in YAML. (The loader's clear error surfaced this.)
+- The `tanks_temples_intermediate_server_only` doc snippet omits the eight required
+  execution-policy fields (`alignment`, `confidence`, `masking`, `sampling`, `metrics`,
+  `aggregation`, `failure_policy`, `reporting`), so it cannot validate against `EvalProtocol`
+  as written. Filled them with explicit "no local evaluation" values (`metrics: []`, culling
+  `none`, etc.) and set the GT block `local_evaluation_status: server_only` for consistency.
+- 9 built-in protocols load, validate, and hash. Expected-hash regression table pinned in
+  `tests/unit/test_protocols.py`.
 
 ## Decisions
 
-(record during implementation; e.g. exact exclusion list contents)
+- **Non-semantic hash exclusion list (explicit + tested)**:
+  - recursive keys (any nesting depth): `notes`, `reason` — free-form human prose.
+  - top-level keys: `reporting` — report-only output preferences that never change a metric.
+  Everything else is hashed, including `name`, `protocol_version`, `schema_version`, `fidelity`,
+  `dataset`, `ground_truth`, `local_evaluation`, `alignment`, `confidence`, `masking`,
+  `sampling`, `metrics`, `aggregation`, `failure_policy`, `backend_preferences`. Tests assert
+  stability under notes/reason/reporting/key-order changes and sensitivity to threshold,
+  sampling count, masking method, and aggregation changes.
+- `load_protocol` resolves a value that looks like a path (`.yaml`/`.yml` suffix or existing
+  file) as a file, otherwise as a built-in name — so both `e3r protocol show <name>` and
+  `e3r protocol show ./my.yaml` work.
+- Registry uses `functools.lru_cache` for the builtin index (directory scanned once).
 
 ## Verification
 
@@ -62,6 +98,16 @@ e3r protocol show scannet_single_layer_geometry_5cm
 
 Acceptance per `.agent/plan.md`: `e3r protocol show scannet_single_layer_geometry_5cm`.
 
+Outcomes (feature/repo-foundation):
+
+```text
+pytest            -> 69 passed (smoke + schema + hashing + protocols)
+ruff check .      -> All checks passed!
+mypy eval3r       -> Success: no issues found in 83 source files
+e3r protocol show scannet_single_layer_geometry_5cm -> rich output, exit 0
+e3r protocol show <unknown> -> explicit "not a known built-in" message, exit 1
+```
+
 ## Status
 
-todo
+done

@@ -1,0 +1,114 @@
+schema_version: 1
+protocol_version: 0.1.0
+name: dtu_official_like_pointcloud
+fidelity: official_like
+
+dataset:
+  dataset: dtu
+  variant: mvs_2014
+  split: test
+  version: "2014"
+  fingerprint: null
+  notes:
+    - Uses DTU laser-scan point clouds and official observability files.
+
+prediction_modality: pointcloud
+
+ground_truth:
+  modality: pointcloud
+  provenance: laser_scan
+  independence: independent
+  density: dense_surface
+  path: null
+  fingerprint: null
+  unit: mm
+  source_pose_format: world_to_cam_mvsnet
+  normalized_convention: cam_to_world_opencv_meters
+  local_evaluation_status: supported
+  notes:
+    - GT files are stlXXX_total.ply.
+    - Prediction resolution should support conventional files such as <method>XXX_l3.ply.
+    - ObsMaskXXX_10.mat and PlaneXXX.mat define official-like culling.
+    - Local evaluation may use a validated Python port, MATLAB script, or another documented backend.
+
+local_evaluation:
+  status: supported
+  reason: public GT and observability files are available.
+  public_gt_available: true
+  external_assets_required: []
+  official_server_required: false
+
+alignment:
+  mode: none
+  estimate_on: none
+  solver: none
+  granularity: per_scene
+  allow_override: false
+  parameters: {}
+
+confidence:
+  policy: none
+  allow_override: false
+
+masking:
+  pred_culling:
+    method: obs_mask
+    source: dataset
+    tolerance: null
+  gt_culling:
+    method: obs_mask
+    source: dataset
+  valid_region:
+    method: dataset_official_mask
+    source: dataset
+  ignore_invalid_depth: true
+  invalid_depth_values: []
+
+sampling:
+  pred:
+    method: voxel_downsample
+    voxel_size: 0.0002
+    seed: derive
+  gt:
+    method: all_points
+    seed: derive
+
+metrics:
+  - name: accuracy
+    statistic: mean
+    reduction: none
+  - name: completeness
+    statistic: mean
+    reduction: none
+  - name: overall
+    statistic: mean
+    reduction: mean
+
+aggregation:
+  per_scene: true
+  mean: true
+  median: true
+  weighted_mean: false
+  weights: none
+
+failure_policy:
+  policy: abort
+  worst_values: {}
+
+reporting:
+  save_protocol_copy: true
+  save_manifest_copy: true
+  save_environment: true
+  save_alignment_transforms: false
+  save_colored_errors: false
+  save_distance_histogram: true
+  formats: [json, csv, markdown]
+
+backend_preferences:
+  pointcloud: open3d
+  nearest_neighbor: scipy
+  official_eval: dtu_eval_python
+
+notes:
+  - Missing Plane files must be recorded explicitly.
+  - Native DTU units are millimeters; eval3r normalizes internal point arrays to meters but records source units.

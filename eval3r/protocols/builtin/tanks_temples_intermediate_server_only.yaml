@@ -1,0 +1,84 @@
+schema_version: 1
+protocol_version: 0.1.0
+name: tanks_temples_intermediate_server_only
+fidelity: server_only
+
+dataset:
+  dataset: tanks_temples
+  variant: intermediate_server
+  split: intermediate
+  version: null
+  fingerprint: null
+
+prediction_modality: pointcloud
+
+ground_truth:
+  modality: server_only
+  provenance: server_only
+  independence: server_only
+  density: server_only
+  local_evaluation_status: server_only
+  notes:
+    - GT is withheld. Submit to official benchmark server.
+
+local_evaluation:
+  status: server_only
+  reason: GT for this split is withheld.
+  public_gt_available: false
+  external_assets_required: []
+  official_server_required: true
+
+# The fields below are required by the EvalProtocol schema. For a server_only
+# protocol they explicitly declare that no local alignment, masking, sampling, or
+# metric computation is performed; the CLI refuses to run local metrics here.
+alignment:
+  mode: none
+  estimate_on: none
+  solver: none
+  granularity: per_scene
+  allow_override: false
+  parameters: {}
+
+confidence:
+  policy: none
+  allow_override: false
+
+masking:
+  pred_culling:
+    method: none
+  gt_culling:
+    method: none
+  valid_region:
+    method: none
+  ignore_invalid_depth: true
+  invalid_depth_values: []
+
+sampling:
+  pred:
+    method: none
+  gt:
+    method: none
+
+metrics: []
+
+aggregation:
+  per_scene: true
+  mean: true
+  median: true
+  weighted_mean: false
+  weights: none
+
+failure_policy:
+  policy: abort
+  worst_values: {}
+
+reporting:
+  save_protocol_copy: true
+  save_manifest_copy: true
+  save_environment: true
+  save_alignment_transforms: false
+  formats: [json, csv]
+
+notes:
+  - Local metric evaluation is unavailable; predictions must be submitted to the
+    official Tanks and Temples benchmark server for intermediate/advanced splits.

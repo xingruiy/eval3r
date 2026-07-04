@@ -1,14 +1,16 @@
 """eval3r command-line entry point (`e3r`).
 
-Task 001 wires the command *tree* only: `e3r --help` lists every planned
-command group. Individual commands are stubs that fail loudly with an explicit
-reason naming the task slice that implements them (per CLAUDE.md's error and CLI
-verbosity rules). No evaluation logic lives here.
+Assembles the command tree so `e3r --help` lists every command group. Implemented
+groups (e.g. `protocol`) are wired in from their own modules; commands owned by
+later task slices are stubs that fail loudly with an explicit reason naming the
+slice that implements them (per CLAUDE.md's error and CLI verbosity rules).
 """
 
 from __future__ import annotations
 
 import typer
+
+from eval3r.cli.protocol import protocol_app
 
 app = typer.Typer(
     name="e3r",
@@ -30,10 +32,6 @@ benchmark_app = typer.Typer(
 )
 dataset_app = typer.Typer(
     help="Inspect dataset adapters and their capabilities.",
-    no_args_is_help=True,
-)
-protocol_app = typer.Typer(
-    help="Inspect built-in evaluation protocols.",
     no_args_is_help=True,
 )
 
@@ -94,15 +92,6 @@ def benchmark_validate() -> None:
 def dataset_inspect() -> None:
     """Show a dataset adapter's capabilities and resolved layout."""
     _not_yet("e3r dataset inspect", "task 008 (benchmark run plumbing)")
-
-
-# --- protocol group ------------------------------------------------------------
-
-
-@protocol_app.command("show")
-def protocol_show() -> None:
-    """Show a built-in protocol's resolved fields and canonical hash."""
-    _not_yet("e3r protocol show", "task 003 (protocol loader and hashing)")
 
 
 # --- top-level diff ------------------------------------------------------------

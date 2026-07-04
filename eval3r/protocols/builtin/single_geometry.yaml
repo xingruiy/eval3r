@@ -1,0 +1,112 @@
+schema_version: 1
+protocol_version: 0.1.0
+name: single_geometry
+fidelity: eval3r_native
+
+dataset:
+  dataset: custom
+  variant: single_file
+  split: null
+  version: null
+  fingerprint: null
+  notes: []
+
+prediction_modality: pointcloud
+
+ground_truth:
+  modality: pointcloud
+  provenance: unknown
+  independence: unknown
+  density: unknown
+  path: null
+  fingerprint: null
+  unit: m
+  source_pose_format: unknown
+  normalized_convention: cam_to_world_opencv_meters
+  local_evaluation_status: supported
+  notes: []
+
+local_evaluation:
+  status: supported
+  reason: local files supplied by user
+  public_gt_available: true
+  external_assets_required: []
+  official_server_required: false
+
+alignment:
+  mode: none
+  estimate_on: none
+  solver: none
+  granularity: per_scene
+  allow_override: true
+  parameters: {}
+
+confidence:
+  policy: none
+  allow_override: true
+
+masking:
+  pred_culling:
+    method: none
+  gt_culling:
+    method: none
+  valid_region:
+    method: none
+  ignore_invalid_depth: true
+  invalid_depth_values: []
+
+sampling:
+  pred:
+    method: all_points
+    n_points: null
+    seed: derive
+  gt:
+    method: all_points
+    n_points: null
+    seed: derive
+
+metrics:
+  - name: accuracy
+    statistic: mean
+  - name: completeness
+    statistic: mean
+  - name: chamfer
+    statistic: mean
+    reduction: mean
+  - name: precision
+    threshold: 0.05
+  - name: recall
+    threshold: 0.05
+  - name: fscore
+    threshold: 0.05
+    aggregation: per_scene_then_mean
+
+aggregation:
+  per_scene: true
+  mean: true
+  median: true
+  weighted_mean: false
+  weights: none
+
+failure_policy:
+  policy: abort
+  worst_values: {}
+
+reporting:
+  save_protocol_copy: true
+  save_manifest_copy: true
+  save_environment: true
+  save_alignment_transforms: true
+  save_colored_errors: false
+  save_distance_histogram: false
+  formats: [json, csv]
+
+backend_preferences:
+  mesh: trimesh
+  pointcloud: plyfile
+  nearest_neighbor: scipy
+
+notes:
+  - Single-file protocol for local comparison. Not a dataset benchmark.
+  - Default backends use trimesh/plyfile for point-cloud and mesh file IO
+    and scipy for nearest-neighbor, keeping the quick-check path off Open3D.

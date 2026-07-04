@@ -1,0 +1,87 @@
+schema_version: 1
+protocol_version: 0.1.0
+name: single_pose
+fidelity: eval3r_native
+
+dataset:
+  dataset: custom
+  variant: single_trajectory
+  split: null
+
+prediction_modality: camera_trajectory
+
+ground_truth:
+  modality: trajectory
+  provenance: unknown
+  independence: unknown
+  density: trajectory_only
+  unit: m
+  source_pose_format: tum
+  normalized_convention: cam_to_world_opencv_meters
+  local_evaluation_status: supported
+
+local_evaluation:
+  status: supported
+  reason: local trajectory files supplied by user
+  public_gt_available: true
+  external_assets_required: []
+  official_server_required: false
+
+alignment:
+  mode: trajectory_sim3
+  estimate_on: trajectory
+  solver: evo
+  granularity: per_scene
+  allow_override: true
+  parameters:
+    associate_max_diff: 0.01
+
+confidence:
+  policy: none
+  allow_override: false
+
+masking:
+  pred_culling:
+    method: none
+  gt_culling:
+    method: none
+  valid_region:
+    method: none
+  ignore_invalid_depth: true
+  invalid_depth_values: []
+
+sampling:
+  pred:
+    method: none
+  gt:
+    method: none
+
+metrics:
+  - name: ate
+    statistic: rmse
+  - name: rpe_translation
+    statistic: rmse
+  - name: rpe_rotation
+    statistic: rmse
+  - name: alignment_scale_error
+
+aggregation:
+  per_scene: true
+  mean: true
+  median: true
+  weighted_mean: false
+  weights: none
+
+failure_policy:
+  policy: abort
+  worst_values: {}
+
+reporting:
+  save_protocol_copy: true
+  save_manifest_copy: true
+  save_environment: true
+  save_alignment_transforms: true
+  formats: [json, csv, markdown]
+
+backend_preferences:
+  trajectory: evo

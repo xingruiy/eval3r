@@ -1,0 +1,112 @@
+schema_version: 1
+protocol_version: 0.1.0
+name: eth3d_training_official_like
+fidelity: official_like
+
+dataset:
+  dataset: eth3d
+  variant: training_public_gt
+  split: training
+  version: null
+  fingerprint: null
+  notes:
+    - Uses public training GT and COLMAP text cameras.
+
+prediction_modality: pointcloud
+
+ground_truth:
+  modality: pointcloud
+  provenance: laser_scan
+  independence: independent
+  density: dense_surface
+  unit: m
+  source_pose_format: world_to_cam_colmap
+  normalized_convention: cam_to_world_opencv_meters
+  local_evaluation_status: supported
+  notes:
+    - Occlusion-aware GT preparation is part of the dataset tooling.
+
+local_evaluation:
+  status: supported
+  reason: ETH3D training GT is public.
+  public_gt_available: true
+  external_assets_required: []
+  official_server_required: false
+
+alignment:
+  mode: none
+  estimate_on: none
+  solver: none
+  granularity: per_scene
+  allow_override: false
+  parameters: {}
+
+confidence:
+  policy: none
+  allow_override: false
+
+masking:
+  pred_culling:
+    method: scene_bounds
+    source: dataset
+  gt_culling:
+    method: dataset_official_mask
+    source: dataset
+  valid_region:
+    method: dataset_official_mask
+    source: dataset
+  ignore_invalid_depth: true
+  invalid_depth_values: []
+
+sampling:
+  pred:
+    method: all_points
+    seed: derive
+  gt:
+    method: all_points
+    seed: derive
+
+metrics:
+  - name: accuracy
+    statistic: mean
+  - name: completeness
+    statistic: mean
+  - name: precision
+    threshold: 0.02
+  - name: recall
+    threshold: 0.02
+  - name: fscore
+    threshold: 0.02
+    aggregation: per_scene_then_mean
+
+aggregation:
+  per_scene: true
+  mean: true
+  median: true
+  weighted_mean: false
+  weights: none
+
+failure_policy:
+  policy: skip_and_flag
+  worst_values: {}
+
+reporting:
+  save_protocol_copy: true
+  save_manifest_copy: true
+  save_environment: true
+  save_alignment_transforms: false
+  save_colored_errors: true
+  save_distance_histogram: true
+  formats: [json, csv, markdown]
+
+backend_preferences:
+  camera: pycolmap
+  pointcloud: open3d
+  nearest_neighbor: scipy
+
+notes:
+  - The official ETH3D multi-view-evaluation tool reports accuracy / completeness / F1
+    at multiple tolerances (1, 2, 5, 10, 20, 50 cm). The 2 cm headline threshold used
+    here, and the official_like fidelity claim, must be regression-validated against
+    that tool on a fixture before this protocol is frozen; extend the metric list to
+    the official tolerance set if validation shows it is needed for comparability.

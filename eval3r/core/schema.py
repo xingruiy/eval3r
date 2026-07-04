@@ -205,6 +205,7 @@ class CullingSpec(E3RModel):
         "obs_mask",
         "dataset_official_mask",
         "object_mask",
+        "valid_depth",
         "custom",
     ] = "none"
     tolerance: float | None = None

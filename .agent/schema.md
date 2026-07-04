@@ -455,6 +455,7 @@ class CullingSpec(BaseModel):
         "obs_mask",
         "dataset_official_mask",
         "object_mask",
+        "valid_depth",
         "custom",
     ] = "none"
     tolerance: float | None = None
@@ -469,6 +470,11 @@ class MaskingSpec(BaseModel):
     ignore_invalid_depth: bool = True
     invalid_depth_values: list[float] = []
 ```
+
+The `valid_depth` culling method restricts a depth protocol's `valid_region` to
+pixels with valid ground-truth depth (used by the `single_depth` protocol in
+`.agent/protocols.md`). It complements the pixel-value masking done by
+`ignore_invalid_depth` / `invalid_depth_values`.
 
 ## Confidence schema
 

@@ -10,12 +10,6 @@ Commodity geometry, camera, trajectory, and IO work is delegated to existing lib
 `eval3r` is research-oriented: correctness, explicitness, and inspectability outrank
 packaging minimalism. Every dependency is required and always installed.
 
-!!! note "Design source of truth"
-    While this user documentation is being written incrementally alongside the
-    implementation, the authoritative design documents live in `.agent/` in the
-    repository (`plan.md`, `schema.md`, `protocols.md`, `datasets.md`, `metrics.md`,
-    `backends.md`, `reproducibility.md`).
-
 ## Status
 
 This project is under active construction. The command-line interface (`e3r`) currently

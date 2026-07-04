@@ -1,0 +1,122 @@
+schema_version: 1
+protocol_version: 0.1.0
+name: scannet_single_layer_geometry_5cm
+fidelity: eval3r_native
+
+dataset:
+  dataset: scannet
+  variant: scannetv2_val_single_layer
+  split: val
+  version: scannetv2
+  fingerprint: null
+  notes:
+    - Single-layer mesh convention.
+
+prediction_modality: mesh
+
+ground_truth:
+  modality: mesh
+  provenance: reconstructed
+  independence: reconstruction_derived
+  density: dense_surface
+  path: null
+  fingerprint: null
+  unit: m
+  source_pose_format: cam_to_world_opencv
+  normalized_convention: cam_to_world_opencv_meters
+  local_evaluation_status: supported
+  notes:
+    - GT mesh is BundleFusion-derived, not an independent laser scan.
+
+local_evaluation:
+  status: supported
+  reason: validation GT mesh is available locally after dataset download.
+  public_gt_available: true
+  external_assets_required: []
+  official_server_required: false
+
+alignment:
+  mode: none
+  estimate_on: none
+  solver: none
+  granularity: per_scene
+  allow_override: false
+  parameters: {}
+
+confidence:
+  policy: none
+  allow_override: false
+
+masking:
+  pred_culling:
+    method: gt_visibility
+    source: gt
+    tolerance: 0.05
+  gt_culling:
+    method: none
+  valid_region:
+    method: scene_bounds
+    source: dataset
+  ignore_invalid_depth: true
+  invalid_depth_values: [0]
+
+sampling:
+  pred:
+    method: surface_area
+    n_points: 200000
+    seed: derive
+  gt:
+    method: surface_area
+    n_points: 200000
+    seed: derive
+
+metrics:
+  - name: accuracy
+    statistic: mean
+  - name: completeness
+    statistic: mean
+  - name: chamfer
+    statistic: mean
+    reduction: mean
+  - name: precision
+    threshold: 0.05
+  - name: recall
+    threshold: 0.05
+  - name: fscore
+    threshold: 0.05
+    aggregation: per_scene_then_mean
+  - name: culled_fraction
+
+aggregation:
+  per_scene: true
+  mean: true
+  median: true
+  weighted_mean: false
+  weights: none
+
+failure_policy:
+  policy: skip_and_flag
+  worst_values: {}
+
+reporting:
+  save_protocol_copy: true
+  save_manifest_copy: true
+  save_environment: true
+  save_alignment_transforms: false
+  save_colored_errors: true
+  save_distance_histogram: true
+  formats: [json, csv, markdown, latex]
+
+backend_preferences:
+  mesh: trimesh
+  pointcloud: open3d
+  nearest_neighbor: scipy
+
+notes:
+  - Protocol must state whether single-layer or double-layer mesh convention is used.
+  - Visibility culling is part of this protocol and should be recorded per scene.
+  - ScanNet has no official geometry-reconstruction benchmark. This protocol follows the
+    community single-layer 5cm F-score convention (TransformerFusion-style evaluation)
+    and is therefore eval3r_native, not official_like. Results must not be presented as
+    official ScanNet benchmark numbers, and the reference implementation used for any
+    regression fixtures must be named in the task notes.

@@ -1,0 +1,107 @@
+schema_version: 1
+protocol_version: 0.1.0
+name: tanks_temples_training_official
+fidelity: official
+
+dataset:
+  dataset: tanks_temples
+  variant: training_public_gt
+  split: training
+  version: null
+  fingerprint: null
+  notes:
+    - Local official evaluation is only available for public-GT training scenes.
+
+prediction_modality: pointcloud
+
+ground_truth:
+  modality: pointcloud
+  provenance: laser_scan
+  independence: independent
+  density: dense_surface
+  path: null
+  fingerprint: null
+  unit: m
+  source_pose_format: tanks_temples_log
+  normalized_convention: cam_to_world_opencv_meters
+  local_evaluation_status: supported
+  notes:
+    - Official backend handles crop volumes, transforms, ICP behavior, and per-scene thresholds.
+
+local_evaluation:
+  status: supported
+  reason: training split GT is public.
+  public_gt_available: true
+  external_assets_required: []
+  official_server_required: false
+
+alignment:
+  mode: icp
+  estimate_on: pointcloud
+  solver: official_backend
+  granularity: per_scene
+  allow_override: false
+  parameters: {}
+
+confidence:
+  policy: none
+  allow_override: false
+
+masking:
+  pred_culling:
+    method: dataset_official_mask
+    source: dataset
+  gt_culling:
+    method: dataset_official_mask
+    source: dataset
+  valid_region:
+    method: dataset_official_mask
+    source: dataset
+  ignore_invalid_depth: true
+  invalid_depth_values: []
+
+sampling:
+  pred:
+    method: all_points
+    seed: derive
+  gt:
+    method: all_points
+    seed: derive
+
+metrics:
+  - name: precision
+    threshold: null
+    aggregation: per_scene_then_mean
+  - name: recall
+    threshold: null
+    aggregation: per_scene_then_mean
+  - name: fscore
+    threshold: null
+    aggregation: per_scene_then_mean
+
+aggregation:
+  per_scene: true
+  mean: true
+  median: true
+  weighted_mean: false
+  weights: none
+
+failure_policy:
+  policy: abort
+  worst_values: {}
+
+reporting:
+  save_protocol_copy: true
+  save_manifest_copy: true
+  save_environment: true
+  save_alignment_transforms: true
+  save_colored_errors: false
+  save_distance_histogram: false
+  formats: [json, csv, markdown]
+
+backend_preferences:
+  official_eval: tnt_official
+
+notes:
+  - Per-scene thresholds are resolved by the official backend, not hardcoded as a global value.
+  - Intermediate and advanced splits are server-only and should use a separate server_only protocol stub.
