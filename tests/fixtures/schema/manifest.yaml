@@ -1,0 +1,20 @@
+# Sample PredictionManifest fixture for schema round-trip tests.
+# Minimal on purpose: unset fields exercise the documented model defaults.
+method: example_method
+version: "0.1.0"
+dataset:
+  dataset: custom
+prediction_modality: pointcloud
+coordinate_frame: world
+scale: metric
+uses_gt:
+  pose: false
+  intrinsics: false
+  scale: false
+confidence:
+  present: false
+scenes:
+  scene0:
+    pointcloud: preds/scene0.ply
+  scene1:
+    pointcloud: preds/scene1.ply

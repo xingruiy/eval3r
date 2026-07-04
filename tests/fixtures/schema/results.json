@@ -1,0 +1,183 @@
+{
+  "schema_version": 1,
+  "eval3r_version": "0.3.0",
+  "method": "example_method",
+  "method_version": "0.1.0",
+  "dataset": {
+    "dataset": "custom",
+    "variant": "example",
+    "split": "val",
+    "version": null,
+    "fingerprint": null,
+    "notes": []
+  },
+  "split": "val",
+  "protocol": "example_single_geometry",
+  "protocol_version": "1.0.0",
+  "protocol_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+  "fidelity": "eval3r_native",
+  "ground_truth": {
+    "modality": "pointcloud",
+    "provenance": "laser_scan",
+    "independence": "independent",
+    "density": "dense_surface",
+    "path": null,
+    "fingerprint": null,
+    "unit": "m",
+    "source_pose_format": null,
+    "normalized_convention": "cam_to_world_opencv_meters",
+    "local_evaluation_status": "supported",
+    "server_url": null,
+    "notes": []
+  },
+  "local_evaluation": {
+    "status": "supported",
+    "reason": "GT provided directly.",
+    "public_gt_available": true,
+    "external_assets_required": [],
+    "official_server_required": false
+  },
+  "n_scenes_expected": 2,
+  "n_scenes_evaluated": 1,
+  "failed_scenes": [
+    {
+      "scene_id": "scene1",
+      "stage": "load",
+      "reason": "prediction file missing",
+      "traceback": null,
+      "recoverable": true
+    }
+  ],
+  "failure_policy": {
+    "policy": "skip_and_flag",
+    "worst_values": {}
+  },
+  "metrics": {
+    "chamfer_distance": 0.0123,
+    "f_score": 0.87
+  },
+  "metric_definitions": [
+    {
+      "name": "chamfer_distance",
+      "threshold": null,
+      "statistic": "mean",
+      "percentile": null,
+      "reduction": "mean",
+      "clamp": null,
+      "aggregation": null,
+      "parameters": {}
+    },
+    {
+      "name": "f_score",
+      "threshold": 0.05,
+      "statistic": null,
+      "percentile": null,
+      "reduction": null,
+      "clamp": null,
+      "aggregation": null,
+      "parameters": {}
+    }
+  ],
+  "per_scene_metrics": [
+    {
+      "name": "chamfer_distance",
+      "value": 0.0123,
+      "unit": "m",
+      "threshold": null,
+      "statistic": "mean",
+      "reduction": null,
+      "scene_id": "scene0",
+      "frame_id": null,
+      "protocol": "example_single_geometry",
+      "protocol_hash": "sha256:00",
+      "backend": "scipy",
+      "n_points_pred": 200000,
+      "n_points_gt": 180000,
+      "n_pixels_valid": null,
+      "valid_fraction": null,
+      "culled_fraction": null,
+      "metadata": {}
+    }
+  ],
+  "confidence_policy": {
+    "policy": "none",
+    "threshold": null,
+    "percentile": null,
+    "top_k_fraction": null,
+    "allow_override": false
+  },
+  "alignment": {
+    "mode": "none",
+    "estimate_on": "none",
+    "solver": "none",
+    "granularity": "per_scene",
+    "allow_override": false,
+    "parameters": {}
+  },
+  "masking": {
+    "pred_culling": {
+      "method": "none",
+      "tolerance": null,
+      "source": "none",
+      "path": null,
+      "parameters": {}
+    },
+    "gt_culling": {
+      "method": "none",
+      "tolerance": null,
+      "source": "none",
+      "path": null,
+      "parameters": {}
+    },
+    "valid_region": {
+      "method": "none",
+      "tolerance": null,
+      "source": "none",
+      "path": null,
+      "parameters": {}
+    },
+    "ignore_invalid_depth": true,
+    "invalid_depth_values": []
+  },
+  "sampling": {
+    "pred": {
+      "method": "uniform_points",
+      "n_points": 200000,
+      "seed": "derive",
+      "voxel_size": null,
+      "return_normals": false
+    },
+    "gt": {
+      "method": "all_points",
+      "n_points": null,
+      "seed": "derive",
+      "voxel_size": null,
+      "return_normals": false
+    }
+  },
+  "aggregation": {
+    "per_frame": false,
+    "per_scene": true,
+    "mean": true,
+    "median": true,
+    "weighted_mean": false,
+    "weights": "none"
+  },
+  "uses_gt": {
+    "pose": false,
+    "intrinsics": false,
+    "scale": false
+  },
+  "backend_versions": {
+    "scipy": "1.11.0"
+  },
+  "environment": {
+    "python": "3.10.12"
+  },
+  "command": "e3r metric geometry ...",
+  "manifest_path": null,
+  "protocol_path": null,
+  "git_commit": null,
+  "timestamp": "2026-07-04T00:00:00Z",
+  "metadata": {}
+}

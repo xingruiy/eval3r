@@ -1,0 +1,55 @@
+# Sample EvalProtocol fixture for schema round-trip tests.
+# Illustrative only — not a frozen built-in protocol (those arrive in task 003).
+# Minimal on purpose: unset fields exercise the documented model defaults.
+schema_version: 1
+protocol_version: "1.0.0"
+name: example_single_geometry
+fidelity: eval3r_native
+dataset:
+  dataset: custom
+prediction_modality: pointcloud
+ground_truth:
+  modality: pointcloud
+  provenance: laser_scan
+  independence: independent
+  density: dense_surface
+local_evaluation:
+  status: supported
+  reason: Ground-truth point cloud is provided directly with the fixture.
+alignment:
+  mode: none
+confidence:
+  policy: none
+masking:
+  pred_culling:
+    method: none
+  gt_culling:
+    method: none
+sampling:
+  pred:
+    method: uniform_points
+    n_points: 200000
+    seed: derive
+  gt:
+    method: all_points
+metrics:
+  - name: chamfer_distance
+    statistic: mean
+    reduction: mean
+    aggregation: per_scene_then_mean
+  - name: f_score
+    threshold: 0.05
+    aggregation: per_scene_then_mean
+aggregation:
+  per_scene: true
+  mean: true
+  median: true
+failure_policy:
+  policy: skip_and_flag
+reporting:
+  formats: [json, csv]
+backend_preferences:
+  nearest_neighbor: scipy
+  pointcloud: plyfile
+notes:
+  - Example schema fixture.

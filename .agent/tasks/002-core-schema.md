@@ -48,11 +48,40 @@ one authoritative schema.
 
 ## Findings
 
-(record during implementation)
+- All models from `.agent/schema.md` implemented and transcribed **field-for-field** (no
+  schema changes, so `.agent/schema.md` remains authoritative and in sync — no doc edit needed).
+- Module layout: enums → `core/types.py` (as `Literal` type aliases, not `enum.Enum`); shared
+  spec models → `core/schema.py`; manifest models → `core/manifest.py`; `EvalProtocol` →
+  `core/protocol.py`; `MetricResult`/`SceneFailure`/`RunResult` → `core/result.py`.
+- `core/__init__.py` re-exports every public model (single import surface) with an `__all__`.
+  Import graph is acyclic: `types → schema → {manifest, protocol}`, `result → schema+manifest`.
+- Tests (`tests/unit/test_schema.py`, 34 cases + smoke): parametrized JSON round-trip for one
+  instance of **every** exported model (a coverage test asserts no exported model lacks an
+  instance); fixture validation; required-`RunResult`-fields check against
+  `.agent/reproducibility.md`; and validation-error cases (bad enum, missing field, wrong
+  shape, extra field).
+- Fixtures under `tests/fixtures/schema/`: hand-written minimal `protocol.yaml` and
+  `manifest.yaml` (exercise documented defaults) + `results.json` generated from a constructed
+  `RunResult` (guaranteed valid and round-tripping).
+- Verified `RunResult` covers every field in `.agent/reproducibility.md` "Required result
+  fields" via `test_run_result_has_all_required_fields`.
 
 ## Decisions
 
-(record during implementation; e.g. pydantic v2 config choices, Path serialization form)
+- **Pydantic v2** (2.12). Shared base `E3RModel(BaseModel)` with
+  `model_config = ConfigDict(extra="forbid")` so unexpected keys are explicit validation
+  errors, not silent typos; each model has a `metadata`/`parameters` dict for open-ended data,
+  so forbidding stray top-level keys costs no flexibility.
+- Enums as `Literal` type aliases (`TypeAlias`) so YAML/JSON string values map directly with no
+  conversion layer, matching `.agent/schema.md` exactly.
+- Nested-model defaults use `Field(default_factory=...)` instead of the doc's `= Model()`
+  literal (behaviourally identical in pydantic; avoids a shared-instance foot-gun). Scalar and
+  mutable-collection defaults (`[]`, `{}`) mirror the doc directly (safe under pydantic).
+- `Path` fields serialize to strings in JSON mode and re-parse to `Path`, so round-trip
+  equality holds.
+- Added a small helper alias `IntrinsicsSource` in `types.py` for the repeated
+  `Literal["predicted","gt","dataset_default","unknown"]` used by `Reconstruction` and
+  `PredictionManifest` (same literal set the doc inlines; not a new schema field).
 
 ## Verification
 
@@ -64,6 +93,14 @@ ruff check . && mypy eval3r
 Every model round-trips; every required RunResult field from `.agent/reproducibility.md`
 exists on the model.
 
+Outcomes (feature/repo-foundation):
+
+```text
+pytest            -> 36 passed (3 smoke + 33 schema)
+ruff check .      -> All checks passed!
+mypy eval3r       -> Success: no issues found in 83 source files
+```
+
 ## Status
 
-todo
+done
