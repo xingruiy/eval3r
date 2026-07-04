@@ -643,7 +643,7 @@ class RunResult(BaseModel):
     sampling: SamplingSpec
     aggregation: AggregationSpec
     uses_gt: UsesGTSpec | None = None
-    backend_versions: dict[str, str] = {}
+    backend_versions: dict[str, Any] = {}  # kind -> metadata dict or version string
     environment: dict = {}
     command: str | None = None
     manifest_path: Path | None = None

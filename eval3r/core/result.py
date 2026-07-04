@@ -12,7 +12,7 @@ task 006; this module owns only the in-memory models.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from eval3r.core.manifest import UsesGTSpec
 from eval3r.core.schema import (
@@ -95,7 +95,9 @@ class RunResult(E3RModel):
     sampling: SamplingSpec
     aggregation: AggregationSpec
     uses_gt: UsesGTSpec | None = None
-    backend_versions: dict[str, str] = {}
+    # kind -> backend metadata; a metadata dict ({name, library, version, approximate})
+    # per .agent/backends.md, or a plain version string for simple backends.
+    backend_versions: dict[str, Any] = {}
     environment: dict = {}
     command: str | None = None
     manifest_path: Path | None = None

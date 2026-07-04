@@ -286,24 +286,36 @@ Columns may be metric-dependent, but core status and coverage columns should be 
 
 ## Environment metadata
 
-`environment.json` should include:
+`environment.json` should include only the minimal, non-identifying facts needed to
+interpret a run:
 
 ```text
+eval3r version
 python version
+python implementation
 platform
 OS
 CPU architecture
-eval3r version
-installed package versions for used backends
-command line
-working directory
-git commit if repository is available
-git dirty state if available
-timestamp
-timezone
+resolved command (no surrounding shell/user context)
 ```
 
-Avoid recording secrets, full environment variables, API tokens, cookies, or dataset credentials.
+Backend package versions used by the run are recorded separately in
+`backend_versions.json`.
+
+Do not record identifying or unnecessary information. In particular, `environment.json`
+must NOT contain:
+
+```text
+secrets, full environment variables, API tokens, cookies, dataset credentials
+working directory or other absolute local paths
+git commit or git dirty state
+timestamp or timezone
+hostname or username
+```
+
+Note: a single ordering `timestamp` may still live on the `RunResult` for run
+bookkeeping, and `git_commit` remains an optional `RunResult` field a user can set
+explicitly, but neither is auto-captured into `environment.json`.
 
 ## Backend versions
 
