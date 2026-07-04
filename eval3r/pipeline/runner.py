@@ -31,10 +31,11 @@ from eval3r.pipeline.stages.align import AlignmentResult, align_geometry
 from eval3r.pipeline.stages.load import GeometryKind, load_geometry
 from eval3r.pipeline.stages.mask import apply_culling
 from eval3r.pipeline.stages.metric import compute_scene_metrics
+from eval3r.pipeline.stages.normalize import normalize_to_meters
 from eval3r.pipeline.stages.sample import DEFAULT_BASE_SEED, sample_geometry
 
 # Stages the single-file geometry path runs, in order. A subset of SceneFailure.stage.
-GeometryStage = Literal["load", "align", "mask", "sample", "metric"]
+GeometryStage = Literal["load", "normalize", "align", "mask", "sample", "metric"]
 _THRESHOLD_METRICS = frozenset({"precision", "recall", "fscore", "coverage"})
 
 
@@ -120,8 +121,15 @@ def evaluate_geometry_scene(
     gt_type: GeometryKind,
     registry: BackendRegistry,
     base_seed: int = DEFAULT_BASE_SEED,
+    pred_unit: str | None = None,
+    gt_unit: str | None = None,
 ) -> SceneOutcome:
-    """Run the stages for one scene, returning metrics or a structured failure."""
+    """Run the stages for one scene, returning metrics or a structured failure.
+
+    ``pred_unit`` / ``gt_unit`` are the source length units of the loaded files; each
+    is normalized to metres in the ``normalize`` stage before alignment. ``None`` (the
+    single-file default) means the geometry is already metric.
+    """
     prefs = protocol.backend_preferences
     mesh_backend = registry.require("mesh", prefs.get("mesh", "trimesh"))
     pc_backend = registry.require("pointcloud", prefs.get("pointcloud", "plyfile"))
@@ -136,6 +144,10 @@ def evaluate_geometry_scene(
         gt = load_geometry(
             gt_path, gt_type, mesh_backend=mesh_backend, pointcloud_backend=pc_backend
         )
+
+        stage = "normalize"
+        pred = normalize_to_meters(pred, pred_unit)
+        gt = normalize_to_meters(gt, gt_unit)
 
         stage = "align"
         pred, alignment = align_geometry(

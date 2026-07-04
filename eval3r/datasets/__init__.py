@@ -9,11 +9,13 @@ from __future__ import annotations
 
 from eval3r.datasets.base import DatasetAdapter
 from eval3r.datasets.custom import CustomAdapter
+from eval3r.datasets.dtu import DTUAdapter
 from eval3r.datasets.registry import DatasetRegistry, default_registry
 
 __all__ = [
     "DatasetAdapter",
     "CustomAdapter",
+    "DTUAdapter",
     "DatasetRegistry",
     "default_registry",
 ]

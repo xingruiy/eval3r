@@ -144,8 +144,10 @@ def _evaluate_scene(
             )
         pred_path = recon.path
         pred_kind = prediction_kind(recon)
+        pred_unit = recon.unit
         scene = adapter.load_scene(scene_id)
         gt_path, gt_kind = gt_geometry(scene)
+        gt_unit = scene.ground_truth.unit
     except (DatasetError, InvalidGeometryError) as exc:
         return SceneOutcome(
             scene_id=scene_id,
@@ -156,6 +158,7 @@ def _evaluate_scene(
         scene_id, pred_path, gt_path,
         protocol=protocol, protocol_hash=protocol_hash,
         input_type=pred_kind, gt_type=gt_kind, registry=registry,  # type: ignore[arg-type]
+        pred_unit=pred_unit, gt_unit=gt_unit,
     )
 
 
@@ -191,6 +194,11 @@ def run_benchmark_geometry(
         pred_root, scenes, protocol,
         manifest_path=Path(manifest_path) if manifest_path else None,
     )
+    # An inferred manifest is only a naive <scene>.ply fallback; it must not override
+    # an adapter's own filename resolution (e.g. DTU's <method>NNN_l3.ply). Adapters
+    # get None when inferred and fall back to their own inference; the inferred
+    # manifest is still written to the run directory for the record.
+    resolve_manifest = None if inferred else manifest
 
     per_scene: list[MetricResult] = []
     failures: list[SceneFailure] = []
@@ -199,7 +207,7 @@ def run_benchmark_geometry(
 
     for scene_id in scenes:
         outcome = _evaluate_scene(
-            adapter, pred_root, manifest, scene_id, protocol, phash, registry
+            adapter, pred_root, resolve_manifest, scene_id, protocol, phash, registry
         )
         if progress is not None:
             progress(scene_id, outcome)

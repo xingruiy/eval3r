@@ -47,23 +47,54 @@ honest capability/provenance reporting.
 
 ## Findings
 
-(record during implementation)
+- DTU GT is millimetres, so unit normalization had to become real. Added a `normalize`
+  pipeline stage (`unit_to_meters` + `LoadedGeometry.transformed(scale_matrix)`) and threaded
+  `pred_unit` / `gt_unit` through `evaluate_geometry_scene`; the benchmark loop reads them from
+  `Reconstruction.unit` / `GroundTruthSpec.unit`. Verified end-to-end: a 50 mm prediction offset
+  reports `accuracy = 0.05 m`. Single-file / custom paths pass `None`/`"m"` → no-op.
+- The benchmark always builds a manifest, but an *inferred* one is just a naive `<scene>.ply`
+  fallback and was clobbering DTU's `<method>NNN_l3.ply` resolution. Fix: pass the manifest to
+  `resolve_prediction` only when it was *declared* (`resolve_manifest = None if inferred`); the
+  inferred manifest is still written to the run dir. Adapters then use their own inference.
+- DTU prediction filenames encode the light condition (`mvsnet001_l3.ply`); a regex parses
+  method/scan/light and the resolver never drops the `_l3` suffix. Missing Plane files are
+  recorded (`plane_available`, `plane_path`), never silently ignored — required so task 010
+  cannot claim official-like fidelity for a scan without its Plane file.
 
 ## Decisions
 
-(record during implementation)
+- `datasets/dtu.py` `DTUAdapter` over `<root>/Points/stl/stl<NNN>_total.ply`,
+  `<root>/ObsMask/ObsMask<N>_10.mat`, `<root>/ObsMask/Plane<N>.mat`, `<root>/splits/<split>.txt`.
+  Registered as `dtu`. Native unit `mm`; GT is `pointcloud/laser_scan/independent/dense_surface`.
+- `official_local_eval = False` / method `none` for now (honest: task 010 wires the ObsMask/Plane
+  evaluator). `local_evaluation.status = supported` because the public laser-scan GT makes
+  eval3r-native point-cloud runs locally evaluable — labelled eval3r-native, not official.
+- `gt_fingerprint` is a joint hash of GT + ObsMask + Plane (missing files omitted), so a scan
+  with a Plane fingerprints differently from one without.
+- Fixture root named `dataset_root/` (not `data/`) to stay clear of the `.gitignore data/` rule;
+  `.mat` masks written with `scipy.io.savemat`.
 
 ## Verification
 
 ```bash
-pytest tests/unit/test_dtu_adapter*.py tests/integration/test_dtu_adapter_benchmark*.py
-e3r benchmark run tests/fixtures/dtu_tiny/preds --dataset dtu --split test --protocol single_geometry
+ruff check .   # All checks passed!
+mypy eval3r    # Success: no issues found in 88 source files
+pytest -q      # 190 passed
+mkdocs build   # OK
+# in-process CLI (PATH `e3r` is a different installed package in this env):
+python -c "import sys; sys.argv=['e3r','benchmark','run','tests/fixtures/dtu_tiny/preds',\
+  '--dataset','dtu','--split','one','--protocol','single_geometry',\
+  '--root','tests/fixtures/dtu_tiny/dataset_root','--out','/tmp/dtu_run']; \
+  from eval3r.cli.main import app; app()"   # accuracy 0.05 m (50 mm normalized)
 ```
 
-Acceptance: DTU layout and metadata resolve correctly, and results clearly avoid claiming
-official-like fidelity until task 010 is complete.
+Acceptance met: DTU scans, GT, ObsMask/Plane, mm units, and light-suffix prediction filenames
+resolve correctly; missing Plane files are recorded; results are eval3r-native and the adapter
+does not claim official-like fidelity (deferred to task 010). Covered by
+`tests/unit/test_dtu_adapter.py`, `tests/unit/test_normalize.py`, and
+`tests/integration/test_dtu_adapter_benchmark.py`.
 
 ## Status
 
-todo
+done
 
