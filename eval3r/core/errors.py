@@ -16,6 +16,10 @@ class InvalidGeometryError(Eval3rError):
     """A point/mesh array had the wrong shape, was empty, or held non-finite values."""
 
 
+class MetricError(Eval3rError):
+    """A metric could not be computed (unsupported name, missing required spec field)."""
+
+
 class ProtocolError(Eval3rError):
     """A protocol could not be loaded, found, or validated."""
 
