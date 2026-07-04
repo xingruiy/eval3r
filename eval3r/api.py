@@ -13,6 +13,9 @@ from pathlib import Path
 from eval3r.core.environment import capture_environment
 from eval3r.core.registry import BackendRegistry
 from eval3r.core.result import RunResult
+from eval3r.datasets import default_registry as default_dataset_registry
+from eval3r.datasets.registry import DatasetRegistry
+from eval3r.pipeline.benchmark import BenchmarkRunOutput, run_benchmark_geometry
 from eval3r.pipeline.runner import GeometryRunOutput, run_single_file_geometry
 from eval3r.pipeline.stages.load import GeometryKind
 from eval3r.protocols import load_protocol
@@ -56,6 +59,54 @@ def evaluate_geometry(
             run.result,
             Path(out_dir),
             protocol=run.protocol,
+            config=run.config,
+            environment=run.result.environment,
+            backend_versions=run.result.backend_versions,
+            alignment_transforms=run.alignment_transforms,
+        )
+
+    return run if return_run else run.result
+
+
+def run_benchmark(
+    pred_root: str | Path,
+    *,
+    dataset: str,
+    split: str,
+    protocol: str,
+    root: str | Path | None = None,
+    manifest: str | Path | None = None,
+    method: str | None = None,
+    out_dir: str | Path | None = None,
+    dataset_registry: DatasetRegistry | None = None,
+    registry: BackendRegistry | None = None,
+    command: str | None = None,
+    return_run: bool = False,
+) -> RunResult | BenchmarkRunOutput:
+    """Evaluate a method's predictions across a dataset split under a named protocol.
+
+    ``dataset`` is a registered adapter name; ``root`` is the dataset root the adapter
+    needs (e.g. GT files). The run is refused before computation if the split is not
+    locally evaluable. When ``out_dir`` is given a full run directory (including the
+    resolved-or-inferred ``manifest.yaml``) is written there.
+    """
+    proto = load_protocol(protocol)
+    dataset_registry = dataset_registry or default_dataset_registry()
+    adapter = dataset_registry.create(dataset, Path(root) if root is not None else None)
+    environment = capture_environment(command=command)
+
+    run = run_benchmark_geometry(
+        pred_root, adapter, proto, split,
+        manifest_path=manifest, registry=registry,
+        command=command, environment=environment, method=method,
+    )
+
+    if out_dir is not None:
+        write_run_directory(
+            run.result,
+            Path(out_dir),
+            protocol=run.protocol,
+            manifest=run.manifest,
             config=run.config,
             environment=run.result.environment,
             backend_versions=run.result.backend_versions,

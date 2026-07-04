@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import typer
 
+from eval3r.cli.benchmark import benchmark_app
+from eval3r.cli.dataset import dataset_app
 from eval3r.cli.metric import metric_app
 from eval3r.cli.protocol import protocol_app
 
@@ -21,15 +23,6 @@ app = typer.Typer(
     ),
     no_args_is_help=True,
     add_completion=False,
-)
-
-benchmark_app = typer.Typer(
-    help="Run or validate a dataset benchmark under a named protocol.",
-    no_args_is_help=True,
-)
-dataset_app = typer.Typer(
-    help="Inspect dataset adapters and their capabilities.",
-    no_args_is_help=True,
 )
 
 app.add_typer(metric_app, name="metric")
@@ -44,30 +37,6 @@ def _not_yet(command: str, task: str) -> None:
         f"`{command}` is not implemented yet in this skeleton. "
         f"It is delivered by {task}. See .agent/tasks/ for the implementation order."
     )
-
-
-# --- benchmark group -----------------------------------------------------------
-
-
-@benchmark_app.command("run")
-def benchmark_run() -> None:
-    """Run a dataset benchmark under a named protocol."""
-    _not_yet("e3r benchmark run", "task 008 (benchmark run plumbing)")
-
-
-@benchmark_app.command("validate")
-def benchmark_validate() -> None:
-    """Validate a prediction manifest against a dataset/protocol without evaluating."""
-    _not_yet("e3r benchmark validate", "task 008 (benchmark run plumbing)")
-
-
-# --- dataset group -------------------------------------------------------------
-
-
-@dataset_app.command("inspect")
-def dataset_inspect() -> None:
-    """Show a dataset adapter's capabilities and resolved layout."""
-    _not_yet("e3r dataset inspect", "task 008 (benchmark run plumbing)")
 
 
 # --- top-level diff ------------------------------------------------------------

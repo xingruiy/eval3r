@@ -3,8 +3,7 @@
 Evaluate meshes, point clouds, depth predictions, and trajectories under explicit,
 dataset-aware protocols.
 
-The remaining public API (``run_benchmark``, ``diff_runs``) is wired up in later
-task slices.
+The remaining public API (``diff_runs``) is wired up in later task slices.
 """
 
 from __future__ import annotations
@@ -28,4 +27,15 @@ def evaluate_geometry(*args: Any, **kwargs: Any) -> Any:
     return _impl(*args, **kwargs)
 
 
-__all__ = ["load_protocol", "evaluate_geometry", "__version__"]
+def run_benchmark(*args: Any, **kwargs: Any) -> Any:
+    """Evaluate a method's predictions across a dataset split under a named protocol.
+
+    Thin re-export of :func:`eval3r.api.run_benchmark` (imported lazily to keep
+    ``import eval3r`` cheap and cycle-free).
+    """
+    from eval3r.api import run_benchmark as _impl
+
+    return _impl(*args, **kwargs)
+
+
+__all__ = ["load_protocol", "evaluate_geometry", "run_benchmark", "__version__"]

@@ -45,6 +45,26 @@ class SceneEvaluationError(Eval3rError):
         )
 
 
+class DatasetError(Eval3rError):
+    """A dataset adapter could not resolve scenes, ground truth, or predictions."""
+
+
+class UnknownDatasetError(DatasetError):
+    """A dataset adapter name is not registered."""
+
+    def __init__(self, name: str, available: list[str]) -> None:
+        self.name = name
+        self.available = available
+        avail = ", ".join(sorted(available)) if available else "(none registered)"
+        super().__init__(
+            f"no dataset adapter named '{name}' is registered. Available adapters: {avail}."
+        )
+
+
+class BenchmarkError(Eval3rError):
+    """A benchmark run was refused before computation (capability/local-eval gating)."""
+
+
 class ProtocolError(Eval3rError):
     """A protocol could not be loaded, found, or validated."""
 

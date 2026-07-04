@@ -43,23 +43,56 @@ without any dataset-specific official behavior.
 
 ## Findings
 
-(record during implementation)
+- The benchmark loop reuses the task-007 `evaluate_geometry_scene` verbatim per scene, adding
+  only a `resolve` stage (prediction + GT path resolution) in front. Same `SceneOutcome` /
+  `SceneFailure` types, so failure accounting does not drift between single-file and benchmark.
+- Preflight is a hard gate *before* any prediction is loaded: `server_only_eval` capability or a
+  non-`supported` `local_evaluation().status` raises `BenchmarkError` with the concrete status
+  and reason — no local numbers are ever produced for a server-only/asset-gated split.
+- `score_worst` is realized by injecting per-scene `MetricResult`s (value from
+  `failure_policy.worst_values`, `metadata.scored_worst=True`) so worst-scored scenes still
+  flow through aggregation while remaining listed in `failed_scenes`.
+- Manifest is loaded from `--manifest`, else `<pred_root>/manifest.yaml`, else inferred as
+  `<scene>.ply`; inferred manifests are validated, written to the run dir, and flagged
+  (`RunResult.metadata.manifest_inferred`, config, and the manifest's own metadata).
 
 ## Decisions
 
-(record during implementation; e.g. adapter registry location and preflight error format)
+- Dataset registry maps a name to a factory `(root: Path | None) -> DatasetAdapter` (real
+  adapters bind to a dataset root). Built-in `custom` adapter registered lazily in
+  `datasets.default_registry()`. Unknown names raise `UnknownDatasetError` listing available.
+- `custom` adapter layout: `<root>/splits/<split>.txt` + `<root>/gt/<scene>.ply`. GT is
+  user-supplied, so provenance/independence/density are `unknown` and fidelity stays
+  eval3r-native — it never claims independent GT.
+- New errors `DatasetError`, `UnknownDatasetError`, `BenchmarkError` in `core/errors.py`.
+- Aggregation is `per_scene_then_mean` for every metric this slice (pooled `global` F-score
+  deferred until the geometry metric exposes per-scene precision/recall counts).
+- Benchmark orchestration lives in `pipeline/benchmark.py` (reuses `pipeline/stages/aggregate.py`);
+  the API adds `run_benchmark(...)`; CLI adds `e3r benchmark run` / `validate` and
+  `e3r dataset list` / `inspect`. The tests register a `fixture` adapter (a `custom` adapter at
+  the committed fixture root) so the doc-style `--dataset fixture --split tiny` command works.
 
 ## Verification
 
 ```bash
-pytest tests/unit/test_dataset_registry*.py tests/unit/test_benchmark_runner*.py tests/integration/test_benchmark_fixture*.py
-e3r benchmark run tests/fixtures/benchmark_preds --dataset fixture --split tiny --protocol single_geometry
+ruff check .   # All checks passed!
+mypy eval3r    # Success: no issues found in 88 source files
+pytest -q      # 169 passed
+mkdocs build   # OK
+# in-process CLI (PATH `e3r` is a different installed package in this env):
+python -c "import sys; from eval3r.datasets import default_registry, CustomAdapter; from pathlib import Path; \
+  default_registry().register('fixture', lambda r: CustomAdapter(Path('tests/fixtures/benchmark/dataset_root'))); \
+  sys.argv=['e3r','benchmark','run','tests/fixtures/benchmark/preds','--dataset','fixture','--split','pair',\
+  '--protocol','single_geometry','--out','/tmp/bench_run']; from eval3r.cli.main import app; app()"
 ```
 
-Acceptance: benchmark orchestration works for a non-official fixture adapter and refuses
-unsupported dataset/protocol combinations before loading predictions.
+Acceptance met: benchmark orchestration runs on a non-official fixture adapter, writes a
+complete run directory (incl. `manifest.yaml`), reports partial coverage under `skip_and_flag`,
+and refuses server-only / non-supported splits before loading predictions. Covered by
+`tests/unit/test_dataset_registry.py`, `tests/unit/test_benchmark_runner.py`, and
+`tests/integration/test_benchmark_fixture.py`.
 
 ## Status
 
-todo
+done
 

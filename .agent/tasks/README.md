@@ -16,7 +16,7 @@ relevant `.agent/*.md` docs and the actual code — task notes can be stale.
 | 005 | [005-geometry-metrics.md](005-geometry-metrics.md) | Point-set geometry metrics with synthetic analytic tests | done |
 | 006 | [006-result-writer-environment.md](006-result-writer-environment.md) | Run directory writer, JSON/CSV output, environment metadata | done |
 | 007 | [007-single-file-geometry-runner.md](007-single-file-geometry-runner.md) | Staged single-file geometry runner, `e3r metric geometry`, Python API | done |
-| 008 | [008-benchmark-run-plumbing.md](008-benchmark-run-plumbing.md) | Generic dataset adapter registry, manifest resolution, `e3r benchmark run` | todo |
+| 008 | [008-benchmark-run-plumbing.md](008-benchmark-run-plumbing.md) | Generic dataset adapter registry, manifest resolution, `e3r benchmark run` | done |
 | 009 | [009-dtu-adapter.md](009-dtu-adapter.md) | DTU adapter, ObsMask/Plane metadata, mm normalization, fixture | todo |
 | 010 | [010-dtu-official-evaluator.md](010-dtu-official-evaluator.md) | DTU official-like evaluator backend and protocol integration | todo |
 | 011 | [011-scannet-adapter.md](011-scannet-adapter.md) | ScanNet adapter, mesh variants, culling, benchmark integration | todo |
@@ -27,7 +27,7 @@ relevant `.agent/*.md` docs and the actual code — task notes can be stale.
 | 016 | [016-reports-diffing.md](016-reports-diffing.md) | Markdown/LaTeX/HTML reports, partial-coverage banners, `e3r diff` | todo |
 | 017 | [017-public-release-docs.md](017-public-release-docs.md) | Release docs, examples, packaging checks, PyPI prep | todo |
 
-**Next task: 008**
+**Next task: 009**
 
 Tasks must be executed in order unless a task's Scope says otherwise; each depends on the
 deliverables of the previous ones (schemas before adapters, metrics before runners, result

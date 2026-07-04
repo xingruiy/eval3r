@@ -1,0 +1,4 @@
+# tiny custom split for benchmark integration tests
+scene_a
+scene_b
+scene_missing
