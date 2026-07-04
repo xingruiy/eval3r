@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import typer
 
+from eval3r.cli.metric import metric_app
 from eval3r.cli.protocol import protocol_app
 
 app = typer.Typer(
@@ -22,10 +23,6 @@ app = typer.Typer(
     add_completion=False,
 )
 
-metric_app = typer.Typer(
-    help="Evaluate a single prediction against ground truth (geometry, depth, pose).",
-    no_args_is_help=True,
-)
 benchmark_app = typer.Typer(
     help="Run or validate a dataset benchmark under a named protocol.",
     no_args_is_help=True,
@@ -47,27 +44,6 @@ def _not_yet(command: str, task: str) -> None:
         f"`{command}` is not implemented yet in this skeleton. "
         f"It is delivered by {task}. See .agent/tasks/ for the implementation order."
     )
-
-
-# --- metric group --------------------------------------------------------------
-
-
-@metric_app.command("geometry")
-def metric_geometry() -> None:
-    """Evaluate a mesh or point cloud against ground-truth geometry."""
-    _not_yet("e3r metric geometry", "task 007 (single-file geometry runner)")
-
-
-@metric_app.command("depth")
-def metric_depth() -> None:
-    """Evaluate a predicted depth map/sequence against ground-truth depth."""
-    _not_yet("e3r metric depth", "task 014 (depth metrics)")
-
-
-@metric_app.command("pose")
-def metric_pose() -> None:
-    """Evaluate a predicted trajectory against a ground-truth trajectory."""
-    _not_yet("e3r metric pose", "task 015 (pose metrics)")
 
 
 # --- benchmark group -----------------------------------------------------------

@@ -20,6 +20,31 @@ class MetricError(Eval3rError):
     """A metric could not be computed (unsupported name, missing required spec field)."""
 
 
+class AlignmentError(Eval3rError):
+    """An alignment transform could not be estimated or is disallowed by the protocol."""
+
+
+class CullingError(Eval3rError):
+    """A masking/culling policy could not be applied on the single-file path."""
+
+
+class SceneEvaluationError(Eval3rError):
+    """A scene failed under an ``abort`` failure policy.
+
+    Carries the scene id and the pipeline stage that failed so the runner and CLI
+    can report exactly what failed without reducing it to a bare exit code.
+    """
+
+    def __init__(self, scene_id: str, stage: str, reason: str) -> None:
+        self.scene_id = scene_id
+        self.stage = stage
+        self.reason = reason
+        super().__init__(
+            f"scene '{scene_id}' failed at stage '{stage}' and the failure policy is "
+            f"'abort': {reason}"
+        )
+
+
 class ProtocolError(Eval3rError):
     """A protocol could not be loaded, found, or validated."""
 

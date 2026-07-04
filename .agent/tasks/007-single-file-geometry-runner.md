@@ -51,23 +51,60 @@ plus the `evaluate_geometry` Python API.
 
 ## Findings
 
-(record during implementation)
+- Stages are pure functions over a `LoadedGeometry` (points *or* a mesh handle). The runner
+  tracks a `stage` variable and captures any `Eval3rError` into a `SceneFailure` tagged with
+  the failing stage, so failure accounting is exact without per-stage try/except sprawl.
+- Umeyama alignment needs 1:1 correspondence (equal, matched point counts). That is the only
+  correspondence a single-file comparison can assume without a registration/ICP backend, so
+  unequal counts fail explicitly; correspondence-free ICP is deferred to task 015+.
+- `single_geometry`'s built-in threshold is already 0.05, so `--threshold 0.05` (and default
+  pointcloud sampling) leave the canonical protocol hash unchanged — a useful determinism
+  check. Only a *behavior-changing* override (different threshold, sample count, mesh modality)
+  moves the hash.
+- The shell `e3r` on PATH in the `dl` conda env is a *different, older* `eval3r` package
+  (it has `--thresholds`, `--align icp_se3`, `--chamfer-variant`). `import eval3r` still
+  resolves to this source tree, and the in-process CLI (`typer.testing.CliRunner`, or
+  `python -c "from eval3r.cli.main import app; app()"`) exercises our real command.
 
 ## Decisions
 
-(record during implementation; e.g. stage context shape, run directory naming)
+- New errors `AlignmentError`, `CullingError`, `SceneEvaluationError` (the last carries
+  scene_id + stage for the `abort` policy) live in `core/errors.py`.
+- Single-file masking supports only `method: none`; dataset masks (obs/visibility/official)
+  raise `CullingError` pointing at `e3r benchmark run` (task 011+) rather than silently
+  evaluating unmasked geometry.
+- Sim3 (scale-correcting) alignment is refused for metric-scale protocols unless
+  `alignment.parameters.allow_sim3` (or `alignment.allow_override`) is set, with a message
+  that the metrics then no longer reflect metric-scale error.
+- Seeds: explicit ints pass through; `derive`/`None` derives a stable 32-bit seed from a base
+  seed (default 0) and `scene_id:role`, so repeated runs match and pred/gt differ.
+- Timestamps: `RunResult.timestamp` is UTC with a `Z` suffix and the default run-dir name uses
+  a UTC `now`, so neither leaks the local timezone (privacy). `environment.json` stays minimal.
+- CLI flags (`--threshold`, `--sample`, `--input`, `--gt-input`) map onto a deep-copied
+  protocol as recorded overrides; the canonical hash is recomputed from the overridden copy.
+- `typer.Argument`/`typer.Option` added to ruff `flake8-bugbear.extend-immutable-calls`
+  (the framework's intended default-argument pattern) — fixes B008 on `Path`-typed params.
 
 ## Verification
 
 ```bash
-pytest tests/unit/test_runner*.py tests/integration/test_single_geometry*.py
-e3r metric geometry tests/fixtures/geom/pred.ply --gt tests/fixtures/geom/gt.ply --threshold 0.05
+ruff check .                 # All checks passed!
+mypy eval3r                  # Success: no issues found in 86 source files
+pytest -q                    # 144 passed
+mkdocs build                 # OK
+# CLI (driven in-process; PATH `e3r` is a different installed package in this env):
+python -c "import sys; sys.argv=['e3r','metric','geometry','tests/fixtures/geom/pred.ply',\
+  '--gt','tests/fixtures/geom/gt.ply','--threshold','0.05','--out','/tmp/e3r_run']; \
+  from eval3r.cli.main import app; app()"
 ```
 
 Acceptance per `.agent/plan.md`: the `e3r metric geometry` command produces a complete run
-directory whose `results.json` carries every required field.
+directory (`results.json`, `results.csv`, `per_scene.csv`, `failures.json`, `environment.json`,
+`backend_versions.json`, `protocol.yaml`, `config.yaml`, `alignment_transforms.json`, `logs.txt`)
+whose `results.json` carries every field `.agent/reproducibility.md` requires. Verified by
+`tests/integration/test_single_geometry.py`.
 
 ## Status
 
-todo
+done
 
