@@ -67,14 +67,14 @@ The library delegates common operations to mature tools:
 ```text
 mesh loading and surface sampling       trimesh or Open3D
 point cloud loading                     Open3D, plyfile, numpy
-nearest-neighbor search                 scipy, Open3D, torch, FAISS
+nearest-neighbor search                 scipy, Open3D
 trajectory metrics                      evo
 COLMAP parsing                          pycolmap
 camera model parsing beyond pinhole     pycolmap or dataset-specific parser
 official benchmark behavior             official script wrapper when appropriate
 ```
 
-The base package should remain small. Heavy dependencies must be optional extras.
+All dependencies are required and always installed; there is no optional-extra system. This is a research-oriented project where inspectability outranks install footprint.
 
 ### Results should expose uncertainty and incomparability
 
@@ -149,7 +149,6 @@ eval3r/
     co3d.py
     blendedmvs.py
     kitti360.py
-    waymo.py
     custom.py
 
   protocols/
@@ -182,8 +181,6 @@ eval3r/
     pointcloud_plyfile.py
     nn_scipy.py
     nn_open3d.py
-    nn_torch.py
-    nn_faiss.py
     registration_open3d.py
     trajectory_evo.py
     camera_pycolmap.py
@@ -323,10 +320,9 @@ These should not be presented as dense reconstruction benchmarks by default.
 
 ```text
 KITTI-360
-Waymo Open Dataset
 ```
 
-KITTI-360 and Waymo are better suited to trajectory metrics and sparse point comparisons. Any point-cloud protocol should clearly state that it compares against sparse LiDAR rather than dense surface GT. KITTI-360's perspective cameras can use a pinhole path, but its fisheye cameras require a fisheye-capable camera backend or must be out of scope for the protocol.
+KITTI-360 is better suited to trajectory metrics and sparse point comparisons. Any point-cloud protocol should clearly state that it compares against sparse LiDAR rather than dense surface GT. KITTI-360's perspective cameras can use a pinhole path, but its fisheye cameras require a fisheye-capable camera backend or must be out of scope for the protocol.
 
 ## Dataset capability model
 
@@ -507,19 +503,6 @@ support pose metrics first
 label sparse LiDAR comparisons as sparse, not dense-surface geometry
 limit minimal-pinhole support to perspective cameras unless a fisheye-capable backend is used
 ```
-
-### Waymo
-
-Responsibilities:
-
-```text
-use optional Waymo backend for TFRecord / protobuf or Parquet input
-load vehicle-to-global pose and sensor calibrations
-support pose and sparse-LiDAR comparison protocols
-avoid naive minimal-pinhole camera assumptions
-```
-
-Waymo support should be optional and late because its native format and dependencies are heavier than the other adapters.
 
 ## Metrics
 
@@ -931,6 +914,18 @@ e3r diff runs/method_a runs/method_b
 
 `e3r diff` should refuse to compare runs with different protocol hashes unless the user explicitly requests a loose comparison.
 
+### CLI output
+
+This is a research tool, so the CLI must be verbose and self-explaining, using `rich`:
+
+```text
+before running, echo the resolved configuration: protocol name and hash, dataset and variant, split, prediction manifest, and the alignment / masking / sampling / confidence / failure policies in effect
+echo resolved input and output paths verbatim
+show per-scene progress and per-scene outcomes
+on failure, print the full reason verbatim (with traceback when available), never just a non-zero exit
+partial scene coverage and skipped scenes must be visible, not hidden behind an average
+```
+
 ## Python API
 
 Basic geometry use:
@@ -980,7 +975,7 @@ report = diff_runs("runs/method_a", "runs/method_b")
 
 ## Dependency policy
 
-Base dependencies:
+All dependencies are required and always installed. There is no optional-extra system.
 
 ```toml
 dependencies = [
@@ -991,22 +986,6 @@ dependencies = [
   "typer",
   "rich",
   "pydantic",
-]
-```
-
-Optional extras:
-
-```toml
-[project.optional-dependencies]
-mesh = ["trimesh", "plyfile"]
-open3d = ["open3d"]
-pose = ["evo"]
-colmap = ["pycolmap"]
-depth = ["imageio", "opencv-python"]
-torch = ["torch"]
-faiss = ["faiss-cpu"]
-waymo = ["waymo-open-dataset"]
-all = [
   "trimesh",
   "plyfile",
   "open3d",
@@ -1020,14 +999,11 @@ all = [
 Rules:
 
 ```text
-base install does not require Open3D
-base install does not require PyTorch
-base install does not require PyCOLMAP
-base install does not require Waymo tooling
-missing optional dependencies fail with clear messages
+a plain 'pip install eval3r' pulls in every backend; there are no extras
+the project does not depend on PyTorch, FAISS, or Waymo tooling (no torch/FAISS NN backend, no Waymo adapter)
+MATLAB is the only optional external tool, used solely for the DTU MATLAB official-script path; a missing MATLAB fails with an explicit message and points at the validated Python port
 backend names and versions are recorded in result metadata
-the 'all' extra intentionally excludes torch, faiss-cpu, and waymo-open-dataset
-point-cloud / mesh file IO needs the lightweight 'mesh' extra; quick-check defaults avoid Open3D
+default backend preferences use trimesh/plyfile and scipy, using Open3D only where a protocol asks for it
 ```
 
 ## Testing strategy
@@ -1083,14 +1059,7 @@ tests/fixtures/eth3d_tiny/
 
 ### Backend tests
 
-Optional backend tests should be skipped when dependencies are missing:
-
-```python
-pytest.importorskip("open3d")
-pytest.importorskip("trimesh")
-pytest.importorskip("evo")
-pytest.importorskip("pycolmap")
-```
+All backends are always installed, so backend tests do not use `pytest.importorskip`. Only the DTU MATLAB external-tool path may skip when MATLAB is absent, and it must skip with an explicit reason.
 
 ### Regression tests
 
@@ -1530,6 +1499,6 @@ it has schema coverage if it affects inputs or outputs
 it has protocol documentation if it changes evaluation behavior
 it has tests
 it records metadata needed for reproducibility
-it fails clearly when required files or optional dependencies are missing
+it fails clearly, stating the reason, when required files or the MATLAB external tool are missing
 it does not silently change alignment, masking, culling, scale, or sampling behavior
 ```

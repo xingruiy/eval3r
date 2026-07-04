@@ -6,6 +6,8 @@ This file gives operating rules for coding agents working on `eval3r`.
 
 `eval3r` is a plain 3D reconstruction evaluation library. It evaluates meshes, point clouds, depth predictions, and trajectories under explicit dataset-aware protocols.
 
+`eval3r` is a research-oriented project. Correctness, explicitness, and inspectability outrank packaging minimalism and install footprint. Every dependency is a required base dependency and is always installed; there is no optional-extra system to reason about. Prefer surfacing the full truth of what happened (what was resolved, what failed, and why) over terse or convenient output.
+
 The library should focus on:
 
 ```text
@@ -107,7 +109,7 @@ Before resuming a task, re-read the actual relevant files because task notes can
 .agent/protocols.md         source of truth for protocol behavior
 .agent/datasets.md          source of truth for dataset adapter behavior
 .agent/metrics.md           source of truth for metric definitions and aggregation
-.agent/backends.md          source of truth for backend delegation and optional dependencies
+.agent/backends.md          source of truth for backend delegation and dependencies
 .agent/reproducibility.md   source of truth for result files, hashing, and run metadata
 CLAUDE.md                 source of truth for agent workflow rules
 ```
@@ -301,13 +303,12 @@ Rendered depth comes from reconstructed meshes and may contain invalid or empty 
 Verify cam.txt parsing against the primary MVSNet / BlendedMVS parser before freezing fixtures.
 ```
 
-### KITTI-360 and Waymo
+### KITTI-360
 
 ```text
-These are primarily pose / sparse-LiDAR datasets for eval3r.
+This is primarily a pose / sparse-LiDAR dataset for eval3r.
 Do not label sparse LiDAR comparison as dense-surface reconstruction evaluation.
 KITTI-360 image_00 / image_01 are perspective; image_02 / image_03 are fisheye and require a capable backend or must be excluded by protocol.
-Waymo support must be optional because of heavy format dependencies.
 ```
 
 ## Metric implementation rules
@@ -352,26 +353,21 @@ record scale if Sim3 is used
 
 ## Backend rules
 
-Base package must not require:
+All Python dependencies are required base dependencies and are always installed. There is no optional-extra system. Do not add `pip install 'eval3r[...]'` install hints, `pytest.importorskip` guards, or "install this extra" error paths.
+
+MATLAB is the only optional external tool (it is not a pip package). It is used only for the DTU MATLAB official-script path; whether it was used must be recorded in result metadata.
+
+The project does not depend on:
 
 ```text
-Open3D
 PyTorch
-PyCOLMAP
+FAISS
 Waymo tooling
-MATLAB
 ```
 
-Optional features should fail with clear install messages.
+These were dropped: there is no torch/FAISS nearest-neighbor backend and no Waymo adapter.
 
-Example:
-
-```text
-This protocol requires the optional 'pose' extra because it uses evo.
-Install with: pip install 'eval3r[pose]'
-```
-
-Backend versions must be written to result metadata.
+Backend names and versions must be written to result metadata.
 
 ## Result and reproducibility rules
 
@@ -417,12 +413,11 @@ failure policy behavior
 dataset adapter parsing
 pose convention normalization
 masking / culling behavior
-backend-missing error messages
 ```
 
 Use tiny fixtures. Do not require full datasets in normal CI.
 
-Optional backend tests must use `pytest.importorskip`.
+All backends are always importable, so backend tests do not need `pytest.importorskip`. Tests that exercise the MATLAB external-tool path should skip cleanly when MATLAB is absent and say so explicitly.
 
 ## Documentation rules
 
@@ -524,6 +519,30 @@ which protocol required it
 how to fix it when obvious
 ```
 
+## Error and CLI verbosity rules
+
+This is a research tool. Silent, terse, or lossy output is a defect.
+
+Every handled error must explicitly state the reason:
+
+```text
+never swallow an exception or reduce it to a boolean or a bare exit code
+say what failed, why it failed, and the concrete inputs involved
+name the scene, the file path, the protocol, and the field or check that failed
+when a fix is obvious, state it
+prefer re-raising with added context over catching and hiding
+```
+
+The CLI must give rich, indicative, verbose output using `rich`:
+
+```text
+before running, echo the resolved configuration: protocol name and hash, dataset and variant, split, prediction manifest, and the alignment / masking / sampling / confidence / failure policies actually in effect
+echo the resolved input and output paths verbatim
+show per-scene progress and per-scene outcomes
+on failure, print the full reason verbatim (with traceback when available), never just a non-zero exit
+partial scene coverage and skipped scenes must be visible, not hidden behind an average
+```
+
 ## Definition of done
 
 A task is done only when:
@@ -535,5 +554,5 @@ docs are updated
 schema and protocol implications are handled
 result metadata is complete
 failure behavior is explicit
-optional dependency behavior is clear
+errors and CLI output explicitly state reasons and resolved configuration
 ```

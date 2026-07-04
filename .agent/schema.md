@@ -103,7 +103,6 @@ SourcePoseFormat = Literal[
     "tanks_temples_log",
     "co3d_frame_annotations",
     "kitti360_cam0_to_world",
-    "waymo_vehicle_to_global",
     "tum",
     "unknown",
 ]

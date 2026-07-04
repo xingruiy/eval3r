@@ -1,4 +1,4 @@
-# 011 — Depth metrics
+# 014 — Depth metrics
 
 ## Goal
 
@@ -19,7 +19,7 @@ first-class scale alignment; `e3r metric depth` runs end-to-end.
   kind: PNG/PFM/npy loading with `depth_unit` handling; invalid values passed to masking.
 - Per-frame then per-scene aggregation for depth sequences; depth sequences are never
   converted into scene reconstructions (hard boundary).
-- `single_depth` built-in protocol executes through the task-006 runner (same stages,
+- `single_depth` built-in protocol executes through the task-007 runner (same stages,
   depth-shaped load/mask/metric).
 - CLI: `e3r metric depth pred.png --gt gt.png --depth-unit 0.001 --align scale_median
   --align-granularity per_frame`.

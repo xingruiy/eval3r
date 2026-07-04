@@ -64,7 +64,6 @@ neural_rgbd_depth.yaml
 replica_variant_geometry.yaml
 co3d_pose_eval3r_native.yaml
 kitti360_pose.yaml
-waymo_pose.yaml
 blendedmvs_depth.yaml
 ```
 
@@ -183,9 +182,8 @@ backend_preferences:
 
 notes:
   - Single-file protocol for local comparison. Not a dataset benchmark.
-  - Point-cloud and mesh file IO requires the lightweight 'mesh' extra
-    (pip install 'eval3r[mesh]'); the default backends avoid Open3D so the
-    quick-check path works without heavy optional dependencies.
+  - Default backends use trimesh/plyfile for point-cloud and mesh file IO
+    and scipy for nearest-neighbor, keeping the quick-check path off Open3D.
 ```
 
 ## DTU official-like point-cloud protocol

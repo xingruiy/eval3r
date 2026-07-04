@@ -1,4 +1,4 @@
-# 010 — ETH3D adapter
+# 013 — ETH3D adapter
 
 ## Goal
 
@@ -62,8 +62,8 @@ pytest tests/unit/test_eth3d*.py
 e3r benchmark run preds/ --dataset eth3d --split training --protocol eth3d_training_official_like  # on fixture
 ```
 
-Acceptance per `.agent/plan.md` milestone; `pytest.importorskip("pycolmap")` guards
-optional tests.
+Acceptance per `.agent/plan.md` milestone. pycolmap is always installed, so no
+`pytest.importorskip` guard is needed.
 
 ## Status
 

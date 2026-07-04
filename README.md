@@ -10,7 +10,7 @@ Files:
 .agent/protocols.md         protocol rules and built-in protocol templates
 .agent/datasets.md          dataset adapter responsibilities and dataset-specific notes
 .agent/metrics.md           metric definitions, aggregation, and tests
-.agent/backends.md          backend delegation policy and optional dependencies
+.agent/backends.md          backend delegation policy and dependencies
 .agent/reproducibility.md   result files, hashing, fingerprints, and run metadata
 CLAUDE.md                 rules and guides for coding agents
 ```

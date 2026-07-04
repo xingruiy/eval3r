@@ -1,4 +1,4 @@
-# 008 — ScanNet adapter
+# 011 — ScanNet adapter
 
 ## Goal
 
@@ -25,7 +25,7 @@ culling and honest reconstruction-derived GT labeling.
 
 ## Out of Scope
 
-- Depth-metric evaluation on ScanNet sequences (possible later; task 011 adds depth metrics).
+- Depth-metric evaluation on ScanNet sequences (possible later; task 014 adds depth metrics).
 - Semantic/instance benchmarks (out of project scope entirely).
 
 ## Relevant Files

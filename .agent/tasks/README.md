@@ -12,23 +12,27 @@ relevant `.agent/*.md` docs and the actual code — task notes can be stale.
 | 001 | [001-repo-foundation.md](001-repo-foundation.md) | Package skeleton, pyproject, CI, lint, test, docs build, `e3r --help` | todo |
 | 002 | [002-core-schema.md](002-core-schema.md) | Pydantic models from `.agent/schema.md`, serialization tests, fixtures | todo |
 | 003 | [003-protocol-loader-hashing.md](003-protocol-loader-hashing.md) | Protocol YAML loader, canonical hashing, registry, built-in YAMLs | todo |
-| 004 | [004-backend-registry.md](004-backend-registry.md) | Backend registry, optional-dep errors, scipy/trimesh/plyfile backends | todo |
+| 004 | [004-backend-registry.md](004-backend-registry.md) | Backend registry (selection + version recording), scipy/trimesh/plyfile backends | todo |
 | 005 | [005-geometry-metrics.md](005-geometry-metrics.md) | Point-set geometry metrics with synthetic analytic tests | todo |
-| 006 | [006-runner-result-writer.md](006-runner-result-writer.md) | Staged pipeline runner, run directory writer, `e3r metric geometry` | todo |
-| 007 | [007-dtu-adapter.md](007-dtu-adapter.md) | DTU adapter, ObsMask/Plane, dtu_eval backend, protocol, fixture | todo |
-| 008 | [008-scannet-adapter.md](008-scannet-adapter.md) | ScanNet adapter, mesh variants, culling, `e3r benchmark run` integration | todo |
-| 009 | [009-tnt-official-wrapper.md](009-tnt-official-wrapper.md) | Tanks and Temples adapter + official script wrapper | todo |
-| 010 | [010-eth3d-adapter.md](010-eth3d-adapter.md) | ETH3D adapter, pycolmap cameras, official-tolerance validation | todo |
-| 011 | [011-depth-metrics.md](011-depth-metrics.md) | Depth IO, masks, scale alignment modes, `e3r metric depth` | todo |
-| 012 | [012-pose-metrics.md](012-pose-metrics.md) | evo backend, ATE/RPE, `e3r metric pose` | todo |
-| 013 | [013-reports-diffing.md](013-reports-diffing.md) | Markdown/LaTeX/HTML reports, partial-coverage banners, `e3r diff` | todo |
-| 014 | [014-plugin-api-release.md](014-plugin-api-release.md) | Plugin API, examples, PyPI release | todo |
+| 006 | [006-result-writer-environment.md](006-result-writer-environment.md) | Run directory writer, JSON/CSV output, environment metadata | todo |
+| 007 | [007-single-file-geometry-runner.md](007-single-file-geometry-runner.md) | Staged single-file geometry runner, `e3r metric geometry`, Python API | todo |
+| 008 | [008-benchmark-run-plumbing.md](008-benchmark-run-plumbing.md) | Generic dataset adapter registry, manifest resolution, `e3r benchmark run` | todo |
+| 009 | [009-dtu-adapter.md](009-dtu-adapter.md) | DTU adapter, ObsMask/Plane metadata, mm normalization, fixture | todo |
+| 010 | [010-dtu-official-evaluator.md](010-dtu-official-evaluator.md) | DTU official-like evaluator backend and protocol integration | todo |
+| 011 | [011-scannet-adapter.md](011-scannet-adapter.md) | ScanNet adapter, mesh variants, culling, benchmark integration | todo |
+| 012 | [012-tnt-official-wrapper.md](012-tnt-official-wrapper.md) | Tanks and Temples adapter + official script wrapper | todo |
+| 013 | [013-eth3d-adapter.md](013-eth3d-adapter.md) | ETH3D adapter, pycolmap cameras, official-tolerance validation | todo |
+| 014 | [014-depth-metrics.md](014-depth-metrics.md) | Depth IO, masks, scale alignment modes, `e3r metric depth` | todo |
+| 015 | [015-pose-metrics.md](015-pose-metrics.md) | evo backend, ATE/RPE, `e3r metric pose` | todo |
+| 016 | [016-reports-diffing.md](016-reports-diffing.md) | Markdown/LaTeX/HTML reports, partial-coverage banners, `e3r diff` | todo |
+| 017 | [017-public-release-docs.md](017-public-release-docs.md) | Release docs, examples, packaging checks, PyPI prep | todo |
 
 **Next task: 001**
 
 Tasks must be executed in order unless a task's Scope says otherwise; each depends on the
-deliverables of the previous ones (schemas before adapters, metrics before runners,
-single-file evaluation before dataset benchmarks).
+deliverables of the previous ones (schemas before adapters, metrics before runners, result
+writing before execution, single-file evaluation before dataset benchmarks, generic
+benchmark plumbing before real dataset adapters).
 
 ## Backlog (no task files yet — intentionally deferred)
 
@@ -43,7 +47,8 @@ Hypersim adapter          (ray-distance depth; meters_per_asset_unit; paid mesh 
 CO3D adapter              (frame_annotations.jgz; COLMAP-derived GT; object-centric)
 BlendedMVS adapter        (MVSNet cam.txt; verify parser against primary implementation)
 KITTI-360 adapter         (pose + sparse LiDAR; fisheye cameras out of minimal scope)
-Waymo adapter             (optional heavy backend; pose + sparse LiDAR)
+Plugin API                (defer until at least 3 built-in adapters are implemented and
+                           there is 1 concrete external-adapter use case)
 ```
 
 ## Conventions for task files

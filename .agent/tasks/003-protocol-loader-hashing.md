@@ -26,8 +26,8 @@ sha256 hash, and are discoverable through a protocol registry; `e3r protocol sho
 
 ## Out of Scope
 
-- Executing any protocol (task 006).
-- Adapter-side validation of dataset/protocol compatibility (tasks 007+).
+- Executing any protocol (task 007).
+- Adapter-side validation of dataset/protocol compatibility (task 008+).
 
 ## Relevant Files
 

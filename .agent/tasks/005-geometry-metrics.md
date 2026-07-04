@@ -24,8 +24,8 @@ Point-set geometry metrics (`accuracy`, `completeness`, `chamfer`, `precision@τ
 
 ## Out of Scope
 
-- Mesh loading/sampling (backend, task 004) and pipeline orchestration (task 006).
-- Depth and pose metrics (tasks 011, 012).
+- Mesh loading/sampling (backend, task 004) and pipeline orchestration (task 007).
+- Depth and pose metrics (tasks 014, 015).
 
 ## Relevant Files
 

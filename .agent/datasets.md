@@ -286,10 +286,9 @@ These can be useful when the exact benchmark variant is pinned. Replica has no n
 
 ```text
 KITTI-360
-Waymo Open Dataset
 ```
 
-These should be treated primarily as pose or sparse point comparison datasets, not dense-surface reconstruction benchmarks.
+This should be treated primarily as a pose or sparse point comparison dataset, not a dense-surface reconstruction benchmark.
 
 ## Dataset-specific adapter requirements
 
@@ -513,24 +512,6 @@ Rules:
 Do not label sparse-LiDAR comparison as dense-surface geometry.
 Do not interpolate missing poses without recording the policy.
 Do not silently treat image_02 / image_03 fisheye cameras as pinhole cameras.
-```
-
-### Waymo Open Dataset
-
-Adapter responsibilities:
-
-```text
-use optional Waymo backend for TFRecord / protobuf or Parquet input
-load vehicle-to-global pose and sensor calibrations
-support pose metrics and sparse-LiDAR comparison protocols
-record heavy optional dependency requirements
-```
-
-Rules:
-
-```text
-Do not make Waymo tooling a base dependency.
-Do not use a naive minimal-pinhole approximation without an explicit limitation.
 ```
 
 ## Adapter assumptions requiring direct fixture checks

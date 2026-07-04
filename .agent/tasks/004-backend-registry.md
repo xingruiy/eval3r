@@ -3,16 +3,16 @@
 ## Goal
 
 A backend registry keyed by kind (`mesh`, `pointcloud`, `nearest_neighbor`, `registration`,
-`trajectory`, `camera`, `depth_io`, `official_eval`) with clear missing-optional-dependency
-errors, version recording, and the three first backends: scipy NN, trimesh mesh, plyfile
-point cloud.
+`trajectory`, `camera`, `depth_io`, `official_eval`) for backend selection and version
+recording, plus the three first backends: scipy NN, trimesh mesh, plyfile point cloud. All
+backends are always installed, so there is no missing-dependency install path.
 
 ## Scope
 
 - `core/registry.py` (`BackendRegistry`): `get`, `available`, `require` per
-  `.agent/backends.md`; `require` raises the documented message format:
-  `This protocol requires the optional '<extra>' extra because it uses <lib>.`
-  `Install with: pip install 'eval3r[<extra>]'`.
+  `.agent/backends.md`; `require` selects a named backend and raises an explicit error when
+  the name is unknown for that kind (naming the kind and the available names). No install
+  hints — all backends are always installed.
 - Backend protocol interfaces (`MeshBackend`, `PointCloudBackend`, `NNBackend`, …) as
   typing.Protocol definitions.
 - `backends/nn_scipy.py`: cKDTree nearest distances; empty-input failure before backend call.
@@ -25,8 +25,8 @@ point cloud.
 
 ## Out of Scope
 
-- Open3D, torch, FAISS, evo, pycolmap, official-eval backends (added with the tasks that
-  need them; tests use `pytest.importorskip` when they arrive).
+- Open3D, evo, pycolmap, official-eval backends (added with the tasks that need them).
+  The project does not include torch/FAISS NN backends.
 - Any metric computation (task 005).
 
 ## Relevant Files
@@ -40,9 +40,9 @@ point cloud.
 1. Registry with kind/name registration, availability probing, and `require` errors.
 2. Implement the three backends behind the Protocol interfaces.
 3. Version metadata helper.
-4. Tests: registry lookup, missing-dep error message text, mesh sampling determinism
+4. Tests: registry lookup, unknown-backend-name error message text, mesh sampling determinism
    (same seed → same points), NN correctness on tiny hand-computed point sets,
-   plyfile round-trip. Use `pytest.importorskip("trimesh")` / `("plyfile")`.
+   plyfile round-trip. No `pytest.importorskip` — all backends are installed.
 
 ## Findings
 
@@ -59,7 +59,7 @@ pytest tests/unit/test_backend*.py
 python -c "from eval3r.core.registry import BackendRegistry"
 ```
 
-Uninstalling an extra (or simulating its absence) produces the documented error message.
+Requesting an unknown backend name for a kind produces the documented explicit error message.
 
 ## Status
 

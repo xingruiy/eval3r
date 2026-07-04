@@ -2,7 +2,7 @@
 
 Backends provide small adapter interfaces around external libraries and official evaluation tools. They keep eval3r focused on protocols, schemas, dataset adapters, metric definitions, and reproducibility records.
 
-The base package should stay light. Heavy or specialized libraries must be optional extras.
+eval3r is a research-oriented project, so all dependencies are required and always installed. There is no optional-extra system. MATLAB is the only optional external tool (it is not a pip package), used solely for the DTU MATLAB official-script path.
 
 ## Delegation policy
 
@@ -32,9 +32,9 @@ canonical hashing
 metric-definition choices
 ```
 
-## Base dependencies
+## Dependencies
 
-Base install:
+All dependencies are required and installed by a plain `pip install eval3r`:
 
 ```toml
 dependencies = [
@@ -45,36 +45,6 @@ dependencies = [
   "typer",
   "rich",
   "pydantic",
-]
-```
-
-The base package must not require:
-
-```text
-Open3D
-PyTorch
-PyCOLMAP
-FAISS
-evo
-Waymo tooling
-MATLAB
-```
-
-## Optional extras
-
-Recommended extras:
-
-```toml
-[project.optional-dependencies]
-mesh = ["trimesh", "plyfile"]
-open3d = ["open3d"]
-pose = ["evo"]
-colmap = ["pycolmap"]
-depth = ["imageio", "opencv-python"]
-torch = ["torch"]
-faiss = ["faiss-cpu"]
-waymo = ["waymo-open-dataset"]
-all = [
   "trimesh",
   "plyfile",
   "open3d",
@@ -85,16 +55,21 @@ all = [
 ]
 ```
 
-The `all` extra intentionally excludes `torch`, `faiss-cpu`, and `waymo-open-dataset`; those remain individually opt-in because they are heavy or platform-sensitive.
+There is no `[project.optional-dependencies]` table and no extras. Every backend below is always importable.
 
-The base install contains no point-cloud or mesh file loader. Loading a `.ply` for the single-file quick-check path requires the lightweight `mesh` extra (`trimesh`, `plyfile`); default backend preferences should point at `trimesh`/`plyfile`, not Open3D.
-
-Missing optional dependencies should fail with clear messages:
+The project intentionally does not depend on:
 
 ```text
-This protocol requires the optional 'pose' extra because it uses evo.
-Install with: pip install 'eval3r[pose]'
+PyTorch
+FAISS
+Waymo tooling
 ```
+
+There is no torch/FAISS nearest-neighbor backend and no Waymo adapter.
+
+MATLAB is the only optional external tool. It is not a pip package; it is used only for the DTU MATLAB official-script path, and whether it was used is recorded in result metadata. A missing MATLAB must fail with an explicit message naming the DTU MATLAB path and the alternative validated Python port.
+
+Default backend preferences should point at `trimesh`/`plyfile` for basic mesh/point-cloud IO and `scipy` for nearest-neighbor, using Open3D only where a protocol explicitly asks for it.
 
 ## Backend registry
 
@@ -117,8 +92,10 @@ The registry should expose:
 class BackendRegistry:
     def get(self, kind: str, name: str) -> Backend: ...
     def available(self, kind: str) -> list[str]: ...
-    def require(self, kind: str, name: str, extra: str | None = None) -> Backend: ...
+    def require(self, kind: str, name: str) -> Backend: ...
 ```
+
+`require` selects a named backend and fails with an explicit message if the name is unknown for that kind (naming the kind and the available names). It does not carry install hints, because all backends are always installed.
 
 Backend names and versions must be written into result metadata.
 
@@ -208,8 +185,6 @@ Delegates to:
 ```text
 scipy.spatial.cKDTree
 Open3D
-PyTorch / PyTorch3D
-FAISS
 ```
 
 Interface:
@@ -325,7 +300,6 @@ Delegates to:
 pycolmap
 minimal internal pinhole parser
 CO3D parser when implemented
-Waymo parser when implemented
 ```
 
 Interface:
@@ -354,7 +328,6 @@ Dataset notes:
 ETH3D uses COLMAP text format and may need nontrivial camera models.
 CO3D camera data lives in frame_annotations.jgz.
 BlendedMVS uses MVSNet cam.txt with world-to-camera extrinsics.
-Waymo uses per-sensor calibrations and vehicle-to-global frame poses.
 ```
 
 ## Depth IO backend
@@ -445,7 +418,6 @@ backend version
 library version
 important parameters
 whether approximate algorithms were used
-optional extra required
 ```
 
 Example:
@@ -471,7 +443,7 @@ Required tests:
 
 ```text
 backend registry lookup
-missing optional dependency error message
+unknown backend name error message (names the kind and available names)
 mesh sampling determinism
 nearest-neighbor correctness on small point sets
 trajectory backend output normalization
@@ -480,14 +452,7 @@ T&T wrapper dry-run or fixture output parsing
 DTU backend fixture with ObsMask / Plane behavior
 ```
 
-Optional backend tests should use:
-
-```python
-pytest.importorskip("open3d")
-pytest.importorskip("trimesh")
-pytest.importorskip("evo")
-pytest.importorskip("pycolmap")
-```
+All backends are always installed, so backend tests do not use `pytest.importorskip`. Only the DTU MATLAB external-tool path may skip when MATLAB is absent, and it must skip with an explicit reason.
 
 ## Backend non-goals
 

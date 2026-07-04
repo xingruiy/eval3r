@@ -1,4 +1,4 @@
-# 012 — Pose metrics
+# 015 — Pose metrics
 
 ## Goal
 
@@ -16,15 +16,14 @@ association and alignment policies; `e3r metric pose` runs end-to-end.
 - Alignment modes `trajectory_se3` / `trajectory_sim3` via evo; Sim3 disallowed for
   metric-scale protocols unless explicitly allowed by the protocol.
 - Diagnostic metric `alignment_scale_error = |log(s)|`.
-- `single_pose` built-in protocol through the task-006 runner; alignment transforms saved
+- `single_pose` built-in protocol through the task-007 runner; alignment transforms saved
   to `alignment_transforms.json`.
 - CLI: `e3r metric pose pred_tum.txt --gt gt_tum.txt --backend evo --align sim3`.
-- Optional-dependency behavior: without evo, the documented `pip install 'eval3r[pose]'`
-  error; tests use `pytest.importorskip("evo")`.
+- evo is always installed (no extra); tests exercise it directly without `pytest.importorskip`.
 
 ## Out of Scope
 
-- Dataset pose adapters (KITTI-360, Waymo, CO3D — backlog).
+- Dataset pose adapters (KITTI-360, CO3D — backlog).
 - Interpolation policies beyond evo defaults (record policy; extend later).
 
 ## Relevant Files
