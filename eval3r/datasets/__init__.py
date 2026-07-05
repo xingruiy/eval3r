@@ -12,12 +12,14 @@ from eval3r.datasets.custom import CustomAdapter
 from eval3r.datasets.dtu import DTUAdapter
 from eval3r.datasets.registry import DatasetRegistry, default_registry
 from eval3r.datasets.scannet import ScanNetAdapter
+from eval3r.datasets.tanks_temples import TanksAndTemplesAdapter
 
 __all__ = [
     "DatasetAdapter",
     "CustomAdapter",
     "DTUAdapter",
     "ScanNetAdapter",
+    "TanksAndTemplesAdapter",
     "DatasetRegistry",
     "default_registry",
 ]

@@ -218,6 +218,91 @@ def _evaluate_scene_official(
     return SceneOutcome(scene_id=scene_id, metrics=metrics)
 
 
+def _evaluate_scene_tnt_official(
+    adapter: DatasetAdapter,
+    pred_root: Path,
+    manifest: PredictionManifest | None,
+    scene_id: str,
+    protocol: EvalProtocol,
+    protocol_hash: str,
+    registry: BackendRegistry,
+    official_name: str,
+    out_root: Path,
+) -> SceneOutcome:
+    """Evaluate one scene by wrapping a file-based official toolbox (Tanks and Temples).
+
+    Unlike the DTU port (which takes point arrays + ObsMask), this official backend
+    reads the prediction/GT/crop/trajectory files itself and does its own alignment,
+    ICP, cropping, and per-scene thresholding. eval3r resolves the five per-scene
+    artifacts and the prediction path, invokes the toolbox, and records the official
+    precision/recall/F-score plus the per-scene distance threshold, command, and
+    toolbox version. The per-scene threshold comes from the official output, never a
+    hardcoded global constant (``.agent/datasets.md`` Tanks and Temples rules).
+    """
+    from eval3r.core.errors import MetricError
+
+    if not hasattr(adapter, "official_artifacts"):
+        raise BenchmarkError(
+            f"protocol '{protocol.name}' needs the official evaluator '{official_name}', but "
+            f"dataset '{adapter.name}' provides no official_artifacts() to resolve the GT point "
+            f"cloud, crop volume, alignment transform, and .log trajectory."
+        )
+    evaluator = registry.require("official_eval", official_name)
+
+    try:
+        recon = adapter.resolve_prediction(pred_root, scene_id, manifest)
+        if recon.path is None:
+            raise DatasetError(f"scene '{scene_id}' resolved without a prediction path.")
+        art = adapter.official_artifacts(scene_id)
+    except (DatasetError, InvalidGeometryError) as exc:
+        return SceneOutcome(
+            scene_id=scene_id,
+            failure=SceneFailure(scene_id=scene_id, stage="resolve", reason=str(exc)),
+        )
+
+    try:
+        result = evaluator.evaluate_scene(
+            scene_id,
+            dataset_dir=art["dataset_dir"],
+            traj_path=art["trajectory_log"],
+            ply_path=recon.path,
+            out_dir=out_root / scene_id,
+        )
+    except MetricError as exc:
+        return SceneOutcome(
+            scene_id=scene_id,
+            failure=SceneFailure(scene_id=scene_id, stage="metric", reason=str(exc)),
+        )
+
+    values = {
+        "precision": result.precision,
+        "recall": result.recall,
+        "fscore": result.fscore,
+    }
+    meta = {
+        "evaluator_method": getattr(evaluator, "method", official_name),
+        # Per-scene threshold resolved by the official backend, not a global constant.
+        "distance_tau": result.distance_tau,
+        "command": result.command,
+        "toolbox_dir": result.toolbox_dir,
+        "toolbox_commit": result.toolbox_commit,
+    }
+    metrics = [
+        MetricResult(
+            name=spec.name,
+            value=values.get(spec.name),
+            scene_id=scene_id,
+            protocol=protocol.name,
+            protocol_hash=protocol_hash,
+            backend=official_name,
+            metadata={**meta, "threshold": result.distance_tau},
+        )
+        for spec in protocol.metrics
+        if spec.name in values
+    ]
+    return SceneOutcome(scene_id=scene_id, metrics=metrics)
+
+
 def _evaluate_scene_visibility_culled(
     adapter: DatasetAdapter,
     pred_root: Path,
@@ -405,16 +490,33 @@ def run_benchmark_geometry(
     resolve_manifest = None if inferred else manifest
 
     official_name = protocol.backend_preferences.get("official_eval")
+    # Official evaluators come in two shapes: point-array (DTU port, ObsMask) and
+    # file-based/artifacts (Tanks and Temples toolbox, which reads files + runs ICP).
+    official_artifacts_mode = False
+    if official_name:
+        official_artifacts_mode = (
+            getattr(registry.require("official_eval", official_name), "input_mode", "point_arrays")
+            == "artifacts"
+        )
     # gt_visibility culling is realized by the render+TSDF-trim 'visibility' backend.
     visibility_culling = protocol.masking.pred_culling.method == "gt_visibility"
+
+    import tempfile
 
     per_scene: list[MetricResult] = []
     failures: list[SceneFailure] = []
     alignment_transforms: list[dict[str, Any]] = []
     evaluated = 0
+    tnt_out_root = Path(tempfile.mkdtemp(prefix="eval3r_tnt_")) if official_artifacts_mode else None
 
     for scene_id in scenes:
-        if official_name:
+        if official_name and official_artifacts_mode:
+            assert tnt_out_root is not None
+            outcome = _evaluate_scene_tnt_official(
+                adapter, pred_root, resolve_manifest, scene_id, protocol, phash,
+                registry, official_name, tnt_out_root,
+            )
+        elif official_name:
             outcome = _evaluate_scene_official(
                 adapter, pred_root, resolve_manifest, scene_id, protocol, phash,
                 registry, official_name, DEFAULT_BASE_SEED,

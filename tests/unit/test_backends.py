@@ -31,7 +31,7 @@ def test_default_registry_has_builtin_backends() -> None:
     assert reg.available("nearest_neighbor") == ["scipy"]
     assert reg.available("mesh") == ["trimesh"]
     assert reg.available("pointcloud") == ["open3d", "plyfile"]
-    assert reg.available("official_eval") == ["dtu"]
+    assert reg.available("official_eval") == ["dtu", "tnt_official"]
     # ScanNet visibility culling (task 011): render + TSDF trim.
     assert reg.available("visibility") == ["render_tsdf"]
 

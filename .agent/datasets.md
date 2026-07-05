@@ -375,6 +375,26 @@ Do not use a global threshold for all scenes.
 Do not claim local official evaluation for withheld-GT splits.
 ```
 
+Implementation (task 012):
+
+```text
+TanksAndTemplesAdapter resolves five per-scene artifacts from <root>/<Scene>/:
+  <Scene>.ply (laser-scan GT, metres), <Scene>.json (crop volume),
+  <Scene>_trans.txt (alignment), <Scene>_COLMAP_SfM.log (.log trajectory),
+  <Scene>_mapping_reference.txt.
+official_artifacts(scene) validates all four required inputs and returns the scene
+  directory (dataset_dir) the official toolbox reads by naming convention.
+GT is labelled laser_scan / independent / dense_surface, unit metres.
+gt_fingerprint jointly hashes GT point cloud + crop + alignment transform.
+Only the training split is locally evaluable; local_evaluation('intermediate') and
+  ('advanced') return server_only so the CLI refuses them before any computation.
+Official precision/recall/F-score, ICP, cropping, and per-scene dTau are delegated to
+  the tnt_official backend (never reimplemented); the per-scene threshold comes from the
+  official output and is recorded per scene. Fidelity is 'official'.
+Full-dataset validation needs the official toolbox checkout + the real GT and is a
+  documented manual step; CI drives a fake toolbox fixture.
+```
+
 ### ETH3D
 
 Adapter responsibilities:

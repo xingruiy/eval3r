@@ -392,6 +392,20 @@ training split can be local if GT is public
 intermediate / advanced splits are server-only
 ```
 
+Implementation (task 012): the `tnt_official` backend (`official_eval` kind,
+method `official_script_wrapper`) wraps the official `isl-org/TanksAndTemples`
+`python_toolbox/evaluation` toolbox. It is a **user-supplied external checkout**, not a
+pip package (like the DTU MATLAB path); it is located from an explicit `toolbox_dir` or
+the `EVAL3R_TNT_TOOLBOX` / `TANKSANDTEMPLES_TOOLBOX` environment variable. The backend
+invokes the official `run.py` as a subprocess
+(`--dataset-dir <scene_dir> --traj-path <log> --ply-path <pred> --out-dir <tmp>`), parses
+its printed `precision` / `recall` / `f-score` / `distance tau` summary, and records the
+command, the resolved toolbox dir, and the toolbox git commit. The per-scene threshold
+(`dTau`) is read from the official output, never hardcoded in eval3r. When the toolbox is
+absent the backend fails explicitly (naming the env vars and the repo URL) so a run never
+emits unofficial numbers; wrapper tests drive a fake toolbox fixture and the parse/absent
+paths without the heavy open3d toolbox.
+
 ### DTU evaluation backend
 
 Responsibilities:

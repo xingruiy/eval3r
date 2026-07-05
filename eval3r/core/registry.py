@@ -205,6 +205,7 @@ def default_registry() -> BackendRegistry:
         from eval3r.backends.nn_scipy import ScipyNNBackend
         from eval3r.backends.pointcloud_open3d import Open3dPointCloudBackend
         from eval3r.backends.pointcloud_plyfile import PlyfilePointCloudBackend
+        from eval3r.backends.tnt_official import TntOfficialEval
         from eval3r.backends.visibility_render import RenderTsdfVisibilityCull
 
         registry.register("mesh", TrimeshMeshBackend())
@@ -212,6 +213,7 @@ def default_registry() -> BackendRegistry:
         registry.register("pointcloud", Open3dPointCloudBackend())
         registry.register("nearest_neighbor", ScipyNNBackend())
         registry.register("official_eval", DTUOfficialEval())
+        registry.register("official_eval", TntOfficialEval())
         registry.register("visibility", RenderTsdfVisibilityCull())
         _DEFAULT_REGISTRY = registry
     return _DEFAULT_REGISTRY
