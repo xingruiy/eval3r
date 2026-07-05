@@ -286,6 +286,7 @@ def _evaluate_scene_tnt_official(
         "command": result.command,
         "toolbox_dir": result.toolbox_dir,
         "toolbox_commit": result.toolbox_commit,
+        "python_executable": result.python_executable,
     }
     metrics = [
         MetricResult(

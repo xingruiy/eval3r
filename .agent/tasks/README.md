@@ -20,7 +20,7 @@ relevant `.agent/*.md` docs and the actual code — task notes can be stale.
 | 009 | [009-dtu-adapter.md](009-dtu-adapter.md) | DTU adapter, ObsMask/Plane metadata, mm normalization, fixture | done |
 | 010 | [010-dtu-official-evaluator.md](010-dtu-official-evaluator.md) | DTU official-like evaluator backend and protocol integration | done |
 | 011 | [011-scannet-adapter.md](011-scannet-adapter.md) | ScanNet adapter, mesh variants, culling, benchmark integration | done |
-| 012 | [012-tnt-official-wrapper.md](012-tnt-official-wrapper.md) | Tanks and Temples adapter + official script wrapper | done |
+| 012 | [012-tnt-official-wrapper.md](012-tnt-official-wrapper.md) ([report](reports/012-tnt-official-wrapper.md)) | Tanks and Temples adapter + official script wrapper | done |
 | 013 | [013-eth3d-adapter.md](013-eth3d-adapter.md) | ETH3D adapter, pycolmap cameras, official-tolerance validation | todo |
 | 014 | [014-depth-metrics.md](014-depth-metrics.md) | Depth IO, masks, scale alignment modes, `e3r metric depth` | todo |
 | 015 | [015-pose-metrics.md](015-pose-metrics.md) | evo backend, ATE/RPE, `e3r metric pose` | todo |
@@ -57,3 +57,8 @@ Every task file has: Goal, Scope, Out of Scope, Relevant Files, Plan, Findings, 
 Verification, Status. Mark the active task `in_progress` before editing code; record durable
 findings and decisions (not transcripts); record verification commands and outcomes; mark
 `done` only after verification passes and update this index in the same change.
+
+At the end of every task, write a task report at `reports/NNN-short-name.md` (see the "Task
+report rule" in `CLAUDE.md`) and link it from the table above. The report is part of the
+definition of done. Official-eval paths must be verified against the **real** official
+toolbox (no fake stand-in); see the "Official code / toolbox rule" in `CLAUDE.md`.

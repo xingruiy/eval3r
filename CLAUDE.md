@@ -113,6 +113,23 @@ resume interrupted sessions from the first non-done task in README.md
 
 Before resuming a task, re-read the actual relevant files because task notes can be stale.
 
+### Task report rule
+
+At the end of **every** task, generate a task report at `.agent/tasks/reports/NNN-short-name.md`
+(mirroring the task file's number/slug). Link it from `.agent/tasks/README.md`. The report is a
+concise, human-readable summary of what actually happened, not a transcript. It must state:
+
+```text
+what was built and why (the intent)
+what changed (files/modules/tests, at a glance)
+how it was verified (exact commands + real outcomes, including real official-toolbox runs)
+any official-toolbox compat patch applied (what/why) or result-affecting issue escalated
+what is NOT covered / known limitations / follow-ups
+final status and the commit hash
+```
+
+The report is written before marking the task `done`, and is part of the definition of done.
+
 ## Source-of-truth files
 
 ```text
@@ -381,6 +398,31 @@ These were dropped: there is no torch/FAISS nearest-neighbor backend and no Waym
 
 Backend names and versions must be written to result metadata.
 
+### Official code / toolbox rule
+
+Always evaluate and compare against the **real official code or toolbox**. Never invent,
+stub, mock, or vendor a "fake"/lookalike evaluator to stand in for the official one — a fake
+toolbox does not prove eval3r produces official-fidelity numbers, so it is not acceptable
+even for tests. Obtain the real toolbox (user-supplied checkout / env var / documented
+clone) and drive it end-to-end on real data.
+
+If the official code does not run out of the box:
+
+```text
+if it is a mechanical incompatibility that does NOT change results
+  (e.g. a version API break such as open3d moving a symbol, a Python-2→3 print,
+   a renamed import, a deprecated kwarg) — just fix it so it runs, and record the
+   exact patch (what/why) in result metadata and the task report.
+if the failure could change the numbers it produces
+  (algorithm change, different threshold/default, unclear semantics, non-obvious fix) —
+  STOP and tell the user; do not guess a fix that could alter the score.
+```
+
+Fixing a mechanical version-compat break to make the real toolbox run is explicitly allowed
+and is NOT "reimplementing" it. Reimplementing the scoring logic, or substituting a fake, is
+still forbidden. Record the toolbox source, commit/version, and any applied compat patch in
+result metadata and the task report.
+
 ## Result and reproducibility rules
 
 Every benchmark result must record:
@@ -428,6 +470,13 @@ masking / culling behavior
 ```
 
 Use tiny fixtures. Do not require full datasets in normal CI.
+
+Tiny fixtures may stand in for **datasets** (small synthetic scenes), but never for an
+**official evaluator**. Do not build a fake/lookalike toolbox to fake official numbers (see
+"Official code / toolbox rule"). A test that exercises an official-eval wrapper must invoke
+the real official code; if the real toolbox is absent in the current environment, the test
+skips cleanly and says so explicitly (like the MATLAB path), rather than substituting a fake
+that reports fabricated scores.
 
 All backends are always importable, so backend tests do not need `pytest.importorskip`. Tests that exercise the MATLAB external-tool path should skip cleanly when MATLAB is absent and say so explicitly.
 
@@ -567,4 +616,6 @@ schema and protocol implications are handled
 result metadata is complete
 failure behavior is explicit
 errors and CLI output explicitly state reasons and resolved configuration
+official-eval paths were verified against the real official toolbox (no fake stand-in)
+a task report exists at .agent/tasks/reports/NNN-short-name.md
 ```

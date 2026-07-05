@@ -391,8 +391,12 @@ Only the training split is locally evaluable; local_evaluation('intermediate') a
 Official precision/recall/F-score, ICP, cropping, and per-scene dTau are delegated to
   the tnt_official backend (never reimplemented); the per-scene threshold comes from the
   official output and is recorded per scene. Fidelity is 'official'.
-Full-dataset validation needs the official toolbox checkout + the real GT and is a
-  documented manual step; CI drives a fake toolbox fixture.
+The official toolbox is run byte-for-byte unmodified under its pinned open3d==0.9
+  interpreter (EVAL3R_TNT_PYTHON), never ported to newer open3d (a result-affecting
+  change). No fake toolbox exists: the end-to-end tests drive the real toolbox and skip
+  when EVAL3R_TNT_TOOLBOX / EVAL3R_TNT_PYTHON / EVAL3R_TNT_DATA are unset.
+Verified end-to-end on real Barn (commit 2a0d1b25, prediction = Barn_COLMAP.ply):
+  precision 0.4569 / recall 0.5529 / f-score 0.5003 at dTau 0.01.
 ```
 
 ### ETH3D

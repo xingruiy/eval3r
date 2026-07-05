@@ -400,11 +400,29 @@ the `EVAL3R_TNT_TOOLBOX` / `TANKSANDTEMPLES_TOOLBOX` environment variable. The b
 invokes the official `run.py` as a subprocess
 (`--dataset-dir <scene_dir> --traj-path <log> --ply-path <pred> --out-dir <tmp>`), parses
 its printed `precision` / `recall` / `f-score` / `distance tau` summary, and records the
-command, the resolved toolbox dir, and the toolbox git commit. The per-scene threshold
-(`dTau`) is read from the official output, never hardcoded in eval3r. When the toolbox is
-absent the backend fails explicitly (naming the env vars and the repo URL) so a run never
-emits unofficial numbers; wrapper tests drive a fake toolbox fixture and the parse/absent
-paths without the heavy open3d toolbox.
+command, the resolved toolbox dir, the toolbox git commit, and the interpreter used. The
+per-scene threshold (`dTau`) is read from the official output, never hardcoded in eval3r.
+When the toolbox is absent the backend fails explicitly (naming the env vars and the repo
+URL) so a run never emits unofficial numbers.
+
+**Pinned-interpreter, unmodified toolbox.** The toolbox pins `open3d==0.9` (its
+`requirements.txt`), whose `open3d.registration` namespace **and** RANSAC convergence
+semantics (`RANSACConvergenceCriteria(max_iteration, max_validation)` and a `checkers`-less
+`registration_ransac_based_on_correspondence` signature) differ from newer open3d. Porting
+those calls to open3d 0.19 is a *result-affecting* change (it alters the trajectory
+alignment used for scoring), so per the "Official code / toolbox rule" the toolbox is run
+**byte-for-byte unmodified** under its own pinned interpreter instead of being ported. The
+interpreter is configured via an explicit `python_executable` or the `EVAL3R_TNT_PYTHON`
+env var (default: the current interpreter), and is recorded in result metadata. A
+`conda create -n tnt_toolbox python=3.7 && pip install open3d==0.9.0.0 matplotlib` env
+satisfies the pin. Verified end-to-end on real Barn data (commit `2a0d1b25`, prediction =
+`Barn_COLMAP.ply`): precision 0.4569 / recall 0.5529 / f-score 0.5003 at dTau 0.01 in ~150s.
+
+**Testing.** No fake toolbox exists (a fake official evaluator is forbidden). The
+end-to-end wrapper/benchmark tests drive the **real** toolbox and skip cleanly (like the
+MATLAB path) when `EVAL3R_TNT_TOOLBOX` / `EVAL3R_TNT_PYTHON` / `EVAL3R_TNT_DATA` are not
+set; the parse, toolbox/interpreter resolution, and absent-toolbox paths are unit-tested
+directly and always run.
 
 ### DTU evaluation backend
 

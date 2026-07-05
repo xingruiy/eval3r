@@ -64,15 +64,20 @@ refused as server-only.
   `dTau` comes from `config.py` `scenes_tau_dict` (Barn 0.01, Caterpillar 0.005, Church 0.025,
   Courthouse 0.025, Ignatius 0.003, Meetingroom 0.01, Truck 0.005). The toolbox pins
   `open3d==0.9`.
-- **Real-toolbox validation (this task):** cloned the toolbox (commit `2a0d1b25`) and drove it
-  through the real `TntOfficialEval` wrapper on real Barn data (`Barn_COLMAP.ply` as the
-  prediction). The wrapper resolved the checkout, recorded the commit, built the correct
-  command, launched `run.py` (which loaded the real GT/crop/trans/log/mapping and reached
-  `trajectory_alignment`), and the run failed at `o3d.registration.RANSACConvergenceCriteria()`
-  — the open3d 0.9→0.19 API break (`open3d.registration` moved to `open3d.pipelines.registration`),
-  **not** a wrapper bug. The wrapper surfaced it verbatim (traceback + stderr + command) as a
-  `MetricError`. A full real score needs the toolbox's pinned `open3d==0.9` env; that is the
-  documented manual step. Patching the official code is out of scope (do-not-reimplement rule).
+- **Real-toolbox validation (task 012 rework):** the toolbox pins `open3d==0.9`. Under the
+  project's newer open3d it fails at `o3d.registration.RANSACConvergenceCriteria()`. That is
+  **not** a pure namespace move: open3d 0.9's `RANSACConvergenceCriteria(max_iteration,
+  max_validation)` and the `checkers`-less `registration_ransac_based_on_correspondence`
+  signature (registration.py:71,94) differ semantically from newer open3d, so porting them
+  would change the trajectory alignment used for scoring — a **result-affecting** change.
+  Per the "Official code / toolbox rule" the toolbox is therefore run **byte-for-byte
+  unmodified** under its own pinned interpreter, not ported.
+- Created a pinned env: `conda create -n tnt_toolbox python=3.7` + `pip install open3d==0.9.0.0
+  matplotlib numpy`. Drove the **real** unmodified toolbox (commit `2a0d1b25`) through the real
+  `TntOfficialEval` wrapper on real Barn (`/mnt/dataset/tnt/Barn`, prediction `Barn_COLMAP.ply`):
+  **precision 0.4569 / recall 0.5529 / f-score 0.5003 at dTau 0.01** in ~150s. The wrapper
+  resolved the checkout + interpreter, built the correct command, recorded commit + interpreter,
+  and parsed the real official summary. This is a genuine official-fidelity run — no fake toolbox.
 
 ## Decisions
 
@@ -83,9 +88,13 @@ refused as server-only.
   official evaluation). Absent toolbox → explicit `BackendError` naming the env vars + repo URL.
 - `backends/tnt_official.py` `TntOfficialEval` (`official_eval` kind, name `tnt_official`,
   method `official_script_wrapper`, `input_mode="artifacts"`): subprocess-invokes the official
-  `run.py`, records command + toolbox dir + git commit, and parses the printed summary via a
-  pure `parse_official_output`. Per-scene `dTau` is read from the official output, never
-  hardcoded in eval3r.
+  `run.py`, records command + toolbox dir + git commit + **interpreter used**, and parses the
+  printed summary via a pure `parse_official_output`. Per-scene `dTau` is read from the official
+  output, never hardcoded in eval3r.
+- **Pinned interpreter, unmodified toolbox.** Because the toolbox pins `open3d==0.9` and
+  porting its RANSAC calls to newer open3d is result-affecting, the interpreter that runs the
+  toolbox is configurable via `python_executable` / `EVAL3R_TNT_PYTHON` (default: current
+  interpreter) and recorded in metadata. The official code is never modified.
 - `datasets/tanks_temples.py` `TanksAndTemplesAdapter`: resolves the five per-scene artifacts
   (`official_artifacts`), GT `laser_scan`/`independent`/`dense_surface` in metres, joint
   `gt_fingerprint` over GT+crop+trans, official training/intermediate/advanced scene lists.
@@ -95,26 +104,32 @@ refused as server-only.
   the evaluator's `input_mode == "artifacts"` (keeps the DTU point-array branch intact).
 - Protocol YAMLs (`tanks_temples_training_official`, `tanks_temples_intermediate_server_only`)
   were already present and unchanged → pinned hashes unchanged.
-- Testing without the heavy real toolbox: a fake-toolbox fixture (`fake_toolbox/run.py`) mirrors
-  the official CLI + output format exactly, so the real command-build + subprocess + parse path
-  is exercised end-to-end in CI; parse and absent-toolbox paths tested directly.
+- **No fake toolbox** (a fake official evaluator is forbidden by the "Official code / toolbox
+  rule"). The end-to-end wrapper + benchmark tests drive the **real** toolbox and skip cleanly
+  (like the MATLAB path) when `EVAL3R_TNT_TOOLBOX` / `EVAL3R_TNT_PYTHON` / `EVAL3R_TNT_DATA` are
+  unset. Parse, toolbox/interpreter resolution, and absent-toolbox paths are unit-tested directly
+  and always run. The earlier `fake_toolbox/run.py` fixture was removed.
 
 ## Verification
 
 ```bash
 ruff check .            # All checks passed!
 mypy eval3r             # Success: no issues found in 89 source files
-pytest -q               # 249 passed
+pytest -q               # 247 passed, 3 skipped (real-toolbox tests skip when unconfigured)
 mkdocs build            # OK
-# real toolbox (offline, not committed): wrapper drove isl-org/TanksAndTemples @2a0d1b25 on
-#   real Barn; correct command + recorded commit; failed inside toolbox on open3d 0.9 vs 0.19
-#   (needs pinned open3d==0.9 env) — surfaced verbatim, not a wrapper defect.
+# REAL toolbox (pinned env, not committed): with EVAL3R_TNT_TOOLBOX + EVAL3R_TNT_PYTHON
+#   (open3d==0.9 py3.7 env) + EVAL3R_TNT_DATA=/mnt/dataset/tnt set, the real-toolbox tests run
+#   the unmodified isl-org/TanksAndTemples @2a0d1b25 on real Barn (pred=Barn_COLMAP.ply):
+#   precision 0.4569 / recall 0.5529 / f-score 0.5003 @ dTau 0.01, ~150s. Failure path
+#   (unknown scene dir) surfaces MetricError.
 ```
 
-Covered by `tests/unit/test_tnt_adapter.py` (13), `tests/unit/test_tnt_official.py` (8, incl.
-fake-toolbox subprocess run, parse, absent-toolbox refusal), `tests/integration/test_tnt_benchmark.py`
-(training run via fake toolbox with per-scene dTau recorded; intermediate split refused
-server-only). Fixture: `tests/fixtures/tanks_temples_tiny/`.
+Covered by `tests/unit/test_tnt_adapter.py` (13), `tests/unit/test_tnt_official.py`
+(pure: registered/parse/parse-missing/resolve_python/absent-toolbox/no-run.py/backend_info,
+plus real-toolbox success + failure gated on env), `tests/integration/test_tnt_benchmark.py`
+(real-toolbox training run gated on env with per-scene dTau + interpreter recorded; intermediate
+split refused server-only). Synthetic dataset fixture: `tests/fixtures/tanks_temples_tiny/`
+(no fake toolbox).
 
 ## Status
 

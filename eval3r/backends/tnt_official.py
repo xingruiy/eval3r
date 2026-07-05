@@ -13,6 +13,14 @@ path: not a pip package). It is located from an explicit ``toolbox_dir`` or the
 absent the wrapper raises an explicit error naming what is missing and where to get it,
 so a run fails loudly rather than emitting unofficial numbers, and wrapper tests skip
 cleanly. The per-scene threshold is read from the official output, never hardcoded here.
+
+The toolbox pins ``open3d==0.9`` (its ``requirements.txt``), whose ``open3d.registration``
+API and RANSAC convergence semantics differ from newer open3d in ways that could change
+the alignment and therefore the score. Rather than porting the official code to a newer
+open3d (a result-affecting change), the toolbox is run **unmodified** under its own pinned
+interpreter, configured via an explicit ``python_executable`` or the ``EVAL3R_TNT_PYTHON``
+environment variable (default: the current interpreter). The interpreter used is recorded
+in result metadata so the environment behind the official numbers is auditable.
 """
 
 from __future__ import annotations
@@ -28,6 +36,8 @@ from eval3r.core.errors import MetricError
 from eval3r.core.registry import BackendError, BackendInfo
 
 _TOOLBOX_ENV_VARS = ("EVAL3R_TNT_TOOLBOX", "TANKSANDTEMPLES_TOOLBOX")
+# The toolbox pins open3d==0.9; run it under its own interpreter, not necessarily ours.
+_PYTHON_ENV_VARS = ("EVAL3R_TNT_PYTHON",)
 _TOOLBOX_URL = "https://github.com/isl-org/TanksAndTemples (python_toolbox/evaluation)"
 
 # The official run.py prints lines like ``precision : 0.9033`` / ``distance tau : 0.003``.
@@ -50,6 +60,7 @@ class TntEvalResult:
     command: list[str] = field(default_factory=list)
     toolbox_dir: str | None = None
     toolbox_commit: str | None = None
+    python_executable: str | None = None
     out_dir: str | None = None
 
 
@@ -86,10 +97,29 @@ class TntOfficialEval:
     # path rather than the DTU-style point-array path.
     input_mode = "artifacts"
 
-    def __init__(self, toolbox_dir: Path | str | None = None) -> None:
+    def __init__(
+        self,
+        toolbox_dir: Path | str | None = None,
+        python_executable: str | None = None,
+    ) -> None:
         self.toolbox_dir = Path(toolbox_dir) if toolbox_dir is not None else None
+        self.python_executable = python_executable
 
     # --- toolbox resolution ----------------------------------------------------
+
+    def _resolve_python(self) -> str:
+        """Interpreter that runs the toolbox (its pinned open3d==0.9 env when configured).
+
+        Explicit ``python_executable`` wins, then ``EVAL3R_TNT_PYTHON``; otherwise the
+        current interpreter. Recorded in metadata so the env behind the numbers is known.
+        """
+        if self.python_executable:
+            return self.python_executable
+        for var in _PYTHON_ENV_VARS:
+            value = os.environ.get(var)
+            if value:
+                return value
+        return sys.executable
 
     def _resolve_toolbox(self) -> Path:
         candidate = self.toolbox_dir
@@ -162,10 +192,11 @@ class TntOfficialEval:
         is the prediction point cloud; ``out_dir`` receives the toolbox's output files.
         """
         toolbox = self._resolve_toolbox()
+        python_executable = self._resolve_python()
         out_dir = Path(out_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
         command = [
-            sys.executable,
+            python_executable,
             str(toolbox / "run.py"),
             "--dataset-dir", str(dataset_dir),
             "--traj-path", str(traj_path),
@@ -203,5 +234,6 @@ class TntOfficialEval:
             command=command,
             toolbox_dir=str(toolbox),
             toolbox_commit=self._toolbox_commit(toolbox),
+            python_executable=python_executable,
             out_dir=str(out_dir),
         )
