@@ -27,6 +27,7 @@ from eval3r.core.hashing import protocol_hash as compute_protocol_hash
 from eval3r.core.protocol import EvalProtocol
 from eval3r.core.registry import BackendRegistry, default_registry
 from eval3r.core.result import MetricResult, RunResult, SceneFailure
+from eval3r.metrics.diagnostics import build_diagnostic_metrics, partition_specs
 from eval3r.pipeline.stages.align import AlignmentResult, align_geometry
 from eval3r.pipeline.stages.load import GeometryKind, load_geometry
 from eval3r.pipeline.stages.mask import apply_culling
@@ -169,11 +170,21 @@ def evaluate_geometry_scene(
         )
 
         stage = "metric"
+        geometry_specs, diagnostic_specs = partition_specs(protocol.metrics)
         metrics = compute_scene_metrics(
-            pred_points, gt_points, protocol.metrics,
+            pred_points, gt_points, geometry_specs,
             protocol=protocol.name, protocol_hash=protocol_hash,
             nn_backend=nn_backend, scene_id=scene_id,
         )
+        if diagnostic_specs:
+            # The single-file / no-cull path removes nothing (mask method 'none'); the
+            # only surviving loss is NaN/Inf removal, captured by valid_fraction.
+            valid_fraction = metrics[0].valid_fraction if metrics else 1.0
+            metrics = metrics + build_diagnostic_metrics(
+                diagnostic_specs,
+                {"culled_fraction": 0.0, "valid_fraction": valid_fraction},
+                scene_id=scene_id, protocol=protocol.name, protocol_hash=protocol_hash,
+            )
         return SceneOutcome(scene_id=scene_id, metrics=metrics, alignment=alignment)
     except Eval3rError as exc:
         failure = SceneFailure(

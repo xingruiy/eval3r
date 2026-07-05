@@ -1,17 +1,18 @@
 schema_version: 1
-protocol_version: 0.2.0
-name: scannet_single_layer_geometry_5cm
+protocol_version: 0.1.0
+name: scannet_test_single_layer_geometry_5cm
 fidelity: eval3r_native
 
 dataset:
   dataset: scannet
-  variant: scannetv2_val_single_layer
-  split: val
+  variant: scannetv2_test_single_layer
+  split: test
   version: scannetv2
   fingerprint: null
   notes:
     - Single-layer mesh convention.
-    - Validation split; no visibility culling (culling applies to the test split only).
+    - Test split; the prediction is visibility-culled to the GT-observed region before
+      scoring (render + TSDF trim).
 
 prediction_modality: mesh
 
@@ -31,7 +32,7 @@ ground_truth:
 
 local_evaluation:
   status: supported
-  reason: validation GT mesh is available locally after dataset download.
+  reason: test GT mesh + camera trajectory are available locally; eval3r_native geometry.
   public_gt_available: true
   external_assets_required: []
   official_server_required: false
@@ -50,13 +51,21 @@ confidence:
 
 masking:
   pred_culling:
-    method: none
+    method: gt_visibility
+    source: gt
+    tolerance: 0.05
+    parameters:
+      voxel_length: 0.04
+      sdf_trunc_factor: 3.0
+      depth_trunc: 6.0
+      znear: 0.05
+      pose_stride: 1
   gt_culling:
     method: none
   valid_region:
     method: none
-  ignore_invalid_depth: false
-  invalid_depth_values: []
+  ignore_invalid_depth: true
+  invalid_depth_values: [0]
 
 sampling:
   pred:
@@ -109,13 +118,15 @@ backend_preferences:
   mesh: trimesh
   pointcloud: open3d
   nearest_neighbor: scipy
+  visibility: render_tsdf
 
 notes:
   - Single-layer mesh convention; the adapter records the declared convention per scene.
-  - Validation split runs WITHOUT visibility culling (culled_fraction is 0 and is recorded
-    as such). Visibility culling applies only to the test split
-    (scannet_test_single_layer_geometry_5cm).
-  - ScanNet has no official geometry-reconstruction benchmark. This protocol follows the
-    community single-layer 5cm F-score convention (Atlas/NeuralRecon-style eval_mesh,
-    threshold 0.05, both-direction nearest distances) and is therefore eval3r_native, not
-    official_like. Results must not be presented as official ScanNet benchmark numbers.
+  - gt_visibility culling is realized by the 'visibility' backend (render_tsdf). The
+    prediction depth is rendered from the GT camera trajectory (pyrender, EGL) and
+    TSDF-integrated (open3d) to recover the observed region; prediction vertices within
+    the tolerance (metres) of that region are kept. culled_fraction is recorded per scene.
+    See CLAUDE.md "Evaluation-time visibility culling exception".
+  - Community NeuralRecon/TransformerFusion-style culling; the metric (Atlas eval_mesh,
+    threshold 0.05, both-direction nearest distances) is eval3r_native, not official_like.
+    Results must not be presented as official ScanNet benchmark numbers.

@@ -1,5 +1,5 @@
 schema_version: 1
-protocol_version: 0.1.0
+protocol_version: 0.2.0
 name: scannet_double_layer_geometry_5cm
 fidelity: eval3r_native
 
@@ -11,6 +11,7 @@ dataset:
   fingerprint: null
   notes:
     - Double-layer mesh convention.
+    - Validation split; no visibility culling (culling applies to the test split only).
 
 prediction_modality: mesh
 
@@ -49,16 +50,13 @@ confidence:
 
 masking:
   pred_culling:
-    method: gt_visibility
-    source: gt
-    tolerance: 0.05
+    method: none
   gt_culling:
     method: none
   valid_region:
-    method: scene_bounds
-    source: dataset
-  ignore_invalid_depth: true
-  invalid_depth_values: [0]
+    method: none
+  ignore_invalid_depth: false
+  invalid_depth_values: []
 
 sampling:
   pred:
@@ -114,7 +112,8 @@ backend_preferences:
 
 notes:
   - Double-layer mesh convention; otherwise mirrors scannet_single_layer_geometry_5cm.
-  - Visibility culling is part of this protocol and should be recorded per scene.
+  - Validation split runs WITHOUT visibility culling; culled_fraction is recorded as 0.
+    Visibility culling applies only to the test split.
   - ScanNet has no official geometry-reconstruction benchmark. This protocol is
     eval3r_native, not official_like. Results must not be presented as official
     ScanNet benchmark numbers, and the reference implementation used for any

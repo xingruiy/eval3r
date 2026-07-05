@@ -47,8 +47,10 @@ def default_registry() -> DatasetRegistry:
         registry = DatasetRegistry()
         from eval3r.datasets.custom import CustomAdapter
         from eval3r.datasets.dtu import DTUAdapter
+        from eval3r.datasets.scannet import ScanNetAdapter
 
         registry.register("custom", CustomAdapter.factory)
         registry.register("dtu", DTUAdapter.factory)
+        registry.register("scannet", ScanNetAdapter.factory)
         _DEFAULT_REGISTRY = registry
     return _DEFAULT_REGISTRY

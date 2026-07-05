@@ -993,8 +993,13 @@ dependencies = [
   "pycolmap",
   "imageio",
   "opencv-python",
+  "pyrender",
 ]
 ```
+
+`pyrender` powers only the `visibility` backend's offscreen depth rendering for
+evaluation-time visibility culling (ScanNet single-/double-layer); it needs a headless GL
+context (`PYOPENGL_PLATFORM=egl`).
 
 Rules:
 

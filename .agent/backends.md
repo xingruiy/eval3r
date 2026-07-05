@@ -52,8 +52,13 @@ dependencies = [
   "pycolmap",
   "imageio",
   "opencv-python",
+  "pyrender",
 ]
 ```
+
+`pyrender` is used only by the `visibility` backend for offscreen depth rendering during
+evaluation-time visibility culling (ScanNet single-/double-layer). It needs a headless GL
+context; set `PYOPENGL_PLATFORM=egl` (the `visibility` backend sets this itself when unset).
 
 There is no `[project.optional-dependencies]` table and no extras. Every backend below is always importable.
 
@@ -456,7 +461,7 @@ All backends are always installed, so backend tests do not use `pytest.importors
 
 ## Backend non-goals
 
-Do not add backends for:
+Do not add backends that perform these **as reconstruction**:
 
 ```text
 TSDF integration
@@ -468,3 +473,11 @@ learned reconstruction inference
 ```
 
 Depth IO is allowed. Depth integration into scene reconstructions is not part of eval3r.
+
+**Exception (visibility culling only):** the `visibility` backend kind may render a
+prediction's depth from the GT trajectory (pyrender, EGL offscreen) and TSDF-integrate
+(open3d) those rendered depths *only to trim the prediction to the observed region* before
+scoring — the community ScanNet single-/double-layer convention. This produces no new scene
+geometry. It is enabled only when a protocol's masking requests it, and the renderer + TSDF
+backend, versions, voxel size, trajectory fingerprint, and per-scene culled fraction are
+recorded in result metadata. See CLAUDE.md "Evaluation-time visibility culling exception".

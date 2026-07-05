@@ -16,7 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import yaml
 
@@ -218,6 +218,118 @@ def _evaluate_scene_official(
     return SceneOutcome(scene_id=scene_id, metrics=metrics)
 
 
+def _evaluate_scene_visibility_culled(
+    adapter: DatasetAdapter,
+    pred_root: Path,
+    manifest: PredictionManifest | None,
+    scene_id: str,
+    protocol: EvalProtocol,
+    protocol_hash: str,
+    registry: BackendRegistry,
+    base_seed: int,
+) -> SceneOutcome:
+    """Evaluate one scene with render+TSDF visibility culling of the prediction.
+
+    Implements the ScanNet single-/double-layer convention: the prediction mesh is
+    trimmed to the region observed by the GT camera trajectory (``visibility`` backend)
+    before surface sampling and scoring. ``culled_fraction`` and the renderer/TSDF
+    metadata are recorded per scene (CLAUDE.md visibility-culling exception).
+    """
+    from eval3r.core.errors import CullingError, Eval3rError, MetricError
+    from eval3r.metrics.diagnostics import build_diagnostic_metrics, partition_specs
+    from eval3r.pipeline.stages.load import LoadedGeometry, load_geometry
+    from eval3r.pipeline.stages.metric import compute_scene_metrics
+    from eval3r.pipeline.stages.normalize import normalize_to_meters
+    from eval3r.pipeline.stages.sample import sample_geometry
+
+    if not hasattr(adapter, "load_trajectory"):
+        raise BenchmarkError(
+            f"protocol '{protocol.name}' requests gt_visibility culling, but dataset "
+            f"'{adapter.name}' exposes no load_trajectory() to supply the GT trajectory."
+        )
+    mesh_backend = registry.require("mesh", protocol.backend_preferences.get("mesh", "trimesh"))
+    pc_backend = registry.require(
+        "pointcloud", protocol.backend_preferences.get("pointcloud", "plyfile")
+    )
+    nn_backend = registry.require(
+        "nearest_neighbor", protocol.backend_preferences.get("nearest_neighbor", "scipy")
+    )
+    vis_backend = registry.require(
+        "visibility", protocol.backend_preferences.get("visibility", "render_tsdf")
+    )
+    cull_spec = protocol.masking.pred_culling
+    tolerance = cull_spec.tolerance
+    if tolerance is None:
+        raise BenchmarkError(
+            f"protocol '{protocol.name}' visibility culling needs an explicit "
+            f"masking.pred_culling.tolerance (keep radius, metres)."
+        )
+    params = dict(cull_spec.parameters)
+
+    stage: Literal["resolve", "load", "normalize", "mask", "sample", "metric"] = "resolve"
+    try:
+        recon = adapter.resolve_prediction(pred_root, scene_id, manifest)
+        if recon.path is None:
+            raise DatasetError(f"scene '{scene_id}' resolved without a prediction path.")
+        if recon.modality != "mesh":
+            raise DatasetError(
+                f"visibility-culled evaluation takes mesh predictions; scene '{scene_id}' is "
+                f"'{recon.modality}'."
+            )
+        scene = adapter.load_scene(scene_id)
+        gt_path, gt_kind = gt_geometry(scene)
+        if gt_kind != "mesh":
+            raise DatasetError(f"ScanNet GT must be a mesh; scene '{scene_id}' GT is {gt_kind}.")
+        trajectory = adapter.load_trajectory(scene_id)
+
+        stage = "load"
+        pred = load_geometry(
+            recon.path, "mesh", mesh_backend=mesh_backend, pointcloud_backend=pc_backend
+        )
+        gt = load_geometry(
+            gt_path, "mesh", mesh_backend=mesh_backend, pointcloud_backend=pc_backend
+        )
+
+        stage = "normalize"
+        pred = normalize_to_meters(pred, recon.unit)
+        gt = normalize_to_meters(gt, scene.ground_truth.unit)
+
+        stage = "mask"
+        cull = vis_backend.cull(pred.mesh, trajectory, tolerance=tolerance, **params)
+        trimmed = LoadedGeometry(kind="mesh", path=pred.path, mesh=cull.trimmed_mesh)
+
+        stage = "sample"
+        pred_points, _ = sample_geometry(
+            trimmed, protocol.sampling.pred, scene_id=scene_id, role="pred",
+            mesh_backend=mesh_backend, base_seed=base_seed,
+        )
+        gt_points, _ = sample_geometry(
+            gt, protocol.sampling.gt, scene_id=scene_id, role="gt",
+            mesh_backend=mesh_backend, base_seed=base_seed,
+        )
+
+        stage = "metric"
+        geometry_specs, diagnostic_specs = partition_specs(protocol.metrics)
+        metrics = compute_scene_metrics(
+            pred_points, gt_points, geometry_specs,
+            protocol=protocol.name, protocol_hash=protocol_hash,
+            nn_backend=nn_backend, scene_id=scene_id,
+        )
+        valid_fraction = metrics[0].valid_fraction if metrics else 1.0
+        metrics = metrics + build_diagnostic_metrics(
+            diagnostic_specs,
+            {"culled_fraction": cull.culled_fraction, "valid_fraction": valid_fraction},
+            scene_id=scene_id, protocol=protocol.name, protocol_hash=protocol_hash,
+            backend=vis_backend.name, metadata=cull.metadata,
+        )
+    except (DatasetError, InvalidGeometryError, CullingError, MetricError, Eval3rError) as exc:
+        return SceneOutcome(
+            scene_id=scene_id,
+            failure=SceneFailure(scene_id=scene_id, stage=stage, reason=str(exc)),
+        )
+    return SceneOutcome(scene_id=scene_id, metrics=metrics)
+
+
 def _evaluate_scene(
     adapter: DatasetAdapter,
     pred_root: Path,
@@ -293,6 +405,8 @@ def run_benchmark_geometry(
     resolve_manifest = None if inferred else manifest
 
     official_name = protocol.backend_preferences.get("official_eval")
+    # gt_visibility culling is realized by the render+TSDF-trim 'visibility' backend.
+    visibility_culling = protocol.masking.pred_culling.method == "gt_visibility"
 
     per_scene: list[MetricResult] = []
     failures: list[SceneFailure] = []
@@ -304,6 +418,11 @@ def run_benchmark_geometry(
             outcome = _evaluate_scene_official(
                 adapter, pred_root, resolve_manifest, scene_id, protocol, phash,
                 registry, official_name, DEFAULT_BASE_SEED,
+            )
+        elif visibility_culling:
+            outcome = _evaluate_scene_visibility_culled(
+                adapter, pred_root, resolve_manifest, scene_id, protocol, phash,
+                registry, DEFAULT_BASE_SEED,
             )
         else:
             outcome = _evaluate_scene(
@@ -337,6 +456,8 @@ def run_benchmark_geometry(
     }
     if official_name:
         used_backends["official_eval"] = official_name
+    if visibility_culling:
+        used_backends["visibility"] = protocol.backend_preferences.get("visibility", "render_tsdf")
     backend_versions = registry.backend_versions(used_backends)
 
     result = RunResult(

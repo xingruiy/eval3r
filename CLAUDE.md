@@ -25,7 +25,7 @@ The library should delegate common geometry, camera, trajectory, and IO work to 
 
 ## Hard boundaries
 
-Do not add support for:
+Do not add support for these **as reconstruction methods**:
 
 ```text
 TSDF integration
@@ -39,6 +39,18 @@ large proprietary dataset downloads inside the package
 ```
 
 Depth sequences are supported for depth metrics. They are not converted into scene reconstructions by eval3r.
+
+### Evaluation-time visibility culling exception
+
+Offscreen depth rendering (pyrender) and TSDF volume integration (open3d) are permitted
+**solely as an evaluation-time visibility-culling mechanism** — rendering a *prediction's*
+depth from the ground-truth camera trajectory and TSDF-trimming the prediction to the
+observed region before scoring (the community ScanNet single-/double-layer convention).
+This is not reconstruction: no new scene geometry is produced, only the caller's prediction
+is masked. Whenever this path runs it must be recorded in result metadata (renderer +
+TSDF backend and versions, voxel size, trajectory fingerprint, and per-scene culled
+fraction), and it is only ever enabled when the protocol's masking explicitly requests it.
+It must never run silently or as a default preprocessing step.
 
 ## Start-of-session checklist
 

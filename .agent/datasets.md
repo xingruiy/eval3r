@@ -316,6 +316,21 @@ Do not silently enable or disable visibility culling.
 Do not label ScanNet GT as independent laser-scan ground truth.
 ```
 
+Split-specific culling (implemented in task 011):
+
+```text
+val split runs WITHOUT visibility culling; culled_fraction is recorded as 0.
+test split runs gt_visibility culling (community NeuralRecon/TransformerFusion convention).
+gt_visibility is realized by the 'visibility' backend: render the prediction depth from the
+  GT camera trajectory (pyrender, EGL) and TSDF-integrate (open3d) to recover the observed
+  region, then keep prediction vertices within the protocol tolerance of that region.
+the adapter supplies the GT trajectory via load_trajectory (cam-to-world OpenCV poses,
+  depth intrinsics, image size); non-finite (lost-tracking) poses are dropped.
+renderer + TSDF backend, versions, voxel size, trajectory fingerprint, and per-scene
+  culled_fraction are recorded (CLAUDE.md evaluation-time visibility-culling exception).
+these protocols are eval3r_native; results are never official ScanNet benchmark numbers.
+```
+
 ### DTU
 
 Adapter responsibilities:

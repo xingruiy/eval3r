@@ -1,0 +1,7 @@
+axisAlignment = 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1
+depthWidth = 128
+depthHeight = 96
+colorWidth = 128
+colorHeight = 96
+numDepthFrames = 4
+sceneType = Fixture
