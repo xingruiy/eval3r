@@ -1,0 +1,1 @@
+# 3D point list with one line of data per point (empty for the tiny fixture)

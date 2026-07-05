@@ -418,6 +418,34 @@ Do not force unsupported non-pinhole cameras into the minimal pinhole fallback.
 Do not claim official local evaluation for server-only test scenes.
 ```
 
+Implementation (task 013):
+
+```text
+Eth3dAdapter covers the high-res DSLR multi-view benchmark (variant
+  training_public_gt); the low-res multi-camera variant is a different benchmark
+  and is not part of this adapter.
+Per-scene layout: <root>/<scene>/dslr_scan_eval/scan_alignment.mlp (+ the scan
+  PLYs it references) and <root>/<scene>/dslr_calibration_undistorted/ COLMAP text.
+official_artifacts(scene) parses the MeshLab project XML, validates every
+  referenced scan PLY exists, and returns the .mlp the official tool consumes.
+GT is labelled laser_scan / independent / dense_surface, unit metres;
+  gt_fingerprint jointly hashes scan_alignment.mlp + every referenced scan PLY
+  (scan poses and scan geometry both determine the score).
+Cameras are parsed via the pycolmap camera backend; camera models and image count
+  are recorded in scene metadata, and non-pinhole models (or a missing calibration
+  dir) add an explicit camera_model_limitations note - never a silent pinhole
+  approximation.
+Only the training split is locally evaluable; local_evaluation('test') returns
+  server_only so the CLI refuses it in preflight.
+Official accuracy/completeness/F1 at the official tolerance set (1/2/5/10/20/50 cm)
+  are delegated to the eth3d_official backend wrapping the real
+  ETH3D/multi-view-evaluation binary (never reimplemented: the official scoring is
+  voxel-normalized with beam-based free-space classification). Fidelity is
+  'official'; the eth3d_training_official protocol carries all 18 metric entries.
+Verified end-to-end against the real binary (commit 0daa4f4) on the analytic
+  eth3d_tiny fixture, which the tool reproduces exactly.
+```
+
 ### 7-Scenes
 
 Adapter responsibilities:

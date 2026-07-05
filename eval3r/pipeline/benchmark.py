@@ -304,6 +304,115 @@ def _evaluate_scene_tnt_official(
     return SceneOutcome(scene_id=scene_id, metrics=metrics)
 
 
+def _evaluate_scene_eth3d_official(
+    adapter: DatasetAdapter,
+    pred_root: Path,
+    manifest: PredictionManifest | None,
+    scene_id: str,
+    protocol: EvalProtocol,
+    protocol_hash: str,
+    registry: BackendRegistry,
+    official_name: str,
+) -> SceneOutcome:
+    """Evaluate one scene by wrapping the official ETH3D multi-view-evaluation tool.
+
+    The official binary consumes the prediction PLY and the scene's
+    ``scan_alignment.mlp`` directly and reports accuracy / completeness / F1 at a
+    tolerance list. The protocol's metric specs carry the official tolerance set as
+    per-metric thresholds (e.g. ``fscore_2cm`` with ``threshold: 0.02``); the tool is
+    invoked once per scene with all tolerances and each spec is filled from the
+    matching column. Voxel-normalization and beam-based free-space handling happen
+    inside the official tool, never here.
+    """
+    from eval3r.core.errors import MetricError
+
+    if not hasattr(adapter, "official_artifacts"):
+        raise BenchmarkError(
+            f"protocol '{protocol.name}' needs the official evaluator '{official_name}', but "
+            f"dataset '{adapter.name}' provides no official_artifacts() to resolve the "
+            f"scan_alignment.mlp ground truth."
+        )
+    evaluator = registry.require("official_eval", official_name)
+
+    # Metric spec -> (official output column, tolerance). Fails explicitly on a
+    # metric the official tool does not report or on a missing threshold.
+    kinds = {"accuracy": "accuracies", "completeness": "completenesses", "fscore": "f1_scores"}
+    spec_columns: list[tuple[str, str, float]] = []
+    for spec in protocol.metrics:
+        kind = spec.name.rsplit("_", 1)[0] if "_" in spec.name else spec.name
+        if kind not in kinds:
+            raise BenchmarkError(
+                f"protocol '{protocol.name}' metric '{spec.name}' does not map to an ETH3D "
+                f"official output (accuracy/completeness/fscore at a tolerance)."
+            )
+        if spec.threshold is None:
+            raise BenchmarkError(
+                f"protocol '{protocol.name}' metric '{spec.name}' has no threshold; the ETH3D "
+                f"official protocol must pin every tolerance explicitly."
+            )
+        spec_columns.append((spec.name, kinds[kind], spec.threshold))
+    tolerances = sorted({tol for _, _, tol in spec_columns})
+
+    try:
+        recon = adapter.resolve_prediction(pred_root, scene_id, manifest)
+        if recon.path is None:
+            raise DatasetError(f"scene '{scene_id}' resolved without a prediction path.")
+        art = adapter.official_artifacts(scene_id)
+    except (DatasetError, InvalidGeometryError) as exc:
+        return SceneOutcome(
+            scene_id=scene_id,
+            failure=SceneFailure(scene_id=scene_id, stage="resolve", reason=str(exc)),
+        )
+
+    try:
+        result = evaluator.evaluate_scene(
+            scene_id,
+            scan_mlp_path=art["scan_mlp"],
+            ply_path=recon.path,
+            tolerances=tolerances,
+        )
+        columns = {
+            "accuracies": result.accuracies,
+            "completenesses": result.completenesses,
+            "f1_scores": result.f1_scores,
+        }
+        values = {
+            name: evaluator.lookup(columns[column], tol)
+            for name, column, tol in spec_columns
+        }
+    except MetricError as exc:
+        return SceneOutcome(
+            scene_id=scene_id,
+            failure=SceneFailure(scene_id=scene_id, stage="metric", reason=str(exc)),
+        )
+
+    meta = {
+        "evaluator_method": getattr(evaluator, "method", official_name),
+        "tolerances": result.tolerances,
+        "command": result.command,
+        "tool_path": result.tool_path,
+        "tool_commit": result.tool_commit,
+        # Official free-space / voxel-normalization parameters in effect (tool defaults).
+        "voxel_size": result.voxel_size,
+        "beam_start_radius_meters": result.beam_start_radius_meters,
+        "beam_divergence_halfangle_deg": result.beam_divergence_halfangle_deg,
+    }
+    metrics = [
+        MetricResult(
+            name=spec.name,
+            value=values.get(spec.name),
+            scene_id=scene_id,
+            protocol=protocol.name,
+            protocol_hash=protocol_hash,
+            backend=official_name,
+            metadata={**meta, "threshold": spec.threshold},
+        )
+        for spec in protocol.metrics
+        if spec.name in values
+    ]
+    return SceneOutcome(scene_id=scene_id, metrics=metrics)
+
+
 def _evaluate_scene_visibility_culled(
     adapter: DatasetAdapter,
     pred_root: Path,
@@ -491,13 +600,13 @@ def run_benchmark_geometry(
     resolve_manifest = None if inferred else manifest
 
     official_name = protocol.backend_preferences.get("official_eval")
-    # Official evaluators come in two shapes: point-array (DTU port, ObsMask) and
-    # file-based/artifacts (Tanks and Temples toolbox, which reads files + runs ICP).
-    official_artifacts_mode = False
+    # Official evaluators come in three shapes: point-array (DTU port, ObsMask),
+    # file-based/artifacts (Tanks and Temples toolbox, which reads files + runs ICP),
+    # and scan-MLP (ETH3D multi-view-evaluation binary on prediction PLY + .mlp).
+    official_input_mode = "point_arrays"
     if official_name:
-        official_artifacts_mode = (
-            getattr(registry.require("official_eval", official_name), "input_mode", "point_arrays")
-            == "artifacts"
+        official_input_mode = getattr(
+            registry.require("official_eval", official_name), "input_mode", "point_arrays"
         )
     # gt_visibility culling is realized by the render+TSDF-trim 'visibility' backend.
     visibility_culling = protocol.masking.pred_culling.method == "gt_visibility"
@@ -508,14 +617,23 @@ def run_benchmark_geometry(
     failures: list[SceneFailure] = []
     alignment_transforms: list[dict[str, Any]] = []
     evaluated = 0
-    tnt_out_root = Path(tempfile.mkdtemp(prefix="eval3r_tnt_")) if official_artifacts_mode else None
+    tnt_out_root = (
+        Path(tempfile.mkdtemp(prefix="eval3r_tnt_"))
+        if official_name and official_input_mode == "artifacts"
+        else None
+    )
 
     for scene_id in scenes:
-        if official_name and official_artifacts_mode:
+        if official_name and official_input_mode == "artifacts":
             assert tnt_out_root is not None
             outcome = _evaluate_scene_tnt_official(
                 adapter, pred_root, resolve_manifest, scene_id, protocol, phash,
                 registry, official_name, tnt_out_root,
+            )
+        elif official_name and official_input_mode == "scan_mlp":
+            outcome = _evaluate_scene_eth3d_official(
+                adapter, pred_root, resolve_manifest, scene_id, protocol, phash,
+                registry, official_name,
             )
         elif official_name:
             outcome = _evaluate_scene_official(

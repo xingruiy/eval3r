@@ -335,6 +335,17 @@ CO3D camera data lives in frame_annotations.jgz.
 BlendedMVS uses MVSNet cam.txt with world-to-camera extrinsics.
 ```
 
+Implementation (task 013): the `pycolmap` backend (`camera` kind) loads COLMAP
+model directories (text or binary) through `pycolmap.Reconstruction`, so every
+COLMAP camera model is parsed by the reference implementation. Poses are
+normalized from `world_to_cam_colmap` to internal cam-to-world OpenCV matrices;
+the source format is recorded on the returned `ColmapCameraSet`.
+`pinhole_intrinsics` returns a 3x3 K only for `PINHOLE` / `SIMPLE_PINHOLE` and
+raises an explicit error (naming the camera and model) for any other model —
+non-pinhole cameras are parsed fully but never silently reduced to pinhole. When a
+model has non-pinhole cameras the camera set carries an explicit limitation note,
+which the ETH3D adapter copies into scene metadata.
+
 ## Depth IO backend
 
 Delegates to:
@@ -423,6 +434,42 @@ end-to-end wrapper/benchmark tests drive the **real** toolbox and skip cleanly (
 MATLAB path) when `EVAL3R_TNT_TOOLBOX` / `EVAL3R_TNT_PYTHON` / `EVAL3R_TNT_DATA` are not
 set; the parse, toolbox/interpreter resolution, and absent-toolbox paths are unit-tested
 directly and always run.
+
+### ETH3D evaluation backend
+
+Implementation (task 013): the `eth3d_official` backend (`official_eval` kind,
+method `official_script_wrapper`) wraps the official `ETH3D/multi-view-evaluation`
+C++ tool. It is a **user-supplied external build**, not a pip package (like the
+Tanks and Temples checkout and the DTU MATLAB path); it is located from an explicit
+`tool_path` or the `EVAL3R_ETH3D_TOOL` / `ETH3D_MULTI_VIEW_EVALUATION` environment
+variable. The backend invokes the binary as a subprocess
+(`--reconstruction_ply_path <pred> --ground_truth_mlp_path <scan_alignment.mlp>
+--tolerances 0.01,...,0.5`), parses its printed `Tolerances` / `Completenesses` /
+`Accuracies` / `F1-scores` summary, and records the command, tool path, tool source
+commit, and the voxel/beam parameters in effect (kept at the official defaults:
+voxel_size 0.01, beam_start_radius 0.001125 m, beam_divergence_halfangle 0.011 deg).
+When the tool is absent the backend fails explicitly (naming the env vars and the
+repo URL) so a run never emits unofficial numbers.
+
+**Why a wrapper, not a port.** The official scoring is not a plain inlier
+fraction: completeness and accuracy are normalized per voxel cell over two shifted
+voxel grids, and accuracy classifies reconstruction points as accurate /
+inaccurate / unobserved using beam-based free-space modeling from the laser-scan
+positions (unobserved points are excluded). Reimplementing that would be exactly
+the reimplementation risk this section exists to avoid.
+
+**Build compat patch (mechanical, recorded).** Upstream commit `0daa4f4` intends
+C++17 (`CMAKE_CXX_STANDARD 17`) but a stale `add_definitions(-std=c++11)` in
+`CMakeLists.txt` wins the compile line and breaks the build against PCL >= 1.12
+headers. Changing that one flag to `-std=c++17` is a build-flags-only fix matching
+upstream's stated intent; no scoring source is touched (allowed as a mechanical
+version-compat fix under the "Official code / toolbox rule").
+
+**Testing.** No fake evaluator exists (a fake official evaluator is forbidden).
+The wrapper/benchmark tests drive the **real** binary on the analytic `eth3d_tiny`
+fixture — whose hand-derived scores the official tool reproduces exactly — and
+skip cleanly when `EVAL3R_ETH3D_TOOL` is not set; parsing, tool resolution, and
+absent-tool paths are unit-tested directly and always run.
 
 ### DTU evaluation backend
 

@@ -51,7 +51,7 @@ dtu_official_like_pointcloud.yaml
 scannet_single_layer_geometry_5cm.yaml
 scannet_double_layer_geometry_5cm.yaml
 tanks_temples_training_official.yaml
-eth3d_training_official_like.yaml
+eth3d_training_official.yaml
 ```
 
 Later built-ins (added together with their adapters):
@@ -610,13 +610,22 @@ local_evaluation:
 
 The CLI should refuse to run local metrics with this protocol.
 
-## ETH3D training official-like protocol
+## ETH3D training official protocol
+
+Scores come from the **real official ETH3D multi-view-evaluation tool** run as a
+subprocess (`eth3d_official` backend, `official_script_wrapper`). The official
+scoring is voxel-normalized (two shifted voxel grids) and classifies prediction
+points as accurate / inaccurate / unobserved via beam-based free-space modeling
+from the scan positions — it is not reproducible with plain distance metrics, so
+eval3r never reimplements it. The metric list is the official tolerance set
+(1, 2, 5, 10, 20, 50 cm); the wrapper was regression-validated on an analytic
+fixture that the official binary reproduces exactly (task 013).
 
 ```yaml
 schema_version: 1
-protocol_version: 0.1.0
-name: eth3d_training_official_like
-fidelity: official_like
+protocol_version: 0.2.0
+name: eth3d_training_official
+fidelity: official
 
 dataset:
   dataset: eth3d
@@ -625,7 +634,10 @@ dataset:
   version: null
   fingerprint: null
   notes:
-    - Uses public training GT and COLMAP text cameras.
+    - High-res DSLR multi-view benchmark; uses public training GT (dslr_scan_eval)
+      and COLMAP text cameras.
+    - Local official evaluation is only available for the public training split;
+      the test split is server-only.
 
 prediction_modality: pointcloud
 
@@ -634,16 +646,19 @@ ground_truth:
   provenance: laser_scan
   independence: independent
   density: dense_surface
+  path: null
+  fingerprint: null
   unit: m
   source_pose_format: world_to_cam_colmap
   normalized_convention: cam_to_world_opencv_meters
   local_evaluation_status: supported
   notes:
-    - Occlusion-aware GT preparation is part of the dataset tooling.
+    - GT is the occlusion-aware dslr_scan_eval release (scan_alignment.mlp plus the
+      laser-scan PLYs it references with their poses).
 
 local_evaluation:
   status: supported
-  reason: ETH3D training GT is public.
+  reason: ETH3D training GT (dslr_scan_eval) is public.
   public_gt_available: true
   external_assets_required: []
   official_server_required: false
@@ -662,14 +677,14 @@ confidence:
 
 masking:
   pred_culling:
-    method: scene_bounds
-    source: dataset
+    method: visibility_mask
+    source: gt
   gt_culling:
-    method: dataset_official_mask
-    source: dataset
+    method: none
+    source: none
   valid_region:
-    method: dataset_official_mask
-    source: dataset
+    method: none
+    source: none
   ignore_invalid_depth: true
   invalid_depth_values: []
 
@@ -682,16 +697,59 @@ sampling:
     seed: derive
 
 metrics:
-  - name: accuracy
-    statistic: mean
-  - name: completeness
-    statistic: mean
-  - name: precision
+  - name: accuracy_1cm
+    threshold: 0.01
+    aggregation: per_scene_then_mean
+  - name: completeness_1cm
+    threshold: 0.01
+    aggregation: per_scene_then_mean
+  - name: fscore_1cm
+    threshold: 0.01
+    aggregation: per_scene_then_mean
+  - name: accuracy_2cm
     threshold: 0.02
-  - name: recall
+    aggregation: per_scene_then_mean
+  - name: completeness_2cm
     threshold: 0.02
-  - name: fscore
+    aggregation: per_scene_then_mean
+  - name: fscore_2cm
     threshold: 0.02
+    aggregation: per_scene_then_mean
+  - name: accuracy_5cm
+    threshold: 0.05
+    aggregation: per_scene_then_mean
+  - name: completeness_5cm
+    threshold: 0.05
+    aggregation: per_scene_then_mean
+  - name: fscore_5cm
+    threshold: 0.05
+    aggregation: per_scene_then_mean
+  - name: accuracy_10cm
+    threshold: 0.1
+    aggregation: per_scene_then_mean
+  - name: completeness_10cm
+    threshold: 0.1
+    aggregation: per_scene_then_mean
+  - name: fscore_10cm
+    threshold: 0.1
+    aggregation: per_scene_then_mean
+  - name: accuracy_20cm
+    threshold: 0.2
+    aggregation: per_scene_then_mean
+  - name: completeness_20cm
+    threshold: 0.2
+    aggregation: per_scene_then_mean
+  - name: fscore_20cm
+    threshold: 0.2
+    aggregation: per_scene_then_mean
+  - name: accuracy_50cm
+    threshold: 0.5
+    aggregation: per_scene_then_mean
+  - name: completeness_50cm
+    threshold: 0.5
+    aggregation: per_scene_then_mean
+  - name: fscore_50cm
+    threshold: 0.5
     aggregation: per_scene_then_mean
 
 aggregation:
@@ -702,7 +760,7 @@ aggregation:
   weights: none
 
 failure_policy:
-  policy: skip_and_flag
+  policy: abort
   worst_values: {}
 
 reporting:
@@ -710,21 +768,29 @@ reporting:
   save_manifest_copy: true
   save_environment: true
   save_alignment_transforms: false
-  save_colored_errors: true
-  save_distance_histogram: true
+  save_colored_errors: false
+  save_distance_histogram: false
   formats: [json, csv, markdown]
 
 backend_preferences:
+  official_eval: eth3d_official
   camera: pycolmap
-  pointcloud: open3d
-  nearest_neighbor: scipy
+  pointcloud: plyfile
 
 notes:
-  - The official ETH3D multi-view-evaluation tool reports accuracy / completeness / F1
-    at multiple tolerances (1, 2, 5, 10, 20, 50 cm). The 2 cm headline threshold used
-    here, and the official_like fidelity claim, must be regression-validated against
-    that tool on a fixture before this protocol is frozen; extend the metric list to
-    the official tolerance set if validation shows it is needed for comparability.
+  - Scores are produced by the official ETH3D multi-view-evaluation tool
+    (github.com/ETH3D/multi-view-evaluation) run as a subprocess; eval3r does not
+    reimplement its voxel-normalized accuracy/completeness/F1 or the beam-based
+    free-space (observability) classification.
+  - The tolerance set (1, 2, 5, 10, 20, 50 cm) is the official ETH3D benchmark set;
+    the 2 cm F1 is the conventional headline number.
+  - The masking pred_culling entry documents that the official tool itself excludes
+    unobserved prediction regions (free-space modeling from scan positions); eval3r
+    applies no additional masking.
+  - Predictions must already be in the ETH3D ground-truth (COLMAP) frame in metres;
+    the official tool applies no alignment.
+  - voxel_size and beam parameters stay at the official tool defaults and are
+    recorded per scene in result metadata.
 ```
 
 ## Single-depth protocol
@@ -926,7 +992,7 @@ scannet_single_layer_geometry_5cm
 scannet_double_layer_geometry_5cm
 dtu_official_like_pointcloud
 tanks_temples_training_official
-eth3d_training_official_like
+eth3d_training_official
 hypersim_depth
 kitti360_pose
 ```

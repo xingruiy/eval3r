@@ -1,0 +1,13 @@
+<!DOCTYPE MeshLabDocument>
+<MeshLabProject>
+ <MeshGroup>
+  <MLMesh label="scan1" filename="scan1.ply">
+   <MLMatrix44>
+1 0 0 0
+0 1 0 0
+0 0 1 0
+0 0 0 1
+</MLMatrix44>
+  </MLMesh>
+ </MeshGroup>
+</MeshLabProject>

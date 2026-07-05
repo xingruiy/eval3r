@@ -1,0 +1,7 @@
+# Image list with two lines of data per image:
+#   IMAGE_ID, QW, QX, QY, QZ, TX, TY, TZ, CAMERA_ID, NAME
+#   POINTS2D[] as (X, Y, POINT3D_ID)
+1 0.7071067811865476 0.0 0.7071067811865476 0.0 1.0 2.0 3.0 1 dslr_images_undistorted/DSC_0001.JPG
+
+2 1.0 0.0 0.0 0.0 0.5 0.0 0.0 2 dslr_images_undistorted/DSC_0002.JPG
+

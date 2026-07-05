@@ -163,7 +163,7 @@ eval3r/
       scannet_double_layer_geometry_5cm.yaml
       dtu_official_like_pointcloud.yaml
       tanks_temples_training_official.yaml
-      eth3d_training_official_like.yaml
+      eth3d_training_official.yaml
 
   metrics/
     __init__.py
@@ -1349,7 +1349,7 @@ Deliverables:
 
 ```text
 ETH3DAdapter
-eth3d_training_official_like.yaml
+eth3d_training_official.yaml
 pycolmap camera backend path
 ```
 
@@ -1359,7 +1359,7 @@ Acceptance:
 e3r benchmark run preds/ \
   --dataset eth3d \
   --split training \
-  --protocol eth3d_training_official_like
+  --protocol eth3d_training_official
 ```
 
 ### Depth metrics

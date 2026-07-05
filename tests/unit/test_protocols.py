@@ -27,14 +27,14 @@ EXPECTED_BUILTINS = {
     "scannet_test_single_layer_geometry_5cm",
     "tanks_temples_training_official",
     "tanks_temples_intermediate_server_only",
-    "eth3d_training_official_like",
+    "eth3d_training_official",
 }
 
 # Regression table: name -> canonical protocol hash. Update deliberately (and bump
 # the protocol version) when a protocol's evaluation behavior changes.
 EXPECTED_HASHES = {
     "dtu_official_like_pointcloud": "sha256:192ffe1c471960ca5ea829fe397381205e5de3af88bb3502c3628b2cdca20ee2",
-    "eth3d_training_official_like": "sha256:bd81130bfbbfce0dfd3f68686f67e602c343ada452c3cf37fec1962395a6147e",
+    "eth3d_training_official": "sha256:67a7f8a0198fde3f9cdf3d93e8defe829e6aa21acac22830f0ba057cab737087",
     "scannet_double_layer_geometry_5cm": "sha256:5a7f57763e3d6227fd23e538666d082eec63c27ca8ae10211317f15c0401e24a",
     "scannet_single_layer_geometry_5cm": "sha256:d8fa19896f75b3cae8a37f3273cc10bb4547beb9a5c7b874949e02c96fce9646",
     "scannet_test_single_layer_geometry_5cm": "sha256:864a238ad143ac48031457eb26d945c0f1ea4e75a80d438aa6b1428b80356bea",

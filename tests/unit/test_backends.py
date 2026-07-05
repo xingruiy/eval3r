@@ -31,7 +31,9 @@ def test_default_registry_has_builtin_backends() -> None:
     assert reg.available("nearest_neighbor") == ["scipy"]
     assert reg.available("mesh") == ["trimesh"]
     assert reg.available("pointcloud") == ["open3d", "plyfile"]
-    assert reg.available("official_eval") == ["dtu", "tnt_official"]
+    assert reg.available("official_eval") == ["dtu", "eth3d_official", "tnt_official"]
+    # COLMAP camera parsing via pycolmap (task 013).
+    assert reg.available("camera") == ["pycolmap"]
     # ScanNet visibility culling (task 011): render + TSDF trim.
     assert reg.available("visibility") == ["render_tsdf"]
 
