@@ -32,7 +32,7 @@ EXPECTED_BUILTINS = {
 # Regression table: name -> canonical protocol hash. Update deliberately (and bump
 # the protocol version) when a protocol's evaluation behavior changes.
 EXPECTED_HASHES = {
-    "dtu_official_like_pointcloud": "sha256:eccbf77e05a29039d24186ee47be402cd27d9d4e5e30cf87a957678303702d62",
+    "dtu_official_like_pointcloud": "sha256:192ffe1c471960ca5ea829fe397381205e5de3af88bb3502c3628b2cdca20ee2",
     "eth3d_training_official_like": "sha256:bd81130bfbbfce0dfd3f68686f67e602c343ada452c3cf37fec1962395a6147e",
     "scannet_double_layer_geometry_5cm": "sha256:d171604726ae4f8a642918f49998dc0031940c79834d97374bf81d49da940212",
     "scannet_single_layer_geometry_5cm": "sha256:f43f61b3e379fbbd3c44ef5ec7db33b0dceaed530705e5a2f98d2e9995f0fd94",

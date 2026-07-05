@@ -49,15 +49,15 @@ def test_gt_is_independent_laser_scan_in_mm() -> None:
     assert gt.fingerprint is not None and gt.fingerprint.startswith("sha256:")
 
 
-def test_capabilities_do_not_claim_official_yet() -> None:
+def test_capabilities_declare_validated_official_port() -> None:
     caps = _adapter().capabilities
     assert caps.dense_geometry is True
     assert caps.independent_gt is True
     assert caps.supports_object_centric_geometry is True
     assert caps.supports_full_scene_geometry is False
-    # Official-like DTU evaluation is task 010; must not be claimed here.
-    assert caps.official_local_eval is False
-    assert caps.official_local_eval_method == "none"
+    # Official-like DTU evaluation is available via the validated dtu_eval port (task 010).
+    assert caps.official_local_eval is True
+    assert caps.official_local_eval_method == "validated_official_port"
 
 
 def test_masks_and_plane_availability_recorded() -> None:

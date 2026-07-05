@@ -25,9 +25,9 @@ def test_benchmark_normalizes_mm_to_meters(tmp_path: Path) -> None:
         PREDS, dataset="dtu", split="one", protocol="single_geometry",
         root=ROOT, out_dir=tmp_path / "run", return_run=True,
     )
-    # scan 1 prediction is offset +50 mm in x; normalized to metres accuracy = 0.05 m.
+    # scan 1 prediction is offset +5 mm in x; normalized to metres accuracy = 0.005 m.
     acc = run.result.metrics["accuracy"]
-    assert acc == pytest.approx(0.05, abs=1e-6)
+    assert acc == pytest.approx(0.005, abs=1e-6)
     # eval3r-native fidelity: the result does not claim official DTU numbers.
     assert run.result.fidelity == "eval3r_native"
 

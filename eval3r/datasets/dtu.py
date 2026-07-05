@@ -23,7 +23,9 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
+
+import numpy as np
 
 from eval3r.core.errors import DatasetError
 from eval3r.core.schema import (
@@ -56,13 +58,14 @@ class DTUAdapter:
         self.capabilities = DatasetCapabilities(
             dense_geometry=True,
             independent_gt=True,
-            official_local_eval=False,  # becomes True once task 010 wires the evaluator
-            official_local_eval_method="none",
+            official_local_eval=True,
+            official_local_eval_method="validated_official_port",
             supports_full_scene_geometry=False,
             supports_object_centric_geometry=True,
             notes=[
                 "GT is a laser-scanned point cloud in millimetres (independent, dense surface).",
-                "Official-like ObsMask/Plane evaluation is task 010; runs here are eval3r-native.",
+                "Official-like ObsMask/Plane evaluation via the validated dtu_eval Python port "
+                "(dtu_official_like_pointcloud); eval3r-native protocols skip ObsMask/Plane.",
             ],
         )
 
@@ -99,7 +102,13 @@ class DTUAdapter:
     # --- ground truth / masks --------------------------------------------------
 
     def _gt_path(self, scan: int) -> Path:
-        return self.root / "Points" / "stl" / f"stl{scan:03d}_total.ply"
+        # Real DTU releases store GT under groundtruth/; the SampleSet uses Points/stl/.
+        name = f"stl{scan:03d}_total.ply"
+        candidates = [self.root / "groundtruth" / name, self.root / "Points" / "stl" / name]
+        for candidate in candidates:
+            if candidate.is_file():
+                return candidate
+        return candidates[0]  # primary path for the (missing-file) error message
 
     def _obs_mask_path(self, scan: int) -> Path:
         return self.root / "ObsMask" / f"ObsMask{scan}_10.mat"
@@ -168,6 +177,48 @@ class DTUAdapter:
 
         digest = hashlib.sha256("|".join(present).encode()).hexdigest()
         return f"sha256:{digest}"
+
+    # --- visibility (ObsMask / Plane) ------------------------------------------
+
+    def load_visibility_data(self, scene_id: str, protocol: EvalProtocol) -> dict[str, Any]:
+        """Load ObsMask (observability volume) and Plane (ground cull) for a scan.
+
+        Returns ``obs_mask`` / ``bb`` / ``res`` / ``plane`` for the official-like
+        evaluator. A missing ObsMask fails explicitly (it is required); a missing
+        Plane is returned as ``None`` and recorded, so the official protocol's failure
+        policy decides what happens rather than silently skipping the cull.
+        """
+        from scipy.io import loadmat
+
+        scan = self._scan_int(scene_id)
+        obs_path = self._obs_mask_path(scan)
+        if not obs_path.is_file():
+            raise DatasetError(
+                f"DTU ObsMask for scan {scan} is missing: expected {obs_path}. The official-like "
+                f"protocol requires ObsMask; use an eval3r-native protocol if it is unavailable."
+            )
+        mat = loadmat(str(obs_path))
+        for key in ("ObsMask", "BB", "Res"):
+            if key not in mat:
+                raise DatasetError(f"DTU ObsMask file {obs_path} has no '{key}' variable.")
+
+        plane_path = self._plane_path(scan)
+        plane = None
+        if plane_path.is_file():
+            plane_mat = loadmat(str(plane_path))
+            if "P" not in plane_mat:
+                raise DatasetError(f"DTU Plane file {plane_path} has no 'P' variable.")
+            plane = plane_mat["P"].astype(float).reshape(4)
+
+        return {
+            "obs_mask": mat["ObsMask"],
+            "bb": mat["BB"],
+            "res": float(np.asarray(mat["Res"]).reshape(-1)[0]),
+            "plane": plane,
+            "plane_available": plane is not None,
+            "obs_mask_path": str(obs_path),
+            "plane_path": str(plane_path) if plane is not None else None,
+        }
 
     # --- predictions -----------------------------------------------------------
 

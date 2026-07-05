@@ -199,6 +199,7 @@ def default_registry() -> BackendRegistry:
     global _DEFAULT_REGISTRY
     if _DEFAULT_REGISTRY is None:
         registry = BackendRegistry()
+        from eval3r.backends.dtu_eval import DTUOfficialEval
         from eval3r.backends.mesh_trimesh import TrimeshMeshBackend
         from eval3r.backends.nn_scipy import ScipyNNBackend
         from eval3r.backends.pointcloud_plyfile import PlyfilePointCloudBackend
@@ -206,5 +207,6 @@ def default_registry() -> BackendRegistry:
         registry.register("mesh", TrimeshMeshBackend())
         registry.register("pointcloud", PlyfilePointCloudBackend())
         registry.register("nearest_neighbor", ScipyNNBackend())
+        registry.register("official_eval", DTUOfficialEval())
         _DEFAULT_REGISTRY = registry
     return _DEFAULT_REGISTRY

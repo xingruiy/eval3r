@@ -33,6 +33,7 @@ from eval3r.core.registry import BackendRegistry, default_registry
 from eval3r.core.result import MetricResult, RunResult, SceneFailure
 from eval3r.datasets.base import DatasetAdapter, gt_geometry, prediction_kind
 from eval3r.pipeline.runner import SceneOutcome, evaluate_geometry_scene
+from eval3r.pipeline.stages.sample import DEFAULT_BASE_SEED
 
 _SUPPORTED_STATUS = "supported"
 
@@ -126,6 +127,97 @@ def _worst_results(
     return results
 
 
+def _evaluate_scene_official(
+    adapter: DatasetAdapter,
+    pred_root: Path,
+    manifest: PredictionManifest | None,
+    scene_id: str,
+    protocol: EvalProtocol,
+    protocol_hash: str,
+    registry: BackendRegistry,
+    official_name: str,
+    base_seed: int,
+) -> SceneOutcome:
+    """Evaluate one scene with a dataset's official-like evaluator (e.g. DTU dtu_eval).
+
+    Points are used in their native units (DTU is millimetres): the official ObsMask,
+    Plane, and distance cap are all in that frame, so this path does **not** normalize
+    to metres. Visibility (ObsMask/Plane) comes from the adapter.
+    """
+    from eval3r.core.errors import MetricError
+    from eval3r.pipeline.stages.sample import derive_seed
+
+    if not hasattr(adapter, "load_visibility_data"):
+        raise BenchmarkError(
+            f"protocol '{protocol.name}' needs the official evaluator '{official_name}', but "
+            f"dataset '{adapter.name}' provides no visibility (ObsMask/Plane) data."
+        )
+    pc_backend = registry.require(
+        "pointcloud", protocol.backend_preferences.get("pointcloud", "plyfile")
+    )
+    evaluator = registry.require("official_eval", official_name)
+
+    try:
+        recon = adapter.resolve_prediction(pred_root, scene_id, manifest)
+        if recon.path is None:
+            raise DatasetError(f"scene '{scene_id}' resolved without a prediction path.")
+        if recon.modality != "pointcloud":
+            raise DatasetError(
+                f"official DTU-like evaluation takes point-cloud predictions; scene '{scene_id}' "
+                f"is '{recon.modality}'. Sample the mesh to a point cloud first."
+            )
+        pred_points = pc_backend.load_pointcloud(recon.path)
+        scene = adapter.load_scene(scene_id)
+        gt_path, gt_kind = gt_geometry(scene)
+        if gt_kind != "pointcloud":
+            raise DatasetError(f"DTU GT must be a point cloud; scene '{scene_id}' GT is {gt_kind}.")
+        gt_points = pc_backend.load_pointcloud(gt_path)
+        visibility = adapter.load_visibility_data(scene_id, protocol)
+    except (DatasetError, InvalidGeometryError) as exc:
+        return SceneOutcome(
+            scene_id=scene_id,
+            failure=SceneFailure(scene_id=scene_id, stage="resolve", reason=str(exc)),
+        )
+
+    try:
+        seed = derive_seed("derive", scene_id, base_seed=base_seed)
+        result = evaluator.evaluate(pred_points, gt_points, visibility, seed=seed)
+    except MetricError as exc:
+        return SceneOutcome(
+            scene_id=scene_id,
+            failure=SceneFailure(scene_id=scene_id, stage="metric", reason=str(exc)),
+        )
+
+    values = {
+        "accuracy": result.accuracy,
+        "completeness": result.completeness,
+        "overall": result.overall,
+    }
+    meta = {
+        "evaluator_method": getattr(evaluator, "method", official_name),
+        "plane_available": visibility.get("plane_available"),
+        "n_data_in_obs": result.n_data_in_obs,
+        "n_stl_above": result.n_stl_above,
+    }
+    metrics = [
+        MetricResult(
+            name=spec.name,
+            value=values.get(spec.name),
+            unit="mm",
+            scene_id=scene_id,
+            protocol=protocol.name,
+            protocol_hash=protocol_hash,
+            backend=official_name,
+            n_points_pred=result.n_data_in_obs,
+            n_points_gt=result.n_stl_above,
+            metadata=meta,
+        )
+        for spec in protocol.metrics
+        if spec.name in values
+    ]
+    return SceneOutcome(scene_id=scene_id, metrics=metrics)
+
+
 def _evaluate_scene(
     adapter: DatasetAdapter,
     pred_root: Path,
@@ -200,15 +292,23 @@ def run_benchmark_geometry(
     # manifest is still written to the run directory for the record.
     resolve_manifest = None if inferred else manifest
 
+    official_name = protocol.backend_preferences.get("official_eval")
+
     per_scene: list[MetricResult] = []
     failures: list[SceneFailure] = []
     alignment_transforms: list[dict[str, Any]] = []
     evaluated = 0
 
     for scene_id in scenes:
-        outcome = _evaluate_scene(
-            adapter, pred_root, resolve_manifest, scene_id, protocol, phash, registry
-        )
+        if official_name:
+            outcome = _evaluate_scene_official(
+                adapter, pred_root, resolve_manifest, scene_id, protocol, phash,
+                registry, official_name, DEFAULT_BASE_SEED,
+            )
+        else:
+            outcome = _evaluate_scene(
+                adapter, pred_root, resolve_manifest, scene_id, protocol, phash, registry
+            )
         if progress is not None:
             progress(scene_id, outcome)
 
@@ -230,11 +330,14 @@ def run_benchmark_geometry(
     from eval3r.pipeline.stages.aggregate import aggregate_scene_metrics
 
     metrics = aggregate_scene_metrics(per_scene, protocol.metrics)
-    backend_versions = registry.backend_versions(
-        {"nearest_neighbor": protocol.backend_preferences.get("nearest_neighbor", "scipy"),
-         "pointcloud": protocol.backend_preferences.get("pointcloud", "plyfile"),
-         "mesh": protocol.backend_preferences.get("mesh", "trimesh")}
-    )
+    used_backends = {
+        "nearest_neighbor": protocol.backend_preferences.get("nearest_neighbor", "scipy"),
+        "pointcloud": protocol.backend_preferences.get("pointcloud", "plyfile"),
+        "mesh": protocol.backend_preferences.get("mesh", "trimesh"),
+    }
+    if official_name:
+        used_backends["official_eval"] = official_name
+    backend_versions = registry.backend_versions(used_backends)
 
     result = RunResult(
         schema_version=protocol.schema_version,

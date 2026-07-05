@@ -1,5 +1,5 @@
 schema_version: 1
-protocol_version: 0.1.0
+protocol_version: 0.2.0
 name: dtu_official_like_pointcloud
 fidelity: official_like
 
@@ -105,10 +105,16 @@ reporting:
   formats: [json, csv, markdown]
 
 backend_preferences:
-  pointcloud: open3d
+  pointcloud: plyfile
   nearest_neighbor: scipy
-  official_eval: dtu_eval_python
+  official_eval: dtu
 
 notes:
-  - Missing Plane files must be recorded explicitly.
-  - Native DTU units are millimeters; eval3r normalizes internal point arrays to meters but records source units.
+  - Missing Plane files must be recorded explicitly; a scan without its Plane file fails
+    under this official-like protocol rather than being silently scored.
+  - The official-like path evaluates in the DTU millimetre model frame (ObsMask BB/Res,
+    ground plane, and the 20 mm distance cap are all millimetres); it does NOT normalize
+    to metres, and the reported accuracy/completeness/overall are in millimetres.
+  - Culling (ObsMask observability + ground plane) and the 0.2 mm downsampling are performed
+    inside the validated dtu_eval Python port; the masking/sampling specs above document that
+    behaviour. The port is validated against the reference implementation on real DTU data.
