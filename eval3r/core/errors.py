@@ -20,6 +20,10 @@ class InvalidDepthError(Eval3rError):
     """A depth array could not be loaded/validated, or masking left no valid pixels."""
 
 
+class InvalidTrajectoryError(Eval3rError):
+    """A trajectory could not be loaded, or timestamp association found no matches."""
+
+
 class MetricError(Eval3rError):
     """A metric could not be computed (unsupported name, missing required spec field)."""
 

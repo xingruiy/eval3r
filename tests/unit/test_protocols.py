@@ -40,7 +40,7 @@ EXPECTED_HASHES = {
     "scannet_test_single_layer_geometry_5cm": "sha256:864a238ad143ac48031457eb26d945c0f1ea4e75a80d438aa6b1428b80356bea",
     "single_depth": "sha256:5af749bbea61dd7be60978780438d595cffa6013e01547ded556246a6850c938",
     "single_geometry": "sha256:7168bb180bf6f9c1feed8b75b40d74191cb6a57c814cc26c2b0933120121a781",
-    "single_pose": "sha256:af5d39a68b0981a6353f5c185e946975c8ba1fc6dac0137976936e22b4706a4e",
+    "single_pose": "sha256:796eb35aebaca3c1b219993ab770b29daec8723157e23b3eb5f7b51f7286cf0e",
     "tanks_temples_intermediate_server_only": "sha256:bb115c4291cfac50c8d06be7af824ea1ab54b9aad3d0367b973188eb2a0d1333",
     "tanks_temples_training_official": "sha256:e9c5d162a1b6f3cc3f972461ffee7b98593adbee725cf0ca419b96428d726e20",
 }
@@ -82,6 +82,22 @@ def test_single_depth_delta_names_disambiguate_thresholds() -> None:
     proto = load_protocol("single_depth")
     deltas = {m.name: m.threshold for m in proto.metrics if m.name.startswith("delta")}
     assert deltas == {"delta_1": 1.25, "delta_2": 1.5625, "delta_3": 1.953125}
+
+
+def test_single_pose_pins_rpe_deltas_and_association() -> None:
+    # RPE at delta=1 frame is not comparable to delta=1 second, so the deltas are
+    # explicit protocol parameters, never backend defaults (task 015).
+    proto = load_protocol("single_pose")
+    assert proto.alignment.mode == "trajectory_sim3"
+    assert proto.alignment.solver == "evo"
+    assert proto.alignment.parameters["associate_max_diff"] == 0.01
+    rpe = {m.name: m.parameters for m in proto.metrics if m.name.startswith("rpe_")}
+    assert rpe == {
+        "rpe_translation": {"delta": 1, "delta_unit": "frames", "all_pairs": False},
+        "rpe_rotation": {"delta": 1, "delta_unit": "frames", "all_pairs": False},
+    }
+    names = [m.name for m in proto.metrics]
+    assert names == ["ate", "rpe_translation", "rpe_rotation", "alignment_scale_error"]
 
 
 def test_unknown_protocol_raises_not_found() -> None:

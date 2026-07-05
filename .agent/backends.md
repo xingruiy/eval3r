@@ -297,6 +297,22 @@ record alignment mode and Sim3 scale when used
 fallback evaluator, if any, must be labeled limited
 ```
 
+Implementation (task 015): the `evo` backend (`trajectory` kind) uses the evo
+Python API in-process (`file_interface.read_tum_trajectory_file`,
+`sync.associate_trajectories`, `PoseTrajectory3D.align`, `metrics.APE`/`RPE`) —
+not the evo CLI. TUM format only for now; further formats arrive with their
+dataset adapters. `evaluate_ate` / `evaluate_rpe` return self-describing dicts:
+the full evo statistics (rmse/mean/median/std/min/max/sse), pose counts before
+association plus associated/dropped counts on both sides, the association policy
+(`nearest_timestamp`, explicit `associate_max_diff` — never defaulted, `offset`),
+and the estimated alignment (mode `none` / `trajectory_se3` / `trajectory_sim3`,
+rotation, translation, scale). RPE requires an explicit pose relation
+(`translation_part` / `rotation_angle_deg`), `delta`, and `delta_unit`
+(frames / seconds / meters). evo exceptions (`FileInterfaceException`,
+`SyncException`, `MetricsException`) are re-raised as eval3r errors naming both
+file paths, the pose counts, and the tolerance in effect. There is no fallback
+evaluator.
+
 ## Camera backend
 
 Delegates to:

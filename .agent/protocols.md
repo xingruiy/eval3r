@@ -899,9 +899,17 @@ backend_preferences:
 
 ## Pose protocol
 
+One predicted TUM trajectory (`timestamp x y z qx qy qz qw`) against one GT TUM
+trajectory. ATE is evo APE (translation part); RPE deltas are explicit MetricSpec
+parameters (never evo defaults); `alignment_scale_error = |ln s|` is the Sim3
+scale diagnostic. Default alignment is `trajectory_sim3` with overrides allowed
+(`none` / `se3` / `sim3` shorthands accepted by the CLI); metric-scale dataset
+protocols should pin `trajectory_se3` with `allow_override: false` so Sim3 can
+never be enabled silently (task 015; protocol_version 0.2.0).
+
 ```yaml
 schema_version: 1
-protocol_version: 0.1.0
+protocol_version: 0.2.0
 name: single_pose
 fidelity: eval3r_native
 
@@ -937,6 +945,7 @@ alignment:
   allow_override: true
   parameters:
     associate_max_diff: 0.01
+    offset: 0.0
 
 confidence:
   policy: none
@@ -963,8 +972,16 @@ metrics:
     statistic: rmse
   - name: rpe_translation
     statistic: rmse
+    parameters:
+      delta: 1
+      delta_unit: frames
+      all_pairs: false
   - name: rpe_rotation
     statistic: rmse
+    parameters:
+      delta: 1
+      delta_unit: frames
+      all_pairs: false
   - name: alignment_scale_error
 
 aggregation:
@@ -987,6 +1004,20 @@ reporting:
 
 backend_preferences:
   trajectory: evo
+
+notes:
+  - Trajectories are TUM-format text files (timestamp x y z qx qy qz qw).
+  - ATE is evo APE (translation part) in metres; rpe_translation is in metres and
+    rpe_rotation in degrees, both at the explicit delta above (1 frame) — RPE
+    deltas are never defaulted.
+  - Default alignment is trajectory_sim3 (Umeyama with scale, solved by evo);
+    override to trajectory_se3 or none for metric-scale predictions. Metric-scale
+    dataset protocols should pin trajectory_se3 with allow_override false.
+  - alignment_scale_error = |ln s| of the estimated alignment scale (0 when the
+    mode estimates no scale); the full transform is saved to
+    alignment_transforms.json.
+  - Association is nearest-timestamp with the explicit associate_max_diff above;
+    associated and dropped pose counts are recorded in result metadata.
 ```
 
 ## Protocol naming

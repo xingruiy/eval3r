@@ -23,8 +23,8 @@ def test_cli_help_lists_command_groups() -> None:
 def test_stub_command_fails_loudly_with_reason() -> None:
     from eval3r.cli.main import app
 
-    # `metric pose` is still a stub (task 015); it must fail loudly, not silently.
-    result = runner.invoke(app, ["metric", "pose"])
+    # `diff` is still a stub (task 016); it must fail loudly, not silently.
+    result = runner.invoke(app, ["diff"])
     assert result.exit_code != 0
     assert isinstance(result.exception, NotImplementedError)
-    assert "task 015" in str(result.exception)
+    assert "task 016" in str(result.exception)

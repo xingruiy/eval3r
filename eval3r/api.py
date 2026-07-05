@@ -17,6 +17,7 @@ from eval3r.datasets import default_registry as default_dataset_registry
 from eval3r.datasets.registry import DatasetRegistry
 from eval3r.pipeline.benchmark import BenchmarkRunOutput, run_benchmark_geometry
 from eval3r.pipeline.depth_runner import DepthRunOutput, run_single_file_depth
+from eval3r.pipeline.pose_runner import PoseRunOutput, run_single_file_pose
 from eval3r.pipeline.runner import GeometryRunOutput, run_single_file_geometry
 from eval3r.pipeline.stages.load import GeometryKind
 from eval3r.protocols import load_protocol
@@ -99,6 +100,52 @@ def evaluate_depth(
         pred, gt, proto,
         pred_depth_unit=depth_unit, gt_depth_unit=gt_depth_unit,
         align=align, align_granularity=align_granularity,
+        method=method, registry=registry, command=command, environment=environment,
+    )
+
+    if out_dir is not None:
+        write_run_directory(
+            run.result,
+            Path(out_dir),
+            protocol=run.protocol,
+            config=run.config,
+            environment=run.result.environment,
+            backend_versions=run.result.backend_versions,
+            alignment_transforms=run.alignment_records,
+        )
+
+    return run if return_run else run.result
+
+
+def evaluate_pose(
+    pred: str | Path,
+    gt: str | Path,
+    *,
+    align: str | None = None,
+    associate_max_diff: float | None = None,
+    backend: str | None = None,
+    protocol: str = "single_pose",
+    method: str | None = None,
+    out_dir: str | Path | None = None,
+    registry: BackendRegistry | None = None,
+    command: str | None = None,
+    return_run: bool = False,
+) -> RunResult | PoseRunOutput:
+    """Evaluate a predicted trajectory against a ground-truth trajectory.
+
+    ``pred``/``gt`` are TUM-format trajectory files (``timestamp x y z qx qy qz
+    qw``). ``align`` overrides the protocol's trajectory alignment (``none`` /
+    ``se3`` / ``sim3``, or the full ``trajectory_se3`` / ``trajectory_sim3``
+    names) and ``associate_max_diff`` the timestamp-association tolerance in
+    seconds; both are recorded as overrides (the protocol hash changes
+    accordingly). Association counts, alignment mode, and the estimated Sim3
+    scale are recorded in result metadata and ``alignment_transforms.json``.
+    """
+    proto = load_protocol(protocol)
+    environment = capture_environment(command=command)
+    run = run_single_file_pose(
+        pred, gt, proto,
+        align=align, associate_max_diff=associate_max_diff, backend=backend,
         method=method, registry=registry, command=command, environment=environment,
     )
 

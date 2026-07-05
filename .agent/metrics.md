@@ -271,7 +271,29 @@ Depth sequences are aggregated over frames and scenes. They are not converted in
 
 ## Pose metrics
 
-Pose metrics should delegate trajectory association and metric computation to `evo` where practical.
+Pose metrics delegate trajectory association and metric computation to `evo`
+(implemented in `metrics/pose.py` + `backends/trajectory_evo.py`, task 015;
+eval3r never reimplements association or pose-error math).
+
+Metric names (the result keys):
+
+```text
+ate                    evo APE, translation part                       metres
+rpe_translation        evo RPE, translation part, explicit delta       metres
+rpe_rotation           evo RPE, rotation angle, explicit delta         degrees
+alignment_scale_error  |ln s| of the estimated alignment scale         unitless
+```
+
+`ate`/`rpe_*` values are the spec's **explicit** statistic (rmse / mean / median
+/ std / min / max / sse) over evo's error series — a spec without a statistic
+fails loudly. `rpe_*` specs must pin `delta` and `delta_unit`
+(frames / seconds / meters) in their parameters — RPE at delta = 1 frame is not
+comparable to RPE at delta = 1 second, so deltas are never defaulted; `all_pairs`
+is recorded alongside. Alignment modes are the first-class `AlignmentSpec.mode`
+values `none` / `trajectory_se3` / `trajectory_sim3` (Umeyama via evo, estimated
+once per trajectory pair — granularity `per_scene`). Trajectory files are TUM
+format (`timestamp x y z qx qy qz qw`); further source formats arrive with their
+dataset adapters.
 
 Supported metrics:
 
@@ -307,6 +329,14 @@ Sim3 scale if used
 backend name and version
 association parameters
 ```
+
+Recording (task 015): every pose MetricResult carries `alignment_mode`,
+`alignment_scale`, the association policy (`nearest_timestamp` +
+`associate_max_diff` + `offset`), and the associated/dropped pose counts on both
+sides in its metadata (`n_points_pred`/`n_points_gt` hold the raw pose counts).
+The full estimated transform (rotation, translation, scale, `|ln s|`) is written
+to `alignment_transforms.json`. Association tolerance is an explicit alignment
+parameter — the backend refuses to default it.
 
 ## Diagnostic metrics
 

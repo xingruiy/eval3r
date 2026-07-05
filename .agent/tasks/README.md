@@ -23,11 +23,11 @@ relevant `.agent/*.md` docs and the actual code — task notes can be stale.
 | 012 | [012-tnt-official-wrapper.md](012-tnt-official-wrapper.md) | Tanks and Temples adapter + official script wrapper | done |
 | 013 | [013-eth3d-adapter.md](013-eth3d-adapter.md) | ETH3D adapter, pycolmap cameras, official-tolerance validation | done |
 | 014 | [014-depth-metrics.md](014-depth-metrics.md) | Depth IO, masks, scale alignment modes, `e3r metric depth` | done |
-| 015 | [015-pose-metrics.md](015-pose-metrics.md) | evo backend, ATE/RPE, `e3r metric pose` | todo |
+| 015 | [015-pose-metrics.md](015-pose-metrics.md) | evo backend, ATE/RPE, `e3r metric pose` | done |
 | 016 | [016-reports-diffing.md](016-reports-diffing.md) | Markdown/LaTeX/HTML reports, partial-coverage banners, `e3r diff` | todo |
 | 017 | [017-public-release-docs.md](017-public-release-docs.md) | Release docs, examples, packaging checks, PyPI prep | todo |
 
-**Next task: 015**
+**Next task: 016**
 
 Tasks must be executed in order unless a task's Scope says otherwise; each depends on the
 deliverables of the previous ones (schemas before adapters, metrics before runners, result

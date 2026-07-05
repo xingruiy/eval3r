@@ -13,6 +13,7 @@ from eval3r.backends.dtu_eval import DTUOfficialEval
 from eval3r.backends.mesh_trimesh import TrimeshMeshBackend
 from eval3r.backends.nn_scipy import ScipyNNBackend
 from eval3r.backends.pointcloud_plyfile import PlyfilePointCloudBackend
+from eval3r.backends.trajectory_evo import EvoTrajectoryBackend
 
 __all__ = [
     "TrimeshMeshBackend",
@@ -21,4 +22,5 @@ __all__ = [
     "DTUOfficialEval",
     "ImageioDepthBackend",
     "OpenCVDepthBackend",
+    "EvoTrajectoryBackend",
 ]
