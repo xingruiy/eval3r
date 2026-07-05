@@ -655,6 +655,54 @@ class RunResult(BaseModel):
 
 This model carries every field that `.agent/reproducibility.md` requires in `results.json`, including the metric definitions, aggregation, and failure policy actually used, so a result file is self-describing without the original protocol file.
 
+## Run diff
+
+`diff_runs(run_a, run_b, *, loose=False)` compares two written run directories and returns a `RunDiff`. Strict mode (default) raises `RunComparisonError` when protocol hashes differ; `loose=True` allows the comparison but the result is labeled non-strict.
+
+```python
+class RunIdentity(BaseModel):
+    run_dir: str
+    method: str | None
+    dataset: str
+    variant: str | None
+    split: str | None
+    protocol: str
+    protocol_version: str
+    protocol_hash: str
+    fidelity: str
+    failure_policy: str
+    n_scenes_expected: int
+    n_scenes_evaluated: int
+    n_scenes_failed: int
+
+
+class MetricDelta(BaseModel):
+    name: str
+    value_a: float | None
+    value_b: float | None
+    delta: float | None  # value_b - value_a when both present
+
+
+class DiffWarning(BaseModel):
+    field: str      # comparability trigger that fired
+    reason: str     # why the difference matters
+    value_a: str
+    value_b: str
+
+
+class RunDiff(BaseModel):
+    strict: bool    # False marks an explicitly requested non-strict (--loose) comparison
+    run_a: RunIdentity
+    run_b: RunIdentity
+    warnings: list[DiffWarning] = []
+    metrics: list[MetricDelta] = []
+    per_scene: dict[str, list[MetricDelta]] = {}
+    scenes_only_in_a: list[str] = []
+    scenes_only_in_b: list[str] = []
+```
+
+Warnings fire on the comparability triggers from `.agent/reproducibility.md`: protocol hash (loose mode only — strict mode refuses instead), GT provenance/independence, local evaluation status, scene coverage, failure policy, alignment mode, confidence policy, sampling counts, and backend officialness (fidelity + `official_eval` backend entry).
+
 ## Canonical hashing
 
 Protocol hashing must be stable across YAML formatting differences.

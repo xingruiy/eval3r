@@ -20,7 +20,10 @@ import yaml
 from eval3r.core.protocol import EvalProtocol
 from eval3r.core.result import RunResult
 from eval3r.reports.csv import write_per_scene_csv, write_results_csv
+from eval3r.reports.html import write_html_report
 from eval3r.reports.json import dump_json, write_failures_json, write_run_result_json
+from eval3r.reports.latex import write_latex_report
+from eval3r.reports.markdown import write_markdown_report
 
 
 def _slug(value: str | None) -> str:
@@ -48,20 +51,37 @@ def write_run_directory(
     backend_versions: dict[str, Any] | None = None,
     alignment_transforms: list[dict[str, Any]] | None = None,
     logs: str | None = None,
+    formats: list[str] | None = None,
 ) -> Path:
     """Write a complete run directory and return its path.
 
     ``environment`` / ``backend_versions`` default to the values already on
     ``result`` so a directory is self-describing even without explicit inputs.
+    ``formats`` selects the report formats; when ``None`` it comes from the
+    protocol's ``reporting.formats`` (json/csv are always written regardless —
+    ``results.json`` is required for every run). Markdown, LaTeX, and HTML
+    reports (``results.md`` / ``results.tex`` / ``report.html``) are written
+    when requested.
     """
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
+
+    if formats is None:
+        formats = list(protocol.reporting.formats) if protocol is not None else []
 
     # Always-present core files.
     write_run_result_json(result, out_dir / "results.json")
     write_results_csv(result, out_dir / "results.csv")
     write_per_scene_csv(result, out_dir / "per_scene.csv")
     write_failures_json(result, out_dir / "failures.json")
+
+    # Requested human-readable report formats.
+    if "markdown" in formats:
+        write_markdown_report(result, out_dir / "results.md")
+    if "latex" in formats:
+        write_latex_report(result, out_dir / "results.tex")
+    if "html" in formats:
+        write_html_report(result, out_dir / "report.html")
 
     env = environment if environment is not None else result.environment
     dump_json(env or {}, out_dir / "environment.json")

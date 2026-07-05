@@ -20,11 +20,14 @@ def test_cli_help_lists_command_groups() -> None:
         assert group in result.output, f"missing command group '{group}' in --help output"
 
 
-def test_stub_command_fails_loudly_with_reason() -> None:
+def test_diff_on_missing_run_fails_loudly_with_reason(tmp_path) -> None:
+    # No CLI stubs remain (task 016 implemented `diff`, the last one); failures
+    # must still be loud and name the concrete missing input, never a bare exit.
     from eval3r.cli.main import app
 
-    # `diff` is still a stub (task 016); it must fail loudly, not silently.
-    result = runner.invoke(app, ["diff"])
-    assert result.exit_code != 0
-    assert isinstance(result.exception, NotImplementedError)
-    assert "task 016" in str(result.exception)
+    result = runner.invoke(
+        app, ["diff", str(tmp_path / "run_a"), str(tmp_path / "run_b")]
+    )
+    assert result.exit_code == 1
+    assert "results.json" in result.output
+    assert "run_a" in result.output

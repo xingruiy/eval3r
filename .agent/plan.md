@@ -212,6 +212,7 @@ eval3r/
     html.py
     latex.py
     plots.py
+    diff.py
 
   cli/
     __init__.py
@@ -804,7 +805,11 @@ runs/
     backend_versions.json
     alignment_transforms.json
     logs.txt
+    results.md
+    results.tex
+    report.html
     debug/
+      debug_outputs.json
       scene0000_00_error.ply
       scene0000_00_histogram.png
 ```
@@ -994,6 +999,7 @@ dependencies = [
   "imageio",
   "opencv-python",
   "pyrender",
+  "matplotlib",
 ]
 ```
 

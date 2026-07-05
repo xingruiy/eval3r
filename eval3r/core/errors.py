@@ -53,6 +53,16 @@ class SceneEvaluationError(Eval3rError):
         )
 
 
+class RunComparisonError(Eval3rError):
+    """Two run results cannot be compared under the requested diff mode.
+
+    Raised by strict ``diff_runs`` when protocol hashes differ (metric numbers under
+    different protocols are not comparable), or when a run directory is missing or
+    unreadable. The message names both runs and, for hash mismatches, how to request
+    an explicitly-labeled non-strict comparison instead.
+    """
+
+
 class DatasetError(Eval3rError):
     """A dataset adapter could not resolve scenes, ground truth, or predictions."""
 

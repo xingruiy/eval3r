@@ -2,16 +2,18 @@
 
 ``evaluate_geometry`` runs the single-file geometry pipeline (task 007) for one
 prediction/ground-truth file pair under a named or file protocol, optionally writing
-a complete run directory. Benchmark and diff entry points are wired up in later
-slices (tasks 008 / 016).
+a complete run directory. ``run_benchmark`` evaluates a dataset split (task 008);
+``diff_runs`` compares two written run directories (task 016).
 """
 
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 from eval3r.core.environment import capture_environment
-from eval3r.core.registry import BackendRegistry
+from eval3r.core.protocol import EvalProtocol
+from eval3r.core.registry import BackendRegistry, default_registry
 from eval3r.core.result import RunResult
 from eval3r.datasets import default_registry as default_dataset_registry
 from eval3r.datasets.registry import DatasetRegistry
@@ -21,7 +23,27 @@ from eval3r.pipeline.pose_runner import PoseRunOutput, run_single_file_pose
 from eval3r.pipeline.runner import GeometryRunOutput, run_single_file_geometry
 from eval3r.pipeline.stages.load import GeometryKind
 from eval3r.protocols import load_protocol
+from eval3r.reports.diff import RunDiff, diff_runs  # noqa: F401  (public API re-export)
+from eval3r.reports.plots import write_geometry_debug_outputs
 from eval3r.reports.run_directory import write_run_directory
+
+
+def _write_debug_outputs(
+    debug_scenes: list[tuple[str, Any]],
+    protocol: EvalProtocol,
+    out_dir: Path,
+    registry: BackendRegistry | None,
+) -> None:
+    """Write protocol-requested debug outputs (colored PLY / histogram) to ``debug/``."""
+    if not debug_scenes:
+        return
+    registry = registry or default_registry()
+    backend = registry.require(
+        "pointcloud", protocol.backend_preferences.get("pointcloud", "plyfile")
+    )
+    write_geometry_debug_outputs(
+        debug_scenes, out_dir, reporting=protocol.reporting, pointcloud_backend=backend
+    )
 
 
 def evaluate_geometry(
@@ -66,6 +88,7 @@ def evaluate_geometry(
             backend_versions=run.result.backend_versions,
             alignment_transforms=run.alignment_transforms,
         )
+        _write_debug_outputs(run.debug_scenes, run.protocol, Path(out_dir), registry)
 
     return run if return_run else run.result
 
@@ -207,5 +230,6 @@ def run_benchmark(
             backend_versions=run.result.backend_versions,
             alignment_transforms=run.alignment_transforms,
         )
+        _write_debug_outputs(run.debug_scenes, run.protocol, Path(out_dir), registry)
 
     return run if return_run else run.result

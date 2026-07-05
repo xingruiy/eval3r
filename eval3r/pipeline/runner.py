@@ -28,6 +28,7 @@ from eval3r.core.protocol import EvalProtocol
 from eval3r.core.registry import BackendRegistry, default_registry
 from eval3r.core.result import MetricResult, RunResult, SceneFailure
 from eval3r.metrics.diagnostics import build_diagnostic_metrics, partition_specs
+from eval3r.metrics.geometry import DirectionalDistances, compute_directional_distances
 from eval3r.pipeline.stages.align import AlignmentResult, align_geometry
 from eval3r.pipeline.stages.load import GeometryKind, load_geometry
 from eval3r.pipeline.stages.mask import apply_culling
@@ -42,12 +43,19 @@ _THRESHOLD_METRICS = frozenset({"precision", "recall", "fscore", "coverage"})
 
 @dataclass
 class SceneOutcome:
-    """Result of evaluating one scene: metrics on success, a failure otherwise."""
+    """Result of evaluating one scene: metrics on success, a failure otherwise.
+
+    ``debug`` carries the per-point directional distances (with the cleaned point
+    arrays) when the protocol's reporting spec requests debug outputs; ``None``
+    otherwise, and always ``None`` for official-toolbox evaluation paths, which own
+    their distance computation internally.
+    """
 
     scene_id: str
     metrics: list[MetricResult] = field(default_factory=list)
     failure: SceneFailure | None = None
     alignment: AlignmentResult | None = None
+    debug: DirectionalDistances | None = None
 
 
 @dataclass
@@ -60,6 +68,7 @@ class GeometryRunOutput:
     alignment_transforms: list[dict[str, Any]]
     overrides: dict[str, Any]
     config: dict[str, Any]
+    debug_scenes: list[tuple[str, DirectionalDistances]] = field(default_factory=list)
 
 
 # --- overrides -----------------------------------------------------------------
@@ -171,10 +180,19 @@ def evaluate_geometry_scene(
 
         stage = "metric"
         geometry_specs, diagnostic_specs = partition_specs(protocol.metrics)
+        # Debug outputs (error-colored cloud / histogram) need per-point distances;
+        # compute them once here and hand the identical values to the metric layer.
+        reporting = protocol.reporting
+        capture_debug = reporting.save_colored_errors or reporting.save_distance_histogram
+        distances = (
+            compute_directional_distances(pred_points, gt_points, nn_backend)
+            if capture_debug
+            else None
+        )
         metrics = compute_scene_metrics(
             pred_points, gt_points, geometry_specs,
             protocol=protocol.name, protocol_hash=protocol_hash,
-            nn_backend=nn_backend, scene_id=scene_id,
+            nn_backend=nn_backend, scene_id=scene_id, distances=distances,
         )
         if diagnostic_specs:
             # The single-file / no-cull path removes nothing (mask method 'none'); the
@@ -185,7 +203,9 @@ def evaluate_geometry_scene(
                 {"culled_fraction": 0.0, "valid_fraction": valid_fraction},
                 scene_id=scene_id, protocol=protocol.name, protocol_hash=protocol_hash,
             )
-        return SceneOutcome(scene_id=scene_id, metrics=metrics, alignment=alignment)
+        return SceneOutcome(
+            scene_id=scene_id, metrics=metrics, alignment=alignment, debug=distances
+        )
     except Eval3rError as exc:
         failure = SceneFailure(
             scene_id=scene_id,
@@ -329,6 +349,9 @@ def run_single_file_geometry(
         alignment_transforms=alignment_transforms,
         overrides=overrides,
         config=config,
+        debug_scenes=(
+            [(outcome.scene_id, outcome.debug)] if outcome.debug is not None else []
+        ),
     )
 
 

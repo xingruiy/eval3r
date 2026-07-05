@@ -2,8 +2,6 @@
 
 Evaluate meshes, point clouds, depth predictions, and trajectories under explicit,
 dataset-aware protocols.
-
-The remaining public API (``diff_runs``) is wired up in later task slices.
 """
 
 from __future__ import annotations
@@ -60,11 +58,23 @@ def run_benchmark(*args: Any, **kwargs: Any) -> Any:
     return _impl(*args, **kwargs)
 
 
+def diff_runs(*args: Any, **kwargs: Any) -> Any:
+    """Compare two run result directories (strict on protocol hashes by default).
+
+    Thin re-export of :func:`eval3r.reports.diff.diff_runs` (imported lazily to
+    keep ``import eval3r`` cheap and cycle-free).
+    """
+    from eval3r.reports.diff import diff_runs as _impl
+
+    return _impl(*args, **kwargs)
+
+
 __all__ = [
     "load_protocol",
     "evaluate_geometry",
     "evaluate_depth",
     "evaluate_pose",
     "run_benchmark",
+    "diff_runs",
     "__version__",
 ]

@@ -53,12 +53,17 @@ dependencies = [
   "imageio",
   "opencv-python",
   "pyrender",
+  "matplotlib",
 ]
 ```
 
 `pyrender` is used only by the `visibility` backend for offscreen depth rendering during
 evaluation-time visibility culling (ScanNet single-/double-layer). It needs a headless GL
 context; set `PYOPENGL_PLATFORM=egl` (the `visibility` backend sets this itself when unset).
+
+`matplotlib` is used only for report debug outputs (distance histogram PNGs, rendered
+headlessly via the Agg canvas — no display needed) and the error-colored point-cloud
+colormap. It never participates in metric computation.
 
 There is no `[project.optional-dependencies]` table and no extras. Every backend below is always importable.
 

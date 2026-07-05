@@ -13,7 +13,7 @@ cannot be evaluated locally (``.agent/datasets.md`` local-evaluation rules).
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
@@ -40,7 +40,12 @@ _SUPPORTED_STATUS = "supported"
 
 @dataclass
 class BenchmarkRunOutput:
-    """Everything the writer/CLI needs after a benchmark run."""
+    """Everything the writer/CLI needs after a benchmark run.
+
+    ``debug_scenes`` holds per-scene directional distances captured when the
+    protocol's reporting spec requests debug outputs; only the eval3r-native
+    geometry path produces them (official-toolbox paths own their distances).
+    """
 
     result: RunResult
     protocol: EvalProtocol
@@ -49,6 +54,7 @@ class BenchmarkRunOutput:
     manifest: dict[str, Any]
     manifest_inferred: bool
     config: dict[str, Any]
+    debug_scenes: list[tuple[str, Any]] = field(default_factory=list)
 
 
 # --- manifest ------------------------------------------------------------------
@@ -616,6 +622,7 @@ def run_benchmark_geometry(
     per_scene: list[MetricResult] = []
     failures: list[SceneFailure] = []
     alignment_transforms: list[dict[str, Any]] = []
+    debug_scenes: list[tuple[str, Any]] = []
     evaluated = 0
     tnt_out_root = (
         Path(tempfile.mkdtemp(prefix="eval3r_tnt_"))
@@ -657,6 +664,8 @@ def run_benchmark_geometry(
             per_scene.extend(outcome.metrics)
             if outcome.alignment is not None:
                 alignment_transforms.append(outcome.alignment.as_dict())
+            if outcome.debug is not None:
+                debug_scenes.append((scene_id, outcome.debug))
             continue
 
         # failed scene: apply the protocol's failure policy.
@@ -733,6 +742,7 @@ def run_benchmark_geometry(
         manifest=manifest_dict,
         manifest_inferred=inferred,
         config=config,
+        debug_scenes=debug_scenes,
     )
 
 

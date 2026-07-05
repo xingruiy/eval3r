@@ -33,12 +33,25 @@ runs/
     backend_versions.json
     alignment_transforms.json
     logs.txt
+    results.md
+    results.tex
+    report.html
     debug/
+      debug_outputs.json
       scene0000_00_error.ply
       scene0000_00_histogram.png
 ```
 
 Only files actually produced should be present, but `results.json`, `protocol.yaml`, `environment.json`, and `logs.txt` should be standard for every run. `manifest.yaml` should be present for benchmark runs.
+
+`results.md`, `results.tex`, and `report.html` are written only when the protocol's
+`reporting.formats` requests `markdown` / `latex` / `html`; every one of them shows the
+run's scene coverage, failure reasons, failure policy, and a partial-coverage banner
+whenever the aggregates do not cover every expected scene. `debug/` outputs are written
+only when the protocol requests them (`save_colored_errors` / `save_distance_histogram`);
+`debug/debug_outputs.json` records the parameters that shaped them (colormap, colormap
+vmax, histogram bins, per-scene point counts). Only the eval3r-native geometry path can
+produce per-point debug outputs; official-toolbox paths own their distance computation.
 
 ## Required result fields
 

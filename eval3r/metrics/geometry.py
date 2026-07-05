@@ -54,13 +54,21 @@ def clean_points(points: np.ndarray, *, role: str) -> tuple[np.ndarray, int]:
 
 @dataclass(frozen=True)
 class DirectionalDistances:
-    """Nearest-neighbor distances in both directions plus point-count diagnostics."""
+    """Nearest-neighbor distances in both directions plus point-count diagnostics.
+
+    ``pred_points`` / ``gt_points`` are the *cleaned* (finite-only) point arrays the
+    distances were computed on, row-aligned with ``pred_to_gt`` / ``gt_to_pred`` —
+    kept so debug outputs (error-colored clouds, task 016) can color exactly the
+    points that were scored, without recomputing anything.
+    """
 
     pred_to_gt: np.ndarray
     gt_to_pred: np.ndarray
     n_points_pred: int
     n_points_gt: int
     valid_fraction: float
+    pred_points: np.ndarray | None = None
+    gt_points: np.ndarray | None = None
 
 
 def compute_directional_distances(
@@ -81,6 +89,8 @@ def compute_directional_distances(
         n_points_pred=pred.shape[0],
         n_points_gt=gt.shape[0],
         valid_fraction=kept / total,
+        pred_points=pred,
+        gt_points=gt,
     )
 
 
@@ -171,13 +181,19 @@ def evaluate_geometry_metrics(
     nn_backend: NNBackend,
     backend_name: str | None = None,
     scene_id: str | None = None,
+    distances: DirectionalDistances | None = None,
 ) -> list[MetricResult]:
     """Compute the geometry metrics in ``specs`` for one (pred, gt) pair.
 
     ``specs`` may only contain names in :data:`GEOMETRY_METRIC_NAMES`; any other name
-    raises :class:`MetricError` so nothing is silently skipped.
+    raises :class:`MetricError` so nothing is silently skipped. ``distances`` may
+    carry precomputed :func:`compute_directional_distances` output (the runner
+    computes it once up front when debug outputs are requested) — the same values,
+    never a different computation.
     """
-    dist = compute_directional_distances(pred_points, gt_points, nn_backend)
+    dist = distances if distances is not None else compute_directional_distances(
+        pred_points, gt_points, nn_backend
+    )
     results: list[MetricResult] = []
     for spec in specs:
         value = _metric_value(spec, dist)
