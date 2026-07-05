@@ -193,18 +193,24 @@ optional confidence
 optional intrinsics metadata for validation
 ```
 
-Primary depth metrics:
+Primary depth metrics (implemented in `metrics/depth.py`, task 014; metric names
+are the result keys — the δ names disambiguate the three thresholds because
+aggregation keys metrics by name):
 
 ```text
-AbsRel
-SqRel
-RMSE
-RMSE-log
-δ < 1.25
-δ < 1.25²
-δ < 1.25³
-scale-invariant depth error
+absrel    mean(|pred - gt| / gt)                              unitless
+sqrel     mean((pred - gt)^2 / gt)                            metres
+rmse      sqrt(mean((pred - gt)^2))                           metres
+rmse_log  sqrt(mean((ln pred - ln gt)^2))                     unitless
+silog     sqrt(mean(d^2) - mean(d)^2), d = ln pred - ln gt    unitless
+delta_1   fraction of pixels with max(pred/gt, gt/pred) < 1.25
+delta_2   same at 1.25² = 1.5625
+delta_3   same at 1.25³ = 1.953125
 ```
+
+`silog` is the Eigen et al. scale-invariant log error, reported unscaled (not
+multiplied by 100). δ thresholds are strict (`<`) and must still be explicit in
+the protocol's MetricSpec; a `delta_*` spec without a threshold fails loudly.
 
 Required handling:
 
@@ -216,6 +222,16 @@ zero or negative depths are invalid unless a protocol says otherwise
 valid pixel count is recorded
 valid fraction is recorded
 ```
+
+Masking detail (task 014): non-finite pixels in either array and protocol-listed
+`invalid_depth_values` sentinels are always masked. When `ignore_invalid_depth`
+is true (the default), non-positive GT **and prediction** pixels are also masked
+— ratio and log metrics are undefined there; the per-frame mask breakdown
+(`n_gt_nonfinite`, `n_gt_invalid_value`, `n_gt_nonpositive`, `n_pred_nonfinite`,
+`n_pred_nonpositive`) is recorded in metric metadata so an all-invalid prediction
+fails loudly (empty mask) instead of silently scoring on a subset. Alignment can
+reintroduce non-positive predictions (negative scale/shift); log metrics then
+raise rather than clamp.
 
 Scale alignment modes (declared as first-class `AlignmentSpec.mode` values in `.agent/schema.md`, never as free-form parameters):
 
@@ -235,6 +251,21 @@ per_scene
 ```
 
 Scale alignment mode and granularity must appear in metric metadata and report headers. For example, `AbsRel` under per-frame affine alignment is not comparable to `AbsRel` under per-sequence median scaling.
+
+Estimator definitions (task 014):
+
+```text
+scale_median         s = median(gt / pred) over valid pixels; shift 0
+scale_least_squares  s = Σ(pred·gt) / Σ(pred²); shift 0
+scale_affine         (s, t) minimizing ||s·pred + t − gt||² (closed form)
+```
+
+Degenerate inputs (constant prediction for affine, all-zero prediction for least
+squares) fail explicitly. On the single-file path, `per_frame` estimates per
+frame, while `per_sequence` / `per_scene` pool all frames' valid pixels into one
+estimate (identical pooling for a single scene, recorded under the requested
+granularity). Every estimated scale/shift is written to the run's alignment
+records and each metric's metadata.
 
 Depth sequences are aggregated over frames and scenes. They are not converted into meshes, fused point clouds, or TSDF volumes.
 

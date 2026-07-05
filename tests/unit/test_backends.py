@@ -34,6 +34,8 @@ def test_default_registry_has_builtin_backends() -> None:
     assert reg.available("official_eval") == ["dtu", "eth3d_official", "tnt_official"]
     # COLMAP camera parsing via pycolmap (task 013).
     assert reg.available("camera") == ["pycolmap"]
+    # Depth IO (task 014): imageio default, OpenCV for PFM.
+    assert reg.available("depth_io") == ["imageio", "opencv"]
     # ScanNet visibility culling (task 011): render + TSDF trim.
     assert reg.available("visibility") == ["render_tsdf"]
 

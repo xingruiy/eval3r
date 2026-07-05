@@ -7,6 +7,8 @@ importable directly for typing or explicit construction.
 
 from __future__ import annotations
 
+from eval3r.backends.depth_imageio import ImageioDepthBackend
+from eval3r.backends.depth_opencv import OpenCVDepthBackend
 from eval3r.backends.dtu_eval import DTUOfficialEval
 from eval3r.backends.mesh_trimesh import TrimeshMeshBackend
 from eval3r.backends.nn_scipy import ScipyNNBackend
@@ -17,4 +19,6 @@ __all__ = [
     "ScipyNNBackend",
     "PlyfilePointCloudBackend",
     "DTUOfficialEval",
+    "ImageioDepthBackend",
+    "OpenCVDepthBackend",
 ]

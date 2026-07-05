@@ -38,7 +38,7 @@ EXPECTED_HASHES = {
     "scannet_double_layer_geometry_5cm": "sha256:5a7f57763e3d6227fd23e538666d082eec63c27ca8ae10211317f15c0401e24a",
     "scannet_single_layer_geometry_5cm": "sha256:d8fa19896f75b3cae8a37f3273cc10bb4547beb9a5c7b874949e02c96fce9646",
     "scannet_test_single_layer_geometry_5cm": "sha256:864a238ad143ac48031457eb26d945c0f1ea4e75a80d438aa6b1428b80356bea",
-    "single_depth": "sha256:2d4190cf3adf074bcb8bdcee66d337a95fd5312990d07f4b7f3c656090980941",
+    "single_depth": "sha256:5af749bbea61dd7be60978780438d595cffa6013e01547ded556246a6850c938",
     "single_geometry": "sha256:7168bb180bf6f9c1feed8b75b40d74191cb6a57c814cc26c2b0933120121a781",
     "single_pose": "sha256:af5d39a68b0981a6353f5c185e946975c8ba1fc6dac0137976936e22b4706a4e",
     "tanks_temples_intermediate_server_only": "sha256:bb115c4291cfac50c8d06be7af824ea1ab54b9aad3d0367b973188eb2a0d1333",
@@ -72,7 +72,16 @@ def test_server_only_protocol_declares_no_local_metrics() -> None:
 def test_single_depth_uses_scale_median_and_valid_depth() -> None:
     proto = load_protocol("single_depth")
     assert proto.alignment.mode == "scale_median"
+    assert proto.alignment.granularity == "per_frame"
     assert proto.masking.valid_region.method == "valid_depth"
+
+
+def test_single_depth_delta_names_disambiguate_thresholds() -> None:
+    # Aggregation keys metrics by name, so the three delta thresholds must have
+    # distinct names with explicit thresholds (task 014).
+    proto = load_protocol("single_depth")
+    deltas = {m.name: m.threshold for m in proto.metrics if m.name.startswith("delta")}
+    assert deltas == {"delta_1": 1.25, "delta_2": 1.5625, "delta_3": 1.953125}
 
 
 def test_unknown_protocol_raises_not_found() -> None:

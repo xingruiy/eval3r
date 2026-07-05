@@ -27,6 +27,17 @@ def evaluate_geometry(*args: Any, **kwargs: Any) -> Any:
     return _impl(*args, **kwargs)
 
 
+def evaluate_depth(*args: Any, **kwargs: Any) -> Any:
+    """Evaluate a predicted depth map/sequence against ground-truth depth.
+
+    Thin re-export of :func:`eval3r.api.evaluate_depth` (imported lazily to keep
+    ``import eval3r`` cheap and cycle-free).
+    """
+    from eval3r.api import evaluate_depth as _impl
+
+    return _impl(*args, **kwargs)
+
+
 def run_benchmark(*args: Any, **kwargs: Any) -> Any:
     """Evaluate a method's predictions across a dataset split under a named protocol.
 
@@ -38,4 +49,10 @@ def run_benchmark(*args: Any, **kwargs: Any) -> Any:
     return _impl(*args, **kwargs)
 
 
-__all__ = ["load_protocol", "evaluate_geometry", "run_benchmark", "__version__"]
+__all__ = [
+    "load_protocol",
+    "evaluate_geometry",
+    "evaluate_depth",
+    "run_benchmark",
+    "__version__",
+]

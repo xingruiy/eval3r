@@ -201,6 +201,8 @@ def default_registry() -> BackendRegistry:
     if _DEFAULT_REGISTRY is None:
         registry = BackendRegistry()
         from eval3r.backends.camera_pycolmap import PycolmapCameraBackend
+        from eval3r.backends.depth_imageio import ImageioDepthBackend
+        from eval3r.backends.depth_opencv import OpenCVDepthBackend
         from eval3r.backends.dtu_eval import DTUOfficialEval
         from eval3r.backends.eth3d_official import Eth3dOfficialEval
         from eval3r.backends.mesh_trimesh import TrimeshMeshBackend
@@ -215,6 +217,8 @@ def default_registry() -> BackendRegistry:
         registry.register("pointcloud", Open3dPointCloudBackend())
         registry.register("nearest_neighbor", ScipyNNBackend())
         registry.register("camera", PycolmapCameraBackend())
+        registry.register("depth_io", ImageioDepthBackend())
+        registry.register("depth_io", OpenCVDepthBackend())
         registry.register("official_eval", DTUOfficialEval())
         registry.register("official_eval", TntOfficialEval())
         registry.register("official_eval", Eth3dOfficialEval())

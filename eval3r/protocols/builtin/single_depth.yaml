@@ -1,5 +1,5 @@
 schema_version: 1
-protocol_version: 0.1.0
+protocol_version: 0.2.0
 name: single_depth
 fidelity: eval3r_native
 
@@ -55,16 +55,19 @@ sampling:
     method: all_points
     seed: derive
 
+# delta_1/2/3 disambiguate delta < 1.25 / 1.25^2 / 1.25^3 by name (aggregation keys
+# metrics by name); the thresholds stay explicit and are never defaulted.
 metrics:
   - name: absrel
   - name: sqrel
   - name: rmse
   - name: rmse_log
-  - name: delta
+  - name: silog
+  - name: delta_1
     threshold: 1.25
-  - name: delta
+  - name: delta_2
     threshold: 1.5625
-  - name: delta
+  - name: delta_3
     threshold: 1.953125
 
 aggregation:
@@ -83,5 +86,17 @@ reporting:
   save_protocol_copy: true
   save_manifest_copy: true
   save_environment: true
-  save_alignment_transforms: false
+  save_alignment_transforms: true
   formats: [json, csv]
+
+backend_preferences:
+  depth_io: imageio
+
+notes:
+  - Single-file / sequence depth protocol for local comparison. Not a dataset benchmark.
+  - Scale alignment mode and granularity are first-class AlignmentSpec fields and are
+    recorded in every metric's metadata; per-frame median scaling is the default.
+  - Non-finite pixels, protocol-listed invalid values (0), and non-positive gt/pred
+    depths are masked; the mask breakdown and valid fraction are recorded per frame.
+  - silog is the Eigen et al. scale-invariant log error, reported unscaled
+    (not multiplied by 100).

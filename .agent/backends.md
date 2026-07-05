@@ -377,6 +377,26 @@ Hypersim Euclidean ray distance must be converted only by a dataset-aware path
 no depth sequence is integrated into scene geometry by a backend
 ```
 
+Implementation (task 014): two backends share one contract (`load_depth`
+returns a 2D float64 array in **metres**; `load_mask` returns bool,
+nonzero = valid), with common `depth_unit` handling in
+`backends/depth_common.py`:
+
+```text
+imageio  (default)  image formats via imageio.v3 (16-bit PNG, TIFF, ...);
+                    .npy via numpy
+opencv              cv2.imread(IMREAD_UNCHANGED); additionally reads PFM,
+                    which imageio does not decode; .npy via numpy
+```
+
+`depth_unit` is metres per stored unit (e.g. 0.001 for millimetre PNGs). It is
+**required** for integer-typed sources (never self-describing) — loading integer
+depth without it fails with an explicit message. Float sources default to
+already-metric; an explicit unit still applies. Multi-channel images are
+rejected (a depth map is single-channel). Invalid values (0, 65535, NaN/Inf)
+pass through untouched to the protocol-controlled masking in
+`metrics/depth.py`.
+
 ## Official evaluation backends
 
 Official wrappers should be used when reimplementation risk is high.

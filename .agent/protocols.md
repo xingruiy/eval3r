@@ -795,9 +795,17 @@ notes:
 
 ## Single-depth protocol
 
+A single depth file pair (`single_depth`) or two frame directories matched by
+filename stem (`depth_sequence`, per-frame then per-scene aggregation — never
+fused into scene geometry). The δ metrics use distinct names (`delta_1/2/3`)
+because aggregation keys metrics by name; the thresholds stay explicit. `silog`
+is the Eigen et al. scale-invariant log error (reported unscaled). Scale
+alignment mode + granularity are recorded in every metric's metadata and in the
+run's alignment records (task 014; protocol_version 0.2.0).
+
 ```yaml
 schema_version: 1
-protocol_version: 0.1.0
+protocol_version: 0.2.0
 name: single_depth
 fidelity: eval3r_native
 
@@ -858,11 +866,12 @@ metrics:
   - name: sqrel
   - name: rmse
   - name: rmse_log
-  - name: delta
+  - name: silog
+  - name: delta_1
     threshold: 1.25
-  - name: delta
+  - name: delta_2
     threshold: 1.5625
-  - name: delta
+  - name: delta_3
     threshold: 1.953125
 
 aggregation:
@@ -881,8 +890,11 @@ reporting:
   save_protocol_copy: true
   save_manifest_copy: true
   save_environment: true
-  save_alignment_transforms: false
+  save_alignment_transforms: true
   formats: [json, csv]
+
+backend_preferences:
+  depth_io: imageio
 ```
 
 ## Pose protocol

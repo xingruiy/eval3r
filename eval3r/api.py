@@ -16,6 +16,7 @@ from eval3r.core.result import RunResult
 from eval3r.datasets import default_registry as default_dataset_registry
 from eval3r.datasets.registry import DatasetRegistry
 from eval3r.pipeline.benchmark import BenchmarkRunOutput, run_benchmark_geometry
+from eval3r.pipeline.depth_runner import DepthRunOutput, run_single_file_depth
 from eval3r.pipeline.runner import GeometryRunOutput, run_single_file_geometry
 from eval3r.pipeline.stages.load import GeometryKind
 from eval3r.protocols import load_protocol
@@ -63,6 +64,53 @@ def evaluate_geometry(
             environment=run.result.environment,
             backend_versions=run.result.backend_versions,
             alignment_transforms=run.alignment_transforms,
+        )
+
+    return run if return_run else run.result
+
+
+def evaluate_depth(
+    pred: str | Path,
+    gt: str | Path,
+    *,
+    depth_unit: float | None = None,
+    gt_depth_unit: float | None = None,
+    align: str | None = None,
+    align_granularity: str | None = None,
+    protocol: str = "single_depth",
+    method: str | None = None,
+    out_dir: str | Path | None = None,
+    registry: BackendRegistry | None = None,
+    command: str | None = None,
+    return_run: bool = False,
+) -> RunResult | DepthRunOutput:
+    """Evaluate a predicted depth map or frame directory against ground-truth depth.
+
+    ``pred``/``gt`` are either two depth files (single frame) or two directories of
+    frames matched by filename stem (depth sequence, aggregated per frame — never
+    fused into scene geometry). ``depth_unit`` / ``gt_depth_unit`` are metres per
+    stored unit and are required for integer depth files. ``align`` /
+    ``align_granularity`` override the protocol's scale alignment and are recorded
+    as overrides (the protocol hash changes accordingly).
+    """
+    proto = load_protocol(protocol)
+    environment = capture_environment(command=command)
+    run = run_single_file_depth(
+        pred, gt, proto,
+        pred_depth_unit=depth_unit, gt_depth_unit=gt_depth_unit,
+        align=align, align_granularity=align_granularity,
+        method=method, registry=registry, command=command, environment=environment,
+    )
+
+    if out_dir is not None:
+        write_run_directory(
+            run.result,
+            Path(out_dir),
+            protocol=run.protocol,
+            config=run.config,
+            environment=run.result.environment,
+            backend_versions=run.result.backend_versions,
+            alignment_transforms=run.alignment_records,
         )
 
     return run if return_run else run.result
