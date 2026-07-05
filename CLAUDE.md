@@ -113,22 +113,11 @@ resume interrupted sessions from the first non-done task in README.md
 
 Before resuming a task, re-read the actual relevant files because task notes can be stale.
 
-### Task report rule
-
-At the end of **every** task, generate a task report at `.agent/tasks/reports/NNN-short-name.md`
-(mirroring the task file's number/slug). Link it from `.agent/tasks/README.md`. The report is a
-concise, human-readable summary of what actually happened, not a transcript. It must state:
-
-```text
-what was built and why (the intent)
-what changed (files/modules/tests, at a glance)
-how it was verified (exact commands + real outcomes, including real official-toolbox runs)
-any official-toolbox compat patch applied (what/why) or result-affecting issue escalated
-what is NOT covered / known limitations / follow-ups
-final status and the commit hash
-```
-
-The report is written before marking the task `done`, and is part of the definition of done.
+The task file itself is the task's durable report: its Findings, Decisions, and Verification
+sections must record what was built and why, what changed, how it was verified (exact commands
+and real outcomes, including real official-toolbox runs), any official-toolbox compat patch or
+result-affecting issue escalated, known limitations, and the final status. Do not create
+separate per-task report files — keep the summary in the task file.
 
 ## Source-of-truth files
 
@@ -412,7 +401,7 @@ If the official code does not run out of the box:
 if it is a mechanical incompatibility that does NOT change results
   (e.g. a version API break such as open3d moving a symbol, a Python-2→3 print,
    a renamed import, a deprecated kwarg) — just fix it so it runs, and record the
-   exact patch (what/why) in result metadata and the task report.
+   exact patch (what/why) in result metadata and the task file.
 if the failure could change the numbers it produces
   (algorithm change, different threshold/default, unclear semantics, non-obvious fix) —
   STOP and tell the user; do not guess a fix that could alter the score.
@@ -421,7 +410,7 @@ if the failure could change the numbers it produces
 Fixing a mechanical version-compat break to make the real toolbox run is explicitly allowed
 and is NOT "reimplementing" it. Reimplementing the scoring logic, or substituting a fake, is
 still forbidden. Record the toolbox source, commit/version, and any applied compat patch in
-result metadata and the task report.
+result metadata and the task file.
 
 ## Result and reproducibility rules
 
@@ -617,5 +606,5 @@ result metadata is complete
 failure behavior is explicit
 errors and CLI output explicitly state reasons and resolved configuration
 official-eval paths were verified against the real official toolbox (no fake stand-in)
-a task report exists at .agent/tasks/reports/NNN-short-name.md
+the task file's Findings/Decisions/Verification record the outcome
 ```
