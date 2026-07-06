@@ -19,6 +19,7 @@ nav:
   - Fidelity: fidelity.md
   - Datasets: datasets.md
   - Metrics: metrics.md
+  - Alignment: alignment.md
   - Backends: backends.md
   - Confidence: confidence.md
   - Failure policy: failure_policy.md

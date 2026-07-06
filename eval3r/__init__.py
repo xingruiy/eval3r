@@ -69,6 +69,18 @@ def diff_runs(*args: Any, **kwargs: Any) -> Any:
     return _impl(*args, **kwargs)
 
 
+def align_geometries(*args: Any, **kwargs: Any) -> Any:
+    """Estimate an SE3/Sim3 alignment between two geometries, with mandatory
+    visualization artifacts.
+
+    Thin re-export of :func:`eval3r.api.align_geometries` (imported lazily to keep
+    ``import eval3r`` cheap and cycle-free).
+    """
+    from eval3r.api import align_geometries as _impl
+
+    return _impl(*args, **kwargs)
+
+
 __all__ = [
     "load_protocol",
     "evaluate_geometry",
@@ -76,5 +88,6 @@ __all__ = [
     "evaluate_pose",
     "run_benchmark",
     "diff_runs",
+    "align_geometries",
     "__version__",
 ]

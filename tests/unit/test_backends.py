@@ -38,6 +38,8 @@ def test_default_registry_has_builtin_backends() -> None:
     assert reg.available("depth_io") == ["imageio", "opencv"]
     # Trajectory ATE/RPE via evo (task 015).
     assert reg.available("trajectory") == ["evo"]
+    # Closest-point ICP registration via Open3D (task 018; no FPFH backend exists).
+    assert reg.available("registration") == ["open3d"]
     # ScanNet visibility culling (task 011): render + TSDF trim.
     assert reg.available("visibility") == ["render_tsdf"]
 

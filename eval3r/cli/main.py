@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import typer
 
+from eval3r.cli.align import align_command
 from eval3r.cli.benchmark import benchmark_app
 from eval3r.cli.dataset import dataset_app
 from eval3r.cli.diff import diff_command
@@ -29,6 +30,7 @@ app.add_typer(benchmark_app, name="benchmark")
 app.add_typer(dataset_app, name="dataset")
 app.add_typer(protocol_app, name="protocol")
 app.command("diff")(diff_command)
+app.command("align")(align_command)
 
 
 if __name__ == "__main__":  # pragma: no cover

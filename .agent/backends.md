@@ -261,6 +261,23 @@ iteration count and convergence criteria are recorded
 fitness and residual RMSE are recorded
 ```
 
+Implementation (task 018): the `open3d` backend (`registration` kind) wraps
+`open3d.pipelines.registration.registration_icp` with point-to-point estimation
+only; `with_scaling=True` gives scaled (Sim3) point-to-point for `mode: sim3`.
+Per explicit project decision there is **no FPFH / feature-descriptor global
+registration backend** — geometry alignment is closest-point ICP from a recorded
+coarse init (centroid translation, plus RMS-radius scale for Sim3; rotation is
+owned by ICP) or trajectory-first Umeyama propagation via the evo backend, and
+quirky alignments are surfaced by the mandatory visualization artifacts
+(`reports/alignment_vis.py`: before/after overlay PLYs + orthographic projection
+PNG), not hidden behind a fancier solver. `max_correspondence_distance` is
+required and never defaulted (protocol `parameters`, or `e3r align
+--max-corr-dist`, whose `auto` resolves to 5% of the GT bbox diagonal and is
+recorded). Every shaping parameter plus fitness / inlier RMSE / correspondence
+count is returned for result metadata; zero correspondences is an explicit error,
+never a silent identity. There is no RANSAC or seeded randomness; results are
+reproducible up to Open3D's multithreaded floating-point reduction order.
+
 ## Trajectory backend
 
 Delegates to:
@@ -317,6 +334,12 @@ rotation, translation, scale). RPE requires an explicit pose relation
 `SyncException`, `MetricsException`) are re-raised as eval3r errors naming both
 file paths, the pose counts, and the tolerance in effect. There is no fallback
 evaluator.
+
+Task 018 adds `align_trajectories`: the same association + Umeyama alignment, but
+returning the estimated 4x4 transform itself (with scale, rotation, translation,
+the position residual RMSE it minimized, and the full association accounting) so
+the geometry align stage can propagate a trajectory-first alignment to a
+prediction's geometry (`estimate_on: trajectory`).
 
 ## Camera backend
 

@@ -29,7 +29,12 @@ from eval3r.core.registry import BackendRegistry, default_registry
 from eval3r.core.result import MetricResult, RunResult, SceneFailure
 from eval3r.metrics.diagnostics import build_diagnostic_metrics, partition_specs
 from eval3r.metrics.geometry import DirectionalDistances, compute_directional_distances
-from eval3r.pipeline.stages.align import AlignmentResult, align_geometry
+from eval3r.pipeline.stages.align import (
+    AlignmentResult,
+    AlignmentVisData,
+    align_geometry,
+    capture_alignment_vis,
+)
 from eval3r.pipeline.stages.load import GeometryKind, load_geometry
 from eval3r.pipeline.stages.mask import apply_culling
 from eval3r.pipeline.stages.metric import compute_scene_metrics
@@ -48,7 +53,9 @@ class SceneOutcome:
     ``debug`` carries the per-point directional distances (with the cleaned point
     arrays) when the protocol's reporting spec requests debug outputs; ``None``
     otherwise, and always ``None`` for official-toolbox evaluation paths, which own
-    their distance computation internally.
+    their distance computation internally. ``alignment_vis`` carries the subsampled
+    before/after/gt capture whenever a non-``none`` alignment actually ran, so the
+    mandatory visualization artifacts can be written with the run directory.
     """
 
     scene_id: str
@@ -56,6 +63,7 @@ class SceneOutcome:
     failure: SceneFailure | None = None
     alignment: AlignmentResult | None = None
     debug: DirectionalDistances | None = None
+    alignment_vis: AlignmentVisData | None = None
 
 
 @dataclass
@@ -69,6 +77,7 @@ class GeometryRunOutput:
     overrides: dict[str, Any]
     config: dict[str, Any]
     debug_scenes: list[tuple[str, DirectionalDistances]] = field(default_factory=list)
+    alignment_vis: list[AlignmentVisData] = field(default_factory=list)
 
 
 # --- overrides -----------------------------------------------------------------
@@ -133,17 +142,33 @@ def evaluate_geometry_scene(
     base_seed: int = DEFAULT_BASE_SEED,
     pred_unit: str | None = None,
     gt_unit: str | None = None,
+    pred_trajectory: Path | None = None,
+    gt_trajectory: Path | None = None,
 ) -> SceneOutcome:
     """Run the stages for one scene, returning metrics or a structured failure.
 
     ``pred_unit`` / ``gt_unit`` are the source length units of the loaded files; each
     is normalized to metres in the ``normalize`` stage before alignment. ``None`` (the
     single-file default) means the geometry is already metric.
+    ``pred_trajectory`` / ``gt_trajectory`` feed trajectory-first alignment
+    (``estimate_on: trajectory``); a missing one is an explicit failure at stage
+    ``align`` when that alignment is requested.
     """
     prefs = protocol.backend_preferences
     mesh_backend = registry.require("mesh", prefs.get("mesh", "trimesh"))
     pc_backend = registry.require("pointcloud", prefs.get("pointcloud", "plyfile"))
     nn_backend = registry.require("nearest_neighbor", prefs.get("nearest_neighbor", "scipy"))
+    align_spec = protocol.alignment
+    registration_backend = (
+        registry.require("registration", prefs.get("registration", "open3d"))
+        if align_spec.mode != "none" and align_spec.solver == "icp"
+        else None
+    )
+    trajectory_backend = (
+        registry.require("trajectory", prefs.get("trajectory", "evo"))
+        if align_spec.mode != "none" and align_spec.estimate_on == "trajectory"
+        else None
+    )
     metric_scale = (protocol.ground_truth.unit or "m") == "m"
 
     stage: GeometryStage = "load"
@@ -160,8 +185,19 @@ def evaluate_geometry_scene(
         gt = normalize_to_meters(gt, gt_unit)
 
         stage = "align"
+        pred_before_align = pred
         pred, alignment = align_geometry(
-            pred, gt, protocol.alignment, scene_id=scene_id, metric_scale=metric_scale
+            pred, gt, protocol.alignment, scene_id=scene_id, metric_scale=metric_scale,
+            registration_backend=registration_backend,
+            trajectory_backend=trajectory_backend,
+            pred_trajectory=pred_trajectory, gt_trajectory=gt_trajectory,
+        )
+        # Mandatory visualization: capture whenever an alignment actually ran, so
+        # the run directory always gets the before/after overlays.
+        alignment_vis = (
+            capture_alignment_vis(pred_before_align, gt, alignment)
+            if protocol.alignment.mode != "none"
+            else None
         )
 
         stage = "mask"
@@ -204,7 +240,8 @@ def evaluate_geometry_scene(
                 scene_id=scene_id, protocol=protocol.name, protocol_hash=protocol_hash,
             )
         return SceneOutcome(
-            scene_id=scene_id, metrics=metrics, alignment=alignment, debug=distances
+            scene_id=scene_id, metrics=metrics, alignment=alignment, debug=distances,
+            alignment_vis=alignment_vis,
         )
     except Eval3rError as exc:
         failure = SceneFailure(
@@ -229,7 +266,13 @@ def _used_backend_versions(
     registry: BackendRegistry, protocol: EvalProtocol, *, kinds: set[str]
 ) -> dict[str, Any]:
     prefs = protocol.backend_preferences
-    defaults = {"mesh": "trimesh", "pointcloud": "plyfile", "nearest_neighbor": "scipy"}
+    defaults = {
+        "mesh": "trimesh",
+        "pointcloud": "plyfile",
+        "nearest_neighbor": "scipy",
+        "registration": "open3d",
+        "trajectory": "evo",
+    }
     resolved = {kind: prefs.get(kind, defaults.get(kind, "")) for kind in kinds if kind}
     return registry.backend_versions(resolved)
 
@@ -264,6 +307,8 @@ def run_single_file_geometry(
     registry: BackendRegistry | None = None,
     command: str | None = None,
     environment: dict[str, Any] | None = None,
+    pred_trajectory: str | Path | None = None,
+    gt_trajectory: str | Path | None = None,
 ) -> GeometryRunOutput:
     """Evaluate one prediction file against one GT file under ``protocol``."""
     registry = registry or default_registry()
@@ -280,6 +325,8 @@ def run_single_file_geometry(
         scene_id, pred_path, gt_path,
         protocol=proto, protocol_hash=phash,
         input_type=input_type, gt_type=gt_type, registry=registry,
+        pred_trajectory=Path(pred_trajectory) if pred_trajectory else None,
+        gt_trajectory=Path(gt_trajectory) if gt_trajectory else None,
     )
 
     # abort policy: fail loudly with scene/stage context.
@@ -291,6 +338,10 @@ def run_single_file_geometry(
         kinds.add("mesh")
     if input_type == "pointcloud" or gt_type == "pointcloud":
         kinds.add("pointcloud")
+    if proto.alignment.mode != "none" and proto.alignment.solver == "icp":
+        kinds.add("registration")
+    if proto.alignment.mode != "none" and proto.alignment.estimate_on == "trajectory":
+        kinds.add("trajectory")
     backend_versions = _used_backend_versions(registry, proto, kinds=kinds)
 
     metrics = _aggregate_metrics(outcome, proto)
@@ -351,6 +402,9 @@ def run_single_file_geometry(
         config=config,
         debug_scenes=(
             [(outcome.scene_id, outcome.debug)] if outcome.debug is not None else []
+        ),
+        alignment_vis=(
+            [outcome.alignment_vis] if outcome.alignment_vis is not None else []
         ),
     )
 

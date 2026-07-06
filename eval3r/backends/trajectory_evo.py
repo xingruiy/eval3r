@@ -151,6 +151,41 @@ class EvoTrajectoryBackend:
         }
         return gt_assoc, pred_aligned, metadata
 
+    def align_trajectories(
+        self,
+        pred_path: Path,
+        gt_path: Path,
+        align: str,
+        association: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Estimate the transform mapping the pred trajectory onto the gt trajectory.
+
+        Same association + Umeyama alignment as the pose metrics (task 015), but
+        returns the transform itself instead of an error statistic, so the geometry
+        align stage (task 018) can propagate it to a prediction's geometry. The
+        4x4 ``matrix`` maps prediction coordinates into gt coordinates
+        (``x_gt ≈ s·R·x_pred + t``, evo's Umeyama convention). ``residual_rmse`` is
+        the position RMSE over the associated poses after alignment — the quantity
+        the transform actually minimized.
+        """
+        gt_assoc, pred_aligned, meta = self._associate_and_align(
+            pred_path, gt_path, align, association
+        )
+        alignment = meta["alignment"]
+        scale = float(alignment["scale"])
+        matrix = np.eye(4)
+        matrix[:3, :3] = scale * np.asarray(alignment["rotation"], dtype=np.float64)
+        matrix[:3, 3] = np.asarray(alignment["translation"], dtype=np.float64)
+        residuals = pred_aligned.positions_xyz - gt_assoc.positions_xyz
+        return {
+            "matrix": matrix.tolist(),
+            "scale": scale,
+            "rotation": alignment["rotation"],
+            "translation": alignment["translation"],
+            "residual_rmse": float(np.sqrt(np.mean(np.sum(residuals**2, axis=1)))),
+            **meta,
+        }
+
     # --- metrics ----------------------------------------------------------------
 
     def evaluate_ate(

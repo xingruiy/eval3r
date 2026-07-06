@@ -421,6 +421,20 @@ class AlignmentSpec(BaseModel):
 
 The `scale_median`, `scale_least_squares`, and `scale_affine` modes are the depth scale-alignment modes from `.agent/metrics.md`. Depth protocols must declare scale alignment through `mode` and `granularity`, never through free-form `parameters`, so the choice is visible, hashed, and reported.
 
+### Geometry alignment semantics (task 018)
+
+Geometry alignment has exactly two correspondence-free estimation paths — closest-point ICP and trajectory-first Umeyama propagation. There is deliberately **no FPFH / feature-descriptor global registration**; quirky alignments are surfaced by the mandatory visualization artifacts, not hidden behind a fancier solver.
+
+| Protocol spec | Meaning |
+|---|---|
+| `mode: none` | identity; prediction untouched |
+| `mode: se3\|sim3`, `solver: none\|umeyama` (`estimate_on` != `trajectory`) | corresponded Umeyama (equal counts, matched order) |
+| `mode: se3\|sim3`, `solver: icp`, `estimate_on: pointcloud` | closest-point ICP (Open3D point-to-point); `with_scaling = (mode == sim3)`; coarse init = centroid translation (+ RMS-radius scale for sim3), recorded |
+| `mode: se3\|sim3`, `solver: umeyama`, `estimate_on: trajectory` | pred trajectory associated (evo, explicit `associate_max_diff`) and Umeyama-aligned onto the gt trajectory; the 4x4 is propagated to the geometry |
+| `mode: icp` | **refused** — the mode must state the transform class (`se3`/`sim3` + `solver: icp`) so rigid-vs-similarity scale handling stays explicit |
+
+Required `parameters` (never defaulted silently): ICP needs `max_correspondence_distance` (metres); trajectory alignment needs `associate_max_diff` (seconds). The Sim3-on-metric-scale guard applies to every scale-changing path. Whenever a non-`none` alignment runs in a pipeline, before/after overlay PLYs and an orthographic projection PNG are written to the run directory's `debug/` (debug output, not evaluation behavior — no schema/hash impact); `e3r align` / `align_geometries` always write them.
+
 ## Sampling schema
 
 ```python

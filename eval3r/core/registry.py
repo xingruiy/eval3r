@@ -209,6 +209,7 @@ def default_registry() -> BackendRegistry:
         from eval3r.backends.nn_scipy import ScipyNNBackend
         from eval3r.backends.pointcloud_open3d import Open3dPointCloudBackend
         from eval3r.backends.pointcloud_plyfile import PlyfilePointCloudBackend
+        from eval3r.backends.registration_open3d import Open3dRegistrationBackend
         from eval3r.backends.tnt_official import TntOfficialEval
         from eval3r.backends.trajectory_evo import EvoTrajectoryBackend
         from eval3r.backends.visibility_render import RenderTsdfVisibilityCull
@@ -217,6 +218,7 @@ def default_registry() -> BackendRegistry:
         registry.register("pointcloud", PlyfilePointCloudBackend())
         registry.register("pointcloud", Open3dPointCloudBackend())
         registry.register("nearest_neighbor", ScipyNNBackend())
+        registry.register("registration", Open3dRegistrationBackend())
         registry.register("camera", PycolmapCameraBackend())
         registry.register("trajectory", EvoTrajectoryBackend())
         registry.register("depth_io", ImageioDepthBackend())

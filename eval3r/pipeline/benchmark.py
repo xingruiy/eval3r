@@ -45,6 +45,8 @@ class BenchmarkRunOutput:
     ``debug_scenes`` holds per-scene directional distances captured when the
     protocol's reporting spec requests debug outputs; only the eval3r-native
     geometry path produces them (official-toolbox paths own their distances).
+    ``alignment_vis`` holds the per-scene before/after captures for the mandatory
+    alignment visualization whenever a non-``none`` alignment ran.
     """
 
     result: RunResult
@@ -55,6 +57,7 @@ class BenchmarkRunOutput:
     manifest_inferred: bool
     config: dict[str, Any]
     debug_scenes: list[tuple[str, Any]] = field(default_factory=list)
+    alignment_vis: list[Any] = field(default_factory=list)
 
 
 # --- manifest ------------------------------------------------------------------
@@ -553,6 +556,16 @@ def _evaluate_scene(
         scene = adapter.load_scene(scene_id)
         gt_path, gt_kind = gt_geometry(scene)
         gt_unit = scene.ground_truth.unit
+        # Trajectory-first alignment inputs (task 018): the prediction trajectory
+        # comes from the manifest entry, the GT trajectory from the scene data. A
+        # missing one when the protocol requests trajectory alignment fails
+        # explicitly at stage 'align' inside the geometry stages.
+        pred_trajectory: Path | None = None
+        if manifest is not None and scene_id in manifest.scenes:
+            traj = manifest.scenes[scene_id].trajectory
+            if traj is not None:
+                pred_trajectory = traj if traj.is_absolute() else pred_root / traj
+        gt_trajectory = scene.gt_trajectory
     except (DatasetError, InvalidGeometryError) as exc:
         return SceneOutcome(
             scene_id=scene_id,
@@ -564,6 +577,7 @@ def _evaluate_scene(
         protocol=protocol, protocol_hash=protocol_hash,
         input_type=pred_kind, gt_type=gt_kind, registry=registry,  # type: ignore[arg-type]
         pred_unit=pred_unit, gt_unit=gt_unit,
+        pred_trajectory=pred_trajectory, gt_trajectory=gt_trajectory,
     )
 
 
@@ -623,6 +637,7 @@ def run_benchmark_geometry(
     failures: list[SceneFailure] = []
     alignment_transforms: list[dict[str, Any]] = []
     debug_scenes: list[tuple[str, Any]] = []
+    alignment_vis: list[Any] = []
     evaluated = 0
     tnt_out_root = (
         Path(tempfile.mkdtemp(prefix="eval3r_tnt_"))
@@ -666,6 +681,8 @@ def run_benchmark_geometry(
                 alignment_transforms.append(outcome.alignment.as_dict())
             if outcome.debug is not None:
                 debug_scenes.append((scene_id, outcome.debug))
+            if outcome.alignment_vis is not None:
+                alignment_vis.append(outcome.alignment_vis)
             continue
 
         # failed scene: apply the protocol's failure policy.
@@ -688,6 +705,10 @@ def run_benchmark_geometry(
         used_backends["official_eval"] = official_name
     if visibility_culling:
         used_backends["visibility"] = protocol.backend_preferences.get("visibility", "render_tsdf")
+    if protocol.alignment.mode != "none" and protocol.alignment.solver == "icp":
+        used_backends["registration"] = protocol.backend_preferences.get("registration", "open3d")
+    if protocol.alignment.mode != "none" and protocol.alignment.estimate_on == "trajectory":
+        used_backends["trajectory"] = protocol.backend_preferences.get("trajectory", "evo")
     backend_versions = registry.backend_versions(used_backends)
 
     result = RunResult(
@@ -743,6 +764,7 @@ def run_benchmark_geometry(
         manifest_inferred=inferred,
         config=config,
         debug_scenes=debug_scenes,
+        alignment_vis=alignment_vis,
     )
 
 

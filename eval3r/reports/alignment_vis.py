@@ -1,0 +1,163 @@
+"""Mandatory alignment visualization: overlay PLYs + orthographic projections.
+
+Most real-world alignments are quirky — a flipped, mirrored, or locally-stuck
+registration can still produce a plausible-looking residual number. Every alignment
+eval3r estimates therefore comes with artifacts a human can look at:
+
+```text
+<prefix>_before.ply       pred (untransformed) + gt merged, two fixed colors
+<prefix>_after.ply        pred (transformed) + gt merged, same colors
+<prefix>_projections.png  before/after x XY/XZ/YZ orthographic scatter, annotated
+                          with mode/solver, scale, residual, and fitness
+alignment_vis.json        manifest: colors, subsample seed/count, the transform
+                          shown, and the per-scene file names
+```
+
+The PLYs open in MeshLab/CloudCompare for real inspection; the PNG is the quick
+glance. Everything that shaped the artifacts (colors, subsample seed and counts)
+is recorded so they are interpretable later. The capture itself
+(:class:`~eval3r.pipeline.stages.align.AlignmentVisData`) is produced next to the
+align stage; this module only writes files.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+from matplotlib.backends.backend_agg import FigureCanvasAgg
+from matplotlib.figure import Figure
+
+from eval3r.pipeline.stages.align import AlignmentVisData
+from eval3r.reports.json import dump_json
+
+#: Fixed overlay colors (RGB uint8): prediction in red-orange, ground truth in blue.
+PRED_COLOR = (227, 74, 51)
+GT_COLOR = (49, 130, 189)
+
+#: Point count per side in the projection PNG (the PLYs keep the captured counts).
+PNG_MAX_POINTS = 20_000
+
+_PROJECTIONS = (("XY", 0, 1), ("XZ", 0, 2), ("YZ", 1, 2))
+
+
+def _merged_overlay(pred: np.ndarray, gt: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
+    points = np.vstack([pred, gt])
+    colors = np.vstack(
+        [
+            np.tile(np.asarray(PRED_COLOR, dtype=np.uint8), (pred.shape[0], 1)),
+            np.tile(np.asarray(GT_COLOR, dtype=np.uint8), (gt.shape[0], 1)),
+        ]
+    )
+    return points, colors
+
+
+def _png_subsample(points: np.ndarray, seed: int) -> np.ndarray:
+    if points.shape[0] <= PNG_MAX_POINTS:
+        return points
+    rng = np.random.default_rng(seed)
+    idx = rng.choice(points.shape[0], size=PNG_MAX_POINTS, replace=False)
+    return points[np.sort(idx)]
+
+
+def write_alignment_projections_png(vis: AlignmentVisData, path: Path) -> None:
+    """Write the before/after x XY/XZ/YZ orthographic scatter overview."""
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    alignment = vis.alignment
+    fig = Figure(figsize=(12, 8))
+    FigureCanvasAgg(fig)
+    axes = fig.subplots(2, 3)
+    rows = (
+        ("before", _png_subsample(vis.pred_before, vis.subsample_seed)),
+        ("after", _png_subsample(vis.pred_after, vis.subsample_seed)),
+    )
+    gt_png = _png_subsample(vis.gt, vis.subsample_seed)
+    for row, (label, pred_png) in enumerate(rows):
+        for col, (plane, i, j) in enumerate(_PROJECTIONS):
+            ax = axes[row][col]
+            ax.scatter(gt_png[:, i], gt_png[:, j], s=0.5, c=[np.asarray(GT_COLOR) / 255.0])
+            ax.scatter(
+                pred_png[:, i], pred_png[:, j], s=0.5, c=[np.asarray(PRED_COLOR) / 255.0]
+            )
+            ax.set_title(f"{label} ({plane})")
+            ax.set_aspect("equal", adjustable="datalim")
+
+    residual = alignment.get("residual_rmse")
+    fitness = alignment.get("fitness")
+    annotation = (
+        f"scene {vis.scene_id} | mode {alignment.get('mode')} / solver "
+        f"{alignment.get('solver')} | scale {alignment.get('scale'):.6g}"
+        + (f" | residual RMSE {residual:.6g} m" if residual is not None else "")
+        + (f" | fitness {fitness:.4f}" if fitness is not None else "")
+        + " | pred = red, gt = blue"
+    )
+    fig.suptitle(annotation, fontsize=10)
+    fig.tight_layout(rect=(0, 0, 1, 0.96))
+    fig.savefig(str(path), format="png", dpi=110)
+
+
+def write_alignment_visualization(
+    vis: AlignmentVisData,
+    out_dir: Path,
+    *,
+    pointcloud_backend: Any,
+    prefix: str = "alignment",
+) -> dict[str, Any]:
+    """Write one capture's overlay PLYs + projection PNG; return its manifest record."""
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    before_ply = out_dir / f"{prefix}_before.ply"
+    after_ply = out_dir / f"{prefix}_after.ply"
+    png = out_dir / f"{prefix}_projections.png"
+
+    points, colors = _merged_overlay(vis.pred_before, vis.gt)
+    pointcloud_backend.save_pointcloud(points, before_ply, colors=colors)
+    points, colors = _merged_overlay(vis.pred_after, vis.gt)
+    pointcloud_backend.save_pointcloud(points, after_ply, colors=colors)
+    write_alignment_projections_png(vis, png)
+
+    return {
+        "scene_id": vis.scene_id,
+        "before_ply": before_ply.name,
+        "after_ply": after_ply.name,
+        "projections_png": png.name,
+        "pred_color": list(PRED_COLOR),
+        "gt_color": list(GT_COLOR),
+        "n_points_pred": int(vis.pred_before.shape[0]),
+        "n_points_gt": int(vis.gt.shape[0]),
+        "subsample_seed": vis.subsample_seed,
+        "subsample_max_points": vis.max_points,
+        "png_max_points": PNG_MAX_POINTS,
+        "alignment": vis.alignment,
+    }
+
+
+def write_alignment_vis_outputs(
+    captures: list[AlignmentVisData],
+    run_dir: Path,
+    *,
+    pointcloud_backend: Any,
+) -> list[dict[str, Any]]:
+    """Write every captured scene's artifacts into ``<run_dir>/debug/``.
+
+    Returns the manifest records, also written to ``debug/alignment_vis.json``.
+    A no-op when nothing was captured (i.e. every scene's alignment mode was
+    ``none``).
+    """
+    if not captures:
+        return []
+    debug_dir = Path(run_dir) / "debug"
+    records = [
+        write_alignment_visualization(
+            vis, debug_dir,
+            pointcloud_backend=pointcloud_backend,
+            prefix=f"{vis.scene_id}_alignment",
+        )
+        for vis in captures
+    ]
+    dump_json({"alignment_visualizations": records}, debug_dir / "alignment_vis.json")
+    return records
