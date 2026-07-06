@@ -20,6 +20,15 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - name: Install headless OpenGL system libraries
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libegl1 \
+            libgl1 \
+            libglx-mesa0 \
+            libgl1-mesa-dri
+
       - name: Install package and dev tools
         run: |
           python -m pip install --upgrade pip
@@ -32,6 +41,22 @@ jobs:
 
       - name: Type check (mypy)
         run: mypy eval3r
+
+      - name: Diagnose headless OpenGL
+        run: |
+          python -VV
+          python -m pip freeze | grep -E 'pyrender|PyOpenGL|open3d|pytest'
+          ldconfig -p | grep -E 'libEGL|libGL' || true
+          python - <<'PY'
+          import os
+
+          os.environ.setdefault("PYOPENGL_PLATFORM", "egl")
+          import pyrender
+
+          renderer = pyrender.OffscreenRenderer(16, 16)
+          renderer.delete()
+          print("pyrender EGL OK")
+          PY
 
       - name: Tests (pytest)
         run: pytest
