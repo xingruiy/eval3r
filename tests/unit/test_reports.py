@@ -198,6 +198,35 @@ def test_histogram_written_as_png_with_manifest(tmp_path) -> None:
     assert not (tmp_path / "debug" / "scene0_error.ply").exists()
 
 
+def test_histogram_survives_constant_distances(tmp_path) -> None:
+    # A uniformly offset prediction yields identical distances everywhere; the
+    # degenerate data range must not crash binning (numpy >= 2.3 raises on
+    # collapsing bin edges: "Too many bins for data range").
+    from eval3r.metrics.geometry import DirectionalDistances
+    from eval3r.reports.plots import write_distance_histogram
+
+    constant = np.full(30, np.sqrt(3) * 0.01)
+    dist = DirectionalDistances(
+        pred_to_gt=constant,
+        gt_to_pred=constant.copy(),
+        n_points_pred=30,
+        n_points_gt=30,
+        valid_fraction=1.0,
+    )
+    png = tmp_path / "constant_histogram.png"
+    write_distance_histogram(dist, png, scene_id="scene0")
+    assert png.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n"
+
+
+def test_histogram_range_padded_for_degenerate_data() -> None:
+    from eval3r.reports.plots import _histogram_range
+
+    lo, hi = _histogram_range(np.full(30, 0.017320508075688655), bins=64)
+    edges = np.linspace(lo, hi, 65)
+    assert np.all(edges[:-1] < edges[1:])  # strictly increasing: numpy 2.3 requirement
+    assert _histogram_range(np.array([]), bins=64) is None
+
+
 def test_debug_outputs_noop_when_not_requested(tmp_path) -> None:
     dist = _distances(10)
     reporting = ReportingSpec()  # both debug outputs default off

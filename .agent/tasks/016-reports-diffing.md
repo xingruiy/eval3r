@@ -65,6 +65,17 @@ strict protocol-hash checking; error-colored point-cloud debug outputs.
   spelling; also the `%`-comment title line originally carried the raw (unescaped) title.
 - **Python 3.10 forbids backslashes inside f-string expressions** — the LaTeX coverage
   paragraph needed its `\textbf{partial}` fragment hoisted out of the f-string.
+- **CI fix (2026-07-06): degenerate histogram range crashed on numpy >= 2.2.**
+  `write_distance_histogram` passed raw data to `ax.hist(bins=64)`; near-constant
+  distances (the fixture's uniformly offset `pred = gt + 0.01` gives identical
+  `sqrt(3)*0.01` everywhere) span fewer than 64 representable float steps, and numpy
+  2.2+ raises `ValueError: Too many bins for data range` instead of silently
+  collapsing bin edges (local env had numpy 1.26, GitHub runner resolved 2.2.6 —
+  numpy is unpinned). Fixed with `_histogram_range()`: a shared, padded range for
+  both directions (also makes the two overlaid histograms directly comparable).
+  Verified by reproducing the exact CI error and re-running the fixed path in a
+  numpy 2.2.6 venv; regression tests `test_histogram_survives_constant_distances`
+  and `test_histogram_range_padded_for_degenerate_data` added.
 - The last CLI stub (`e3r diff`) is gone, so
   `test_smoke.py::test_stub_command_fails_loudly_with_reason` became a real check: diff
   of a missing run directory exits 1 naming the missing `results.json`. `cli/vis.py`

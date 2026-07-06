@@ -33,6 +33,25 @@ ERROR_COLORMAP = "turbo"
 HISTOGRAM_BINS = 64
 
 
+def _histogram_range(data: np.ndarray, bins: int) -> tuple[float, float] | None:
+    """Shared bin range for both distance directions, padded when degenerate.
+
+    Near-constant distances (e.g. a uniformly offset prediction) span less than
+    ``bins`` representable float steps; numpy >= 2.3 refuses to build collapsing
+    bin edges for such data, so widen the range enough for distinct edges.
+    """
+    if data.size == 0:
+        return None
+    lo = float(data.min())
+    hi = float(data.max())
+    min_span = bins * float(np.spacing(max(abs(lo), abs(hi), 1.0)))
+    if hi - lo < min_span:
+        mid = (lo + hi) / 2.0
+        lo = mid - min_span
+        hi = mid + min_span
+    return (lo, hi)
+
+
 def write_distance_histogram(
     distances: DirectionalDistances,
     path: Path,
@@ -46,8 +65,11 @@ def write_distance_histogram(
     fig = Figure(figsize=(7, 4.5))
     FigureCanvasAgg(fig)
     ax = fig.subplots()
-    ax.hist(distances.pred_to_gt, bins=bins, alpha=0.6, label="pred → gt")
-    ax.hist(distances.gt_to_pred, bins=bins, alpha=0.6, label="gt → pred")
+    hist_range = _histogram_range(
+        np.concatenate([distances.pred_to_gt, distances.gt_to_pred]), bins
+    )
+    ax.hist(distances.pred_to_gt, bins=bins, range=hist_range, alpha=0.6, label="pred → gt")
+    ax.hist(distances.gt_to_pred, bins=bins, range=hist_range, alpha=0.6, label="gt → pred")
     ax.set_xlabel("nearest-neighbor distance")
     ax.set_ylabel("point count")
     ax.set_title(f"distance histogram: {scene_id}")
