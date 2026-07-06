@@ -25,9 +25,12 @@ relevant `.agent/*.md` docs and the actual code — task notes can be stale.
 | 014 | [014-depth-metrics.md](014-depth-metrics.md) | Depth IO, masks, scale alignment modes, `e3r metric depth` | done |
 | 015 | [015-pose-metrics.md](015-pose-metrics.md) | evo backend, ATE/RPE, `e3r metric pose` | done |
 | 016 | [016-reports-diffing.md](016-reports-diffing.md) | Markdown/LaTeX/HTML reports, partial-coverage banners, `e3r diff` | done |
-| 017 | [017-public-release-docs.md](017-public-release-docs.md) | Release docs, examples, packaging checks, PyPI prep | todo |
+| 017 | [017-public-release-docs.md](017-public-release-docs.md) | Release docs, examples, packaging checks, PyPI prep | done |
 
-**Next task: 017**
+**Next task: none — the planned roadmap (001–017) is complete.** Remaining work is the
+intentionally deferred backlog below (each item needs its conventions pinned first) and
+the actual PyPI publish, which happens only on explicit user request (see the release
+checklist in task 017).
 
 Tasks must be executed in order unless a task's Scope says otherwise; each depends on the
 deliverables of the previous ones (schemas before adapters, metrics before runners, result

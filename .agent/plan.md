@@ -247,7 +247,7 @@ docs/
   examples/
 ```
 
-Note: `docs/` is the future mkdocs **user documentation** of the package. The **planning documents** (this file and its siblings) live in `.agent/` and remain the source of truth for design decisions until the user docs are written.
+Note: `docs/` is the mkdocs **user documentation** of the package (written in task 017). The **planning documents** (this file and its siblings) live in `.agent/` and remain the source of truth for design decisions; if they and the user docs disagree, fix both in the same change.
 
 ## Dataset support strategy
 
@@ -1090,7 +1090,7 @@ repeated runs with the same protocol hash and seeds
 
 ## Documentation plan
 
-These are the future mkdocs user documentation pages under `docs/` (distinct from the `.agent/` planning documents):
+These are the mkdocs user documentation pages under `docs/` (written in task 017; distinct from the `.agent/` planning documents):
 
 ```text
 docs/index.md

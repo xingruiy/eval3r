@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "eval3r"
-version = "0.3.0"
+version = "0.5.0"
 description = "Dataset-aware 3D reconstruction evaluation under explicit protocols (meshes, point clouds, depth, trajectories)."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -66,6 +66,8 @@ dev = [
   "mypy",
   "pytest",
   "mkdocs",
+  "build",
+  "twine",
 ]
 
 [tool.setuptools.packages.find]

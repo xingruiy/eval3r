@@ -4,3 +4,20 @@ docs_dir: docs
 
 nav:
   - Home: index.md
+  - Installation: install.md
+  - Quickstart: quickstart.md
+  - Prediction format: prediction_format.md
+  - Protocols: protocols.md
+  - Fidelity: fidelity.md
+  - Datasets: datasets.md
+  - Metrics: metrics.md
+  - Backends: backends.md
+  - Confidence: confidence.md
+  - Failure policy: failure_policy.md
+  - Result schema: schema.md
+  - Reproducibility: reproducibility.md
+  - Examples:
+      - DTU: examples/dtu.md
+      - ScanNet: examples/scannet.md
+      - Tanks and Temples: examples/tanks_temples.md
+      - ETH3D: examples/eth3d.md
