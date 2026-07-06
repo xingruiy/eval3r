@@ -787,6 +787,12 @@ scene entries should be explicit for benchmark runs
 manifests are copied into the run directory
 ```
 
+Task 019 defines the official eval3r-native on-disk layout for these manifests
+(`PredictionWriter` / `read_prediction_dir` / `e3r prediction validate|show`):
+canonical per-scene filenames, relative paths, and sha256 fingerprints recorded in
+the `metadata` dicts. See the layout note in `.agent/schema.md` ("eval3r-native
+prediction layout") and `docs/prediction_format.md`.
+
 ## Result directory
 
 Each run creates a directory:

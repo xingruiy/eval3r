@@ -34,6 +34,10 @@ from eval3r.pipeline.stages.align import (
     capture_alignment_vis,
 )
 from eval3r.pipeline.stages.load import GeometryKind, load_geometry
+from eval3r.predictions import (  # noqa: F401  (public API re-export)
+    PredictionWriter,
+    read_prediction_dir,
+)
 from eval3r.protocols import load_protocol
 from eval3r.reports.alignment_vis import (
     write_alignment_vis_outputs,

@@ -13,6 +13,7 @@ from eval3r.cli.benchmark import benchmark_app
 from eval3r.cli.dataset import dataset_app
 from eval3r.cli.diff import diff_command
 from eval3r.cli.metric import metric_app
+from eval3r.cli.prediction import prediction_app
 from eval3r.cli.protocol import protocol_app
 
 app = typer.Typer(
@@ -29,6 +30,7 @@ app.add_typer(metric_app, name="metric")
 app.add_typer(benchmark_app, name="benchmark")
 app.add_typer(dataset_app, name="dataset")
 app.add_typer(protocol_app, name="protocol")
+app.add_typer(prediction_app, name="prediction")
 app.command("diff")(diff_command)
 app.command("align")(align_command)
 

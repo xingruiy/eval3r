@@ -81,6 +81,27 @@ def align_geometries(*args: Any, **kwargs: Any) -> Any:
     return _impl(*args, **kwargs)
 
 
+def read_prediction_dir(*args: Any, **kwargs: Any) -> Any:
+    """Resolve and verify an eval3r-native prediction directory.
+
+    Thin re-export of :func:`eval3r.predictions.read_prediction_dir` (imported
+    lazily to keep ``import eval3r`` cheap and cycle-free).
+    """
+    from eval3r.predictions import read_prediction_dir as _impl
+
+    return _impl(*args, **kwargs)
+
+
+def __getattr__(name: str) -> Any:
+    # PEP 562 lazy re-export for classes (the function wrappers above cannot
+    # stand in for a class: users construct and isinstance-check it).
+    if name == "PredictionWriter":
+        from eval3r.predictions import PredictionWriter
+
+        return PredictionWriter
+    raise AttributeError(f"module 'eval3r' has no attribute '{name}'")
+
+
 __all__ = [
     "load_protocol",
     "evaluate_geometry",
@@ -89,5 +110,7 @@ __all__ = [
     "run_benchmark",
     "diff_runs",
     "align_geometries",
+    "PredictionWriter",
+    "read_prediction_dir",
     "__version__",
 ]

@@ -83,6 +83,17 @@ class BenchmarkError(Eval3rError):
     """A benchmark run was refused before computation (capability/local-eval gating)."""
 
 
+class PredictionLayoutError(Eval3rError):
+    """A prediction directory does not satisfy the eval3r-native layout.
+
+    Raised by the prediction writer/reader (task 019) when a manifest fails schema
+    validation, a declared per-scene file is missing, an entry is inconsistent with
+    the declared modality, or a recorded fingerprint no longer matches the file on
+    disk. Messages name the prediction root, the scene, the entry field, and the
+    check that failed.
+    """
+
+
 class ProtocolError(Eval3rError):
     """A protocol could not be loaded, found, or validated."""
 

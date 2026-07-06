@@ -27,12 +27,12 @@ relevant `.agent/*.md` docs and the actual code — task notes can be stale.
 | 016 | [016-reports-diffing.md](016-reports-diffing.md) | Markdown/LaTeX/HTML reports, partial-coverage banners, `e3r diff` | done |
 | 017 | [017-public-release-docs.md](017-public-release-docs.md) | Release docs, examples, packaging checks, PyPI prep | done |
 | 018 | [018-alignment-module.md](018-alignment-module.md) | SE3/Sim3 alignment (closest-point ICP + trajectory-first; no FPFH), mandatory visualization, `e3r align` | done |
-| 019 | [019-prediction-io.md](019-prediction-io.md) | Official eval3r-native prediction layout: `PredictionWriter` / `read_prediction_dir`, `e3r prediction` | todo |
+| 019 | [019-prediction-io.md](019-prediction-io.md) | Official eval3r-native prediction layout: `PredictionWriter` / `read_prediction_dir`, `e3r prediction` | done |
 
-**Next task: 019.** After 019, remaining work is the intentionally deferred
-backlog below (each item needs its conventions pinned first) and the actual PyPI
-publish, which happens only on explicit user request (see the release checklist in
-task 017).
+**All numbered tasks are done.** Remaining work is the intentionally deferred
+backlog below (each item needs its conventions pinned first — create a numbered
+task file when one is picked up) and the actual PyPI publish, which happens only
+on explicit user request (see the release checklist in task 017).
 
 Tasks must be executed in order unless a task's Scope says otherwise; each depends on the
 deliverables of the previous ones (schemas before adapters, metrics before runners, result

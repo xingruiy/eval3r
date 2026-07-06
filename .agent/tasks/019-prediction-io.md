@@ -81,16 +81,84 @@ resolves and verifies that directory. `e3r benchmark run` consumes the layout un
 
 ## Findings
 
-(to be filled during implementation)
+- **`load_or_infer_manifest` consumed the writer's output with zero benchmark changes**:
+  a `run_benchmark` on a `PredictionWriter` directory records `manifest_inferred: false`,
+  preserves the method name and `metadata.layout`, and the run dir's `manifest.yaml`
+  echoes the written one verbatim (integration test asserts all three).
+- No production writers existed for TUM trajectories, pointmaps, or confidence — only
+  loaders (`trajectory_evo` reads TUM; `depth_common` reads `.npy`) and per-test TUM
+  helpers. Task 019 added `write_tum_trajectory` ((N, 8) rows, strictly increasing
+  timestamps enforced) plus `.npy`/PLY array paths in the writer; the TUM output
+  round-trips through `EvoTrajectoryBackend.load_trajectory` (asserted in tests).
+- `PredictionManifest` has no top-level `split` field — the split lives in
+  `DatasetVariant.split`; the writer's `split=` kwarg maps there.
+- A failed `add_scene` initially left a partial scene directory that the
+  stale-output guard then refused on retry (caught by the malformed-array test).
+  `add_scene` is now atomic per scene: since a pre-existing scene dir is refused
+  up front, everything under it belongs to the current call and is removed on any
+  placement failure, so the scene can be re-added after fixing the input.
+- Pointmaps legitimately contain NaN (invalid pixels), so the pointmap array path
+  allows non-finite values while the pointcloud array path rejects them.
+- Reconfirmed the stale `eval3r` 0.3.0 in site-packages shadows the repo when a
+  script's `sys.path[0]` is not the repo root (first smoke run mixed old CLI with
+  new modules); in-process smoke/tests must run from the repo root or with
+  `PYTHONPATH` set.
 
 ## Decisions
 
-(to be filled during implementation)
+- One dataclass, `PredictionCheck`, backs both entry points: `check_prediction_dir`
+  never raises on per-scene problems (the CLI renders its `issues` as a table) and
+  `read_prediction_dir` is the strict form that aggregates **every** problem —
+  each naming scene, field, and absolute path — into one `PredictionLayoutError`
+  (new `Eval3rError` subclass), never just the first.
+- Layout provenance lives entirely in the schema's `metadata` dicts (no field
+  changes): top-level `layout: "eval3r-native-v1"` + `eval3r_version`; per-scene
+  `fingerprints: {field: "sha256:<hex>"}` via the existing `file_fingerprint`.
+  Directory fields (`depth_dir`/`confidence_dir`) get a joint hash over
+  `relpath:sha256` lines of the sorted file list, so any added/removed/edited
+  frame changes it.
+- `verify=True` never passes vacuously: a resolved file with no recorded
+  fingerprint is itself reported (hand-written manifests validate with
+  `--no-verify`).
+- Copy-only for meshes, depth, and camera files (eval3r builds no geometry);
+  array inputs only where eval3r owns a plain writer (pointcloud/pointmap/
+  confidence/trajectory). Copied files keep their source suffix on the canonical
+  stem (`mesh.obj` stays `.obj`); array outputs get canonical extensions.
+- Modality↔entry consistency is enforced at `add_scene` (declared modality's field
+  required; aux fields always allowed); `colmap_reconstruction` is refused — no
+  canonical single-file layout exists for a COLMAP model.
+- Safety refusals: existing `manifest.yaml` is never overwritten; scene ids must
+  be plain directory names; per-scene confidence files require declared
+  `confidence.present`; the context manager finalizes only on clean exit, so a
+  directory that errored mid-export never carries a manifest.
+- `e3r prediction validate` defaults to fingerprint verification (`--no-verify`
+  opts out); it prints the manifest panel, a per-scene ok/fail table, and every
+  failure verbatim (exit 1 on any).
+- Public re-export: `read_prediction_dir` as the usual lazy wrapper;
+  `PredictionWriter` via PEP 562 module `__getattr__` (a wrapper function cannot
+  stand in for a class users construct and isinstance-check).
 
 ## Verification
 
-(to be filled during implementation)
+```bash
+ruff check .   # All checks passed!
+mypy eval3r    # Success: no issues found in 101 source files
+EVAL3R_ETH3D_TOOL=~/xingrui_ws/tools/multi-view-evaluation/build/ETH3DMultiViewEvaluation \
+  pytest -q    # 463 passed, 3 skipped (the 3 = TnT real-toolbox tests only)
+mkdocs build   # OK (docs/prediction_format.md rewritten, already in nav)
+# in-process smoke (PYTHONPATH=repo; PATH `e3r` is a different package):
+#   writer (file copy + pointcloud/trajectory arrays) -> read_prediction_dir(verify=True)
+#   -> `e3r prediction validate` exit 0 ("2/2 scenes valid, fingerprints verified"),
+#   `show` table; tampering one PLY -> verify raises naming scene/field/path with
+#   recorded+actual sha256, validate exit 1; fresh writer dir -> run_benchmark on the
+#   fixture adapter: fscore 1.0, manifest_inferred False.
+```
+
+New tests: `tests/unit/test_prediction_writer.py` (7),
+`tests/unit/test_prediction_reader.py` (6),
+`tests/integration/test_prediction_cli.py` (5, incl. writer→`run_benchmark`
+end-to-end proving the layout is consumed unchanged as a declared manifest).
 
 ## Status
 
-todo
+done

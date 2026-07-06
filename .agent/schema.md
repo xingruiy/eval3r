@@ -384,6 +384,25 @@ class PredictionManifest(BaseModel):
     metadata: dict = {}
 ```
 
+### eval3r-native prediction layout (task 019)
+
+The official on-disk prediction layout (`eval3r/predictions/`) is a convention **on
+top of** this schema; it adds no fields. `PredictionWriter` places each scene's
+files under `<pred_root>/<scene_id>/` with canonical names mapped 1:1 onto
+`ScenePredictionEntry` fields (`mesh.<ext>`, `pointcloud.ply`, `pointmap.npy`,
+`depth.<ext>` / `depth/`, `trajectory_tum.txt`, `cameras.json`, `confidence.npy` /
+`confidence/`), keeps manifest paths relative to `pred_root` (relocatable), and
+records layout provenance in the designated open-ended `metadata` dicts:
+top-level `metadata.layout = "eval3r-native-v1"` and `metadata.eval3r_version`;
+per-scene `metadata.fingerprints = {field: "sha256:<hex>"}` (directory fields use
+a joint hash over the sorted file list). `read_prediction_dir(verify=True)` and
+`e3r prediction validate` re-hash against those fingerprints. The declared
+`prediction_modality` must have its corresponding entry field in every scene
+(`mesh`→`mesh`, `pointcloud`→`pointcloud`, `pointmap`→`pointmap`,
+`single_depth`→`depth`, `depth_sequence`→`depth_dir`,
+`camera_trajectory`→`trajectory`); `colmap_reconstruction` has no eval3r-native
+layout. See `docs/prediction_format.md`.
+
 ## Alignment schema
 
 ```python
