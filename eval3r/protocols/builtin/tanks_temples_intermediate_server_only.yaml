@@ -1,5 +1,5 @@
 schema_version: 1
-protocol_version: 0.1.0
+protocol_version: 0.2.0
 name: tanks_temples_intermediate_server_only
 fidelity: server_only
 
@@ -33,6 +33,8 @@ local_evaluation:
 # metric computation is performed; the CLI refuses to run local metrics here.
 alignment:
   mode: none
+  allowed_modes: [none]
+  scale_resolution: forbidden
   estimate_on: none
   solver: none
   granularity: per_scene

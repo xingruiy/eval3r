@@ -69,10 +69,12 @@ def test_align_none_override_exposes_offset_and_changes_hash(tmp_path: Path) -> 
     assert m["rpe_translation"] == pytest.approx(0.0, abs=1e-12)
     assert m["alignment_scale_error"] == 0.0
     assert run.overrides["align"] == "none"
-    # The override changes evaluation behavior, so the hash differs from the builtin.
+    # Alignment adaptation is recorded outside protocol identity.
     from eval3r.protocols import load_protocol, protocol_hash
 
-    assert run.protocol_hash != protocol_hash(load_protocol("single_pose"))
+    assert run.protocol_hash == protocol_hash(load_protocol("single_pose"))
+    assert run.result.adaptation is not None
+    assert run.result.adaptation.alignment == "none"
 
 
 def test_se3_shorthand_normalizes_and_keeps_scale_one(tmp_path: Path) -> None:

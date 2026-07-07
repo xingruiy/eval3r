@@ -1,5 +1,5 @@
 schema_version: 1
-protocol_version: 0.2.0
+protocol_version: 0.3.0
 name: single_pose
 fidelity: eval3r_native
 
@@ -29,6 +29,8 @@ local_evaluation:
 
 alignment:
   mode: trajectory_sim3
+  allowed_modes: [none, trajectory_se3, trajectory_sim3]
+  scale_resolution: allowed
   estimate_on: trajectory
   solver: evo
   granularity: per_scene

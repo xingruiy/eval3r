@@ -20,6 +20,11 @@ from typing import Any, Literal
 
 import yaml
 
+from eval3r.core.adaptation import (
+    AdaptationRecord,
+    adaptation_override_from_legacy,
+    resolve_adaptation,
+)
 from eval3r.core.errors import (
     BenchmarkError,
     DatasetError,
@@ -56,6 +61,7 @@ class BenchmarkRunOutput:
     manifest: dict[str, Any]
     manifest_inferred: bool
     config: dict[str, Any]
+    adaptation: AdaptationRecord | None = None
     debug_scenes: list[tuple[str, Any]] = field(default_factory=list)
     alignment_vis: list[Any] = field(default_factory=list)
 
@@ -603,6 +609,7 @@ def run_benchmark_geometry(
     command: str | None = None,
     environment: dict[str, Any] | None = None,
     method: str | None = None,
+    adapt: str | None = None,
     progress: Any | None = None,
 ) -> BenchmarkRunOutput:
     """Evaluate every scene in ``split`` and assemble a benchmark ``RunResult``."""
@@ -630,8 +637,14 @@ def run_benchmark_geometry(
     # get None when inferred and fall back to their own inference; the inferred
     # manifest is still written to the run directory for the record.
     resolve_manifest = None if inferred else manifest
+    adaptation_override = adaptation_override_from_legacy(adapt=adapt)
+    run_protocol, adaptation = resolve_adaptation(
+        protocol, resolve_manifest, adaptation_override
+    )
+    if adapt is not None:
+        manifest_dict["adapt_override"] = adapt
 
-    official_name = protocol.backend_preferences.get("official_eval")
+    official_name = run_protocol.backend_preferences.get("official_eval")
     # Official evaluators come in three shapes: point-array (DTU port, ObsMask),
     # file-based/artifacts (Tanks and Temples toolbox, which reads files + runs ICP),
     # and scan-MLP (ETH3D multi-view-evaluation binary on prediction PLY + .mlp).
@@ -641,7 +654,7 @@ def run_benchmark_geometry(
             registry.require("official_eval", official_name), "input_mode", "point_arrays"
         )
     # gt_visibility culling is realized by the render+TSDF-trim 'visibility' backend.
-    visibility_culling = protocol.masking.pred_culling.method == "gt_visibility"
+    visibility_culling = run_protocol.masking.pred_culling.method == "gt_visibility"
 
     import tempfile
 
@@ -661,27 +674,27 @@ def run_benchmark_geometry(
         if official_name and official_input_mode == "artifacts":
             assert tnt_out_root is not None
             outcome = _evaluate_scene_tnt_official(
-                adapter, pred_root, resolve_manifest, scene_id, protocol, phash,
+                adapter, pred_root, resolve_manifest, scene_id, run_protocol, phash,
                 registry, official_name, tnt_out_root,
             )
         elif official_name and official_input_mode == "scan_mlp":
             outcome = _evaluate_scene_eth3d_official(
-                adapter, pred_root, resolve_manifest, scene_id, protocol, phash,
+                adapter, pred_root, resolve_manifest, scene_id, run_protocol, phash,
                 registry, official_name,
             )
         elif official_name:
             outcome = _evaluate_scene_official(
-                adapter, pred_root, resolve_manifest, scene_id, protocol, phash,
+                adapter, pred_root, resolve_manifest, scene_id, run_protocol, phash,
                 registry, official_name, DEFAULT_BASE_SEED,
             )
         elif visibility_culling:
             outcome = _evaluate_scene_visibility_culled(
-                adapter, pred_root, resolve_manifest, scene_id, protocol, phash,
+                adapter, pred_root, resolve_manifest, scene_id, run_protocol, phash,
                 registry, DEFAULT_BASE_SEED,
             )
         else:
             outcome = _evaluate_scene(
-                adapter, pred_root, resolve_manifest, scene_id, protocol, phash, registry
+                adapter, pred_root, resolve_manifest, scene_id, run_protocol, phash, registry
             )
         if progress is not None:
             progress(scene_id, outcome)
@@ -698,56 +711,61 @@ def run_benchmark_geometry(
             continue
 
         # failed scene: apply the protocol's failure policy.
-        policy = protocol.failure_policy.policy
+        policy = run_protocol.failure_policy.policy
         if policy == "abort":
             raise SceneEvaluationError(scene_id, outcome.failure.stage, outcome.failure.reason)
         failures.append(outcome.failure)
         if policy == "score_worst":
-            per_scene.extend(_worst_results(scene_id, protocol, phash))
+            per_scene.extend(_worst_results(scene_id, run_protocol, phash))
 
     from eval3r.pipeline.stages.aggregate import aggregate_scene_metrics
 
-    metrics = aggregate_scene_metrics(per_scene, protocol.metrics)
+    metrics = aggregate_scene_metrics(per_scene, run_protocol.metrics)
     used_backends = {
-        "nearest_neighbor": protocol.backend_preferences.get("nearest_neighbor", "scipy"),
-        "pointcloud": protocol.backend_preferences.get("pointcloud", "plyfile"),
-        "mesh": protocol.backend_preferences.get("mesh", "trimesh"),
+        "nearest_neighbor": run_protocol.backend_preferences.get("nearest_neighbor", "scipy"),
+        "pointcloud": run_protocol.backend_preferences.get("pointcloud", "plyfile"),
+        "mesh": run_protocol.backend_preferences.get("mesh", "trimesh"),
     }
     if official_name:
         used_backends["official_eval"] = official_name
     if visibility_culling:
-        used_backends["visibility"] = protocol.backend_preferences.get("visibility", "render_tsdf")
-    if protocol.alignment.mode != "none" and protocol.alignment.solver == "icp":
-        used_backends["registration"] = protocol.backend_preferences.get("registration", "open3d")
-    if protocol.alignment.mode != "none" and protocol.alignment.estimate_on == "trajectory":
-        used_backends["trajectory"] = protocol.backend_preferences.get("trajectory", "evo")
+        used_backends["visibility"] = run_protocol.backend_preferences.get(
+            "visibility", "render_tsdf"
+        )
+    if run_protocol.alignment.mode != "none" and run_protocol.alignment.solver == "icp":
+        used_backends["registration"] = run_protocol.backend_preferences.get(
+            "registration", "open3d"
+        )
+    if run_protocol.alignment.mode != "none" and run_protocol.alignment.estimate_on == "trajectory":
+        used_backends["trajectory"] = run_protocol.backend_preferences.get("trajectory", "evo")
     backend_versions = registry.backend_versions(used_backends)
 
     result = RunResult(
-        schema_version=protocol.schema_version,
+        schema_version=run_protocol.schema_version,
         eval3r_version=_eval3r_version(),
         method=method or (manifest.method if manifest else None),
         method_version=manifest.version if manifest else None,
-        dataset=protocol.dataset,
+        dataset=run_protocol.dataset,
         split=split,
-        protocol=protocol.name,
-        protocol_version=protocol.protocol_version,
+        protocol=run_protocol.name,
+        protocol_version=run_protocol.protocol_version,
         protocol_hash=phash,
-        fidelity=protocol.fidelity,
-        ground_truth=protocol.ground_truth,
-        local_evaluation=protocol.local_evaluation,
+        fidelity=run_protocol.fidelity,
+        ground_truth=run_protocol.ground_truth,
+        local_evaluation=run_protocol.local_evaluation,
         n_scenes_expected=len(scenes),
         n_scenes_evaluated=evaluated,
         failed_scenes=failures,
-        failure_policy=protocol.failure_policy,
+        failure_policy=run_protocol.failure_policy,
         metrics=metrics,
-        metric_definitions=protocol.metrics,
+        metric_definitions=run_protocol.metrics,
         per_scene_metrics=per_scene,
-        confidence_policy=protocol.confidence,
-        alignment=protocol.alignment,
-        masking=protocol.masking,
-        sampling=protocol.sampling,
-        aggregation=protocol.aggregation,
+        confidence_policy=run_protocol.confidence,
+        alignment=run_protocol.alignment,
+        adaptation=adaptation,
+        masking=run_protocol.masking,
+        sampling=run_protocol.sampling,
+        aggregation=run_protocol.aggregation,
         uses_gt=manifest.uses_gt if manifest else None,
         backend_versions=backend_versions,
         environment=environment or {},
@@ -758,23 +776,25 @@ def run_benchmark_geometry(
     )
 
     config = {
-        "protocol": protocol.name,
+        "protocol": run_protocol.name,
         "protocol_hash": phash,
         "dataset": adapter.name,
         "split": split,
         "pred_root": str(pred_root),
         "manifest_inferred": inferred,
         "n_scenes": len(scenes),
+        "adaptation": adaptation.model_dump(mode="json"),
     }
 
     return BenchmarkRunOutput(
         result=result,
-        protocol=protocol,
+        protocol=run_protocol,
         protocol_hash=phash,
         alignment_transforms=alignment_transforms,
         manifest=manifest_dict,
         manifest_inferred=inferred,
         config=config,
+        adaptation=adaptation,
         debug_scenes=debug_scenes,
         alignment_vis=alignment_vis,
     )

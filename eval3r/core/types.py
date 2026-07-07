@@ -91,6 +91,18 @@ ScaleType: TypeAlias = Literal[
     "unknown",
 ]
 
+AlignmentMode: TypeAlias = Literal[
+    "none",
+    "se3",
+    "sim3",
+    "icp",
+    "trajectory_se3",
+    "trajectory_sim3",
+    "scale_median",
+    "scale_least_squares",
+    "scale_affine",
+]
+
 Fidelity: TypeAlias = Literal[
     "official",
     "official_like",

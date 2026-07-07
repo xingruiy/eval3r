@@ -22,6 +22,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
 
+from eval3r.core.adaptation import (
+    AdaptationRecord,
+    adaptation_override_from_legacy,
+    resolve_adaptation,
+)
 from eval3r.core.errors import Eval3rError, SceneEvaluationError
 from eval3r.core.hashing import protocol_hash as compute_protocol_hash
 from eval3r.core.protocol import EvalProtocol
@@ -77,6 +82,7 @@ class GeometryRunOutput:
     alignment_transforms: list[dict[str, Any]]
     overrides: dict[str, Any]
     config: dict[str, Any]
+    adaptation: AdaptationRecord | None = None
     debug_scenes: list[tuple[str, DirectionalDistances]] = field(default_factory=list)
     alignment_vis: list[AlignmentVisData] = field(default_factory=list)
 
@@ -317,6 +323,7 @@ def run_single_file_geometry(
     command: str | None = None,
     environment: dict[str, Any] | None = None,
     pred_world_frame: WorldAxes = "opencv",
+    adapt: str | None = None,
     pred_trajectory: str | Path | None = None,
     gt_trajectory: str | Path | None = None,
 ) -> GeometryRunOutput:
@@ -334,21 +341,30 @@ def run_single_file_geometry(
     proto, overrides = apply_geometry_overrides(
         protocol, input_type=input_type, gt_type=gt_type, threshold=threshold, sample=sample
     )
+    phash = compute_protocol_hash(proto)
+    legacy_world = pred_world_frame if pred_world_frame != "opencv" else None
+    adaptation_override = adaptation_override_from_legacy(
+        adapt=adapt,
+        pred_world_frame=legacy_world,
+    )
+    run_proto, adaptation = resolve_adaptation(proto, None, adaptation_override)
+    if adapt is not None:
+        overrides["adapt"] = adapt
     if pred_world_frame != "opencv":
         overrides["pred_world_frame"] = pred_world_frame
-    phash = compute_protocol_hash(proto)
 
     outcome = evaluate_geometry_scene(
         scene_id, pred_path, gt_path,
-        protocol=proto, protocol_hash=phash,
+        protocol=run_proto, protocol_hash=phash,
         input_type=input_type, gt_type=gt_type, registry=registry,
-        pred_world_frame=pred_world_frame,
+        pred_unit=adaptation.unit,
+        pred_world_frame=adaptation.world_frame or "opencv",
         pred_trajectory=Path(pred_trajectory) if pred_trajectory else None,
         gt_trajectory=Path(gt_trajectory) if gt_trajectory else None,
     )
 
     # abort policy: fail loudly with scene/stage context.
-    if outcome.failure is not None and proto.failure_policy.policy == "abort":
+    if outcome.failure is not None and run_proto.failure_policy.policy == "abort":
         raise SceneEvaluationError(scene_id, outcome.failure.stage, outcome.failure.reason)
 
     kinds = {"nearest_neighbor"}
@@ -356,43 +372,44 @@ def run_single_file_geometry(
         kinds.add("mesh")
     if input_type == "pointcloud" or gt_type == "pointcloud":
         kinds.add("pointcloud")
-    if proto.alignment.mode != "none" and proto.alignment.solver == "icp":
+    if run_proto.alignment.mode != "none" and run_proto.alignment.solver == "icp":
         kinds.add("registration")
-    if proto.alignment.mode != "none" and proto.alignment.estimate_on == "trajectory":
+    if run_proto.alignment.mode != "none" and run_proto.alignment.estimate_on == "trajectory":
         kinds.add("trajectory")
-    backend_versions = _used_backend_versions(registry, proto, kinds=kinds)
+    backend_versions = _used_backend_versions(registry, run_proto, kinds=kinds)
 
-    metrics = _aggregate_metrics(outcome, proto)
+    metrics = _aggregate_metrics(outcome, run_proto)
     evaluated = 1 if outcome.failure is None else 0
     alignment_transforms = [outcome.alignment.as_dict()] if outcome.alignment else []
 
     env = environment if environment is not None else {}
 
     result = RunResult(
-        schema_version=proto.schema_version,
+        schema_version=run_proto.schema_version,
         eval3r_version=_eval3r_version(),
         method=method,
         method_version=None,
-        dataset=proto.dataset,
-        split=proto.dataset.split,
-        protocol=proto.name,
-        protocol_version=proto.protocol_version,
+        dataset=run_proto.dataset,
+        split=run_proto.dataset.split,
+        protocol=run_proto.name,
+        protocol_version=run_proto.protocol_version,
         protocol_hash=phash,
-        fidelity=proto.fidelity,
-        ground_truth=proto.ground_truth,
-        local_evaluation=proto.local_evaluation,
+        fidelity=run_proto.fidelity,
+        ground_truth=run_proto.ground_truth,
+        local_evaluation=run_proto.local_evaluation,
         n_scenes_expected=1,
         n_scenes_evaluated=evaluated,
         failed_scenes=[outcome.failure] if outcome.failure else [],
-        failure_policy=proto.failure_policy,
+        failure_policy=run_proto.failure_policy,
         metrics=metrics,
-        metric_definitions=proto.metrics,
+        metric_definitions=run_proto.metrics,
         per_scene_metrics=outcome.metrics,
-        confidence_policy=proto.confidence,
-        alignment=proto.alignment,
-        masking=proto.masking,
-        sampling=proto.sampling,
-        aggregation=proto.aggregation,
+        confidence_policy=run_proto.confidence,
+        alignment=run_proto.alignment,
+        adaptation=adaptation,
+        masking=run_proto.masking,
+        sampling=run_proto.sampling,
+        aggregation=run_proto.aggregation,
         backend_versions=backend_versions,
         environment=env,
         command=command,
@@ -409,15 +426,17 @@ def run_single_file_geometry(
             "gt_type": gt_type,
         },
         "overrides": overrides,
+        "adaptation": adaptation.model_dump(mode="json"),
     }
 
     return GeometryRunOutput(
         result=result,
-        protocol=proto,
+        protocol=run_proto,
         protocol_hash=phash,
         alignment_transforms=alignment_transforms,
         overrides=overrides,
         config=config,
+        adaptation=adaptation,
         debug_scenes=(
             [(outcome.scene_id, outcome.debug)] if outcome.debug is not None else []
         ),

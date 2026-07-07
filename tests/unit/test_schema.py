@@ -16,6 +16,8 @@ from pydantic import BaseModel, ValidationError
 
 import eval3r.core as core
 from eval3r.core import (
+    AdaptationOverride,
+    AdaptationRecord,
     AggregationSpec,
     AlignmentSpec,
     ConfidenceManifestSpec,
@@ -164,6 +166,17 @@ ALL_INSTANCES: list[BaseModel] = [
     Reconstruction(modality="pointcloud", coordinate_frame="world", scale="metric"),
     SceneData(scene_id="scene0", dataset="custom", ground_truth=_ground_truth()),
     AlignmentSpec(),
+    AdaptationOverride(alignment_mode="sim3", axes="opencv"),
+    AdaptationRecord(
+        pose_convention=None,
+        world_frame="opencv",
+        unit="m",
+        scale="metric",
+        alignment="none",
+        reason="passthrough",
+        source="default",
+        within_envelope=True,
+    ),
     SamplingSideSpec(),
     SamplingSpec(pred=SamplingSideSpec(), gt=SamplingSideSpec()),
     CullingSpec(),

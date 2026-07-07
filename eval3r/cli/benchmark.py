@@ -54,6 +54,14 @@ def _echo_config(run: BenchmarkRunOutput, pred_root: Path, out_dir: Path) -> Non
     table.add_row("scenes", str(run.config["n_scenes"]))
     table.add_row("manifest", "inferred" if run.manifest_inferred else "declared")
     table.add_row("alignment", f"mode={proto.alignment.mode} solver={proto.alignment.solver}")
+    if run.result.adaptation is not None:
+        adaptation = run.result.adaptation
+        table.add_row(
+            "adaptation",
+            f"source={adaptation.source} reason={adaptation.reason} "
+            f"alignment={adaptation.alignment} "
+            f"[{'transformed' if adaptation.transformed else 'passthrough'}]",
+        )
     table.add_row(
         "masking",
         f"pred={proto.masking.pred_culling.method} gt={proto.masking.gt_culling.method}",
@@ -111,6 +119,9 @@ def benchmark_run(
         None, "--manifest", help="Prediction manifest YAML (else pred_root/manifest.yaml/inferred)."
     ),
     method: str | None = typer.Option(None, "--method", help="Method name recorded in the result."),
+    adapt: str | None = typer.Option(
+        None, "--as", "--adapt", help="Prediction adaptation override, e.g. opengl@sim3."
+    ),
     out: Path | None = typer.Option(None, "--out", help="Run directory to write."),
 ) -> None:
     """Run a dataset benchmark under a named protocol."""
@@ -123,6 +134,7 @@ def benchmark_run(
             pred_root, adapter, proto, split,
             manifest_path=manifest, command=command,
             environment=capture_environment(command=command), method=method,
+            adapt=adapt,
             progress=_print_scene,
         )
     except Eval3rError as exc:

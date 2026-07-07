@@ -32,6 +32,11 @@ from typing import Any, Literal
 
 import numpy as np
 
+from eval3r.core.adaptation import (
+    AdaptationRecord,
+    adaptation_override_from_legacy,
+    resolve_adaptation,
+)
 from eval3r.core.errors import Eval3rError, InvalidDepthError, SceneEvaluationError
 from eval3r.core.hashing import protocol_hash as compute_protocol_hash
 from eval3r.core.protocol import EvalProtocol
@@ -40,7 +45,6 @@ from eval3r.core.result import MetricResult, RunResult, SceneFailure
 from eval3r.metrics.aggregation import mean as scene_mean
 from eval3r.metrics.depth import (
     DEPTH_ALIGNMENT_GRANULARITIES,
-    DEPTH_ALIGNMENT_MODES,
     DepthScaleAlignment,
     DepthValidity,
     check_depth_alignment_spec,
@@ -84,6 +88,7 @@ class DepthRunOutput:
     overrides: dict[str, Any]
     config: dict[str, Any]
     n_frames: int
+    adaptation: AdaptationRecord | None = None
 
 
 # --- frame resolution ------------------------------------------------------------
@@ -149,30 +154,21 @@ def apply_depth_overrides(
     protocol: EvalProtocol,
     *,
     modality: Literal["single_depth", "depth_sequence"],
-    align: str | None,
     align_granularity: str | None,
     pred_depth_unit: float | None,
     gt_depth_unit: float | None,
 ) -> tuple[EvalProtocol, dict[str, Any]]:
     """Apply CLI/API depth flags to a protocol copy and record what changed.
 
-    Alignment mode/granularity overrides change evaluation behavior, so the caller
-    recomputes the canonical hash. Depth units are inputs, not protocol fields;
-    they are recorded as overrides and in result metadata.
+    Alignment granularity changes evaluation behavior, so the caller recomputes
+    the canonical hash. Alignment mode itself is resolved as non-hashed
+    prediction adaptation. Depth units are inputs, not protocol fields; they are
+    recorded as overrides and in result metadata.
     """
     proto = protocol.model_copy(deep=True)
     overrides: dict[str, Any] = {"modality": modality}
     proto.prediction_modality = modality
 
-    if align is not None:
-        if align not in DEPTH_ALIGNMENT_MODES:
-            raise InvalidDepthError(
-                f"--align '{align}' is not a depth scale-alignment mode; choose one of: "
-                f"{', '.join(DEPTH_ALIGNMENT_MODES)}."
-            )
-        proto.alignment.mode = align  # type: ignore[assignment]
-        proto.alignment.estimate_on = "depth" if align != "none" else "none"
-        overrides["align"] = align
     if align_granularity is not None:
         if align_granularity not in DEPTH_ALIGNMENT_GRANULARITIES:
             raise InvalidDepthError(
@@ -376,6 +372,7 @@ def run_single_file_depth(
     pred_depth_unit: float | None = None,
     gt_depth_unit: float | None = None,
     align: str | None = None,
+    adapt: str | None = None,
     align_granularity: str | None = None,
     method: str | None = None,
     scene_id: str | None = None,
@@ -406,54 +403,66 @@ def run_single_file_depth(
     )
     proto, overrides = apply_depth_overrides(
         protocol, modality=modality,
-        align=align, align_granularity=align_granularity,
+        align_granularity=align_granularity,
         pred_depth_unit=pred_depth_unit, gt_depth_unit=gt_depth_unit,
     )
     phash = compute_protocol_hash(proto)
+    adaptation_override = adaptation_override_from_legacy(
+        adapt=adapt,
+        align=align,
+        unit="m",
+        scale="metric",
+    )
+    run_proto, adaptation = resolve_adaptation(proto, None, adaptation_override)
+    if align is not None:
+        overrides["align"] = align
+    if adapt is not None:
+        overrides["adapt"] = adapt
 
     if stage_resolve_failure is not None:
         outcome = DepthSceneOutcome(scene_id=scene_id, failure=stage_resolve_failure)
     else:
         outcome = evaluate_depth_scene(
             scene_id, frames,
-            protocol=proto, protocol_hash=phash, registry=registry,
+            protocol=run_proto, protocol_hash=phash, registry=registry,
             pred_depth_unit=pred_depth_unit, gt_depth_unit=gt_depth_unit,
         )
 
-    if outcome.failure is not None and proto.failure_policy.policy == "abort":
+    if outcome.failure is not None and run_proto.failure_policy.policy == "abort":
         raise SceneEvaluationError(scene_id, outcome.failure.stage, outcome.failure.reason)
 
     backend_versions = registry.backend_versions(
-        {"depth_io": proto.backend_preferences.get("depth_io", "imageio")}
+        {"depth_io": run_proto.backend_preferences.get("depth_io", "imageio")}
     )
-    metrics = _aggregate_run_metrics(outcome, proto)
+    metrics = _aggregate_run_metrics(outcome, run_proto)
     alignment_records = [a.as_dict() for a in outcome.alignments]
 
     result = RunResult(
-        schema_version=proto.schema_version,
+        schema_version=run_proto.schema_version,
         eval3r_version=_eval3r_version(),
         method=method,
         method_version=None,
-        dataset=proto.dataset,
-        split=proto.dataset.split,
-        protocol=proto.name,
-        protocol_version=proto.protocol_version,
+        dataset=run_proto.dataset,
+        split=run_proto.dataset.split,
+        protocol=run_proto.name,
+        protocol_version=run_proto.protocol_version,
         protocol_hash=phash,
-        fidelity=proto.fidelity,
-        ground_truth=proto.ground_truth,
-        local_evaluation=proto.local_evaluation,
+        fidelity=run_proto.fidelity,
+        ground_truth=run_proto.ground_truth,
+        local_evaluation=run_proto.local_evaluation,
         n_scenes_expected=1,
         n_scenes_evaluated=1 if outcome.failure is None else 0,
         failed_scenes=[outcome.failure] if outcome.failure else [],
-        failure_policy=proto.failure_policy,
+        failure_policy=run_proto.failure_policy,
         metrics=metrics,
-        metric_definitions=proto.metrics,
+        metric_definitions=run_proto.metrics,
         per_scene_metrics=outcome.scene_metrics + outcome.frame_metrics,
-        confidence_policy=proto.confidence,
-        alignment=proto.alignment,
-        masking=proto.masking,
-        sampling=proto.sampling,
-        aggregation=proto.aggregation,
+        confidence_policy=run_proto.confidence,
+        alignment=run_proto.alignment,
+        adaptation=adaptation,
+        masking=run_proto.masking,
+        sampling=run_proto.sampling,
+        aggregation=run_proto.aggregation,
         backend_versions=backend_versions,
         environment=environment if environment is not None else {},
         command=command,
@@ -466,7 +475,7 @@ def run_single_file_depth(
     )
 
     config = {
-        "protocol": proto.name,
+        "protocol": run_proto.name,
         "protocol_hash": phash,
         "inputs": {
             "pred": str(pred_path),
@@ -476,16 +485,18 @@ def run_single_file_depth(
             "gt_depth_unit": gt_depth_unit,
         },
         "overrides": overrides,
+        "adaptation": adaptation.model_dump(mode="json"),
     }
 
     return DepthRunOutput(
         result=result,
-        protocol=proto,
+        protocol=run_proto,
         protocol_hash=phash,
         alignment_records=alignment_records,
         overrides=overrides,
         config=config,
         n_frames=len(frames),
+        adaptation=adaptation,
     )
 
 

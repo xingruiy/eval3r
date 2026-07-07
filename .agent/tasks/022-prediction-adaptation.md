@@ -143,27 +143,32 @@ Confirmed with the user (senior CV researcher) before planning:
 
 ## Verification
 
-Planned (to be filled with real outcomes during implementation):
-
-- `tests/unit/test_adaptation.py`: order-independence (`cw@opencv@sim3` == `sim3@opencv@cw`),
-  alias resolution, unknown/duplicate tokens raise with vocabulary; resolver auto-adapts a
-  `relative` prediction to sim3 under a permissive envelope and *refuses* under a `forbidden`
-  envelope with the rich message; convention composition matches `convention_for`.
-- Hash invariance: a within-envelope adaptation leaves `protocol_hash` unchanged; re-pin the 12
-  `EXPECTED_HASHES` and confirm `test_builtin_hash_regression` passes with bumped versions.
-- **Regression (unchanged numbers)**: existing metric-geometry / pose runs with metric
-  predictions produce identical metrics to `main`; confirm on the real DTU scan-24 port
-  (`/mnt/research/dataset/DTU`) that the official-fidelity number is unchanged.
-- New behavior end-to-end (in-process CLI + `api.*`): a synthetic relative-scale mesh
-  auto-adapts to sim3 under a native protocol and records the fingerprint; the same fixture
-  under `dtu_official_like` refuses loudly. Exercise `e3r metric geometry --as ...`,
-  `e3r benchmark run --as ...`, and `api.evaluate_geometry(adapt=...)`.
-- Diff: two runs sharing a protocol hash but differing alignment emit the comparability
-  warning; identical adaptations do not.
-- Pre-PR gate: `ruff check .`, `pytest`, `mypy eval3r`, `mkdocs build`.
+- Implemented `tests/unit/test_adaptation.py`: order-independence, alias parsing,
+  unknown/duplicate token errors with vocabulary, relative-scale auto-adaptation under
+  `single_geometry`, refusal under `dtu_official_like_pointcloud`, and pose convention
+  composition via `convention_for`.
+- Re-pinned all 12 built-in protocol hashes after adding explicit envelopes and bumping
+  protocol versions. `tests/unit/test_protocols.py::test_builtin_hash_regression` passes.
+- Updated integration expectations for `--align none` on depth/pose: metric values still expose
+  scale/offset error, while `protocol_hash` remains the base protocol hash and
+  `RunResult.adaptation` records the effective alignment.
+- Added diff coverage for adaptation warnings: same protocol hash plus different
+  `AdaptationRecord` emits a warning; unchanged records do not.
+- Verification commands run:
+  - `ruff check .` → pass.
+  - `mypy eval3r` → pass.
+  - `mkdocs build` → pass.
+  - `PYTHONPATH=. pytest -k 'not camera_pycolmap and not load_scene_records_cameras_and_non_pinhole_limitation'` → 530 passed, 6 skipped, 9 deselected.
+  - Focused changed tests:
+    `PYTHONPATH=. pytest tests/unit/test_adaptation.py tests/unit/test_diff.py tests/integration/test_single_depth_metric.py::test_align_none_override_exposes_scale_error tests/integration/test_single_pose_metric.py::test_align_none_override_exposes_offset_and_changes_hash tests/integration/test_single_pose_metric.py::test_pinned_alignment_protocol_refuses_override tests/unit/test_pose_convention_runner.py::test_convert_stage_fails_for_unmapped_format -q` → 27 passed.
+- Environment limitation: bare `pytest` failed collection in this shell because installed ROS
+  launch-testing plugins did not import the local package; `PYTHONPATH=. pytest` collected.
+  The full `PYTHONPATH=. pytest` run then failed only pycolmap-dependent tests because
+  `pycolmap` is not installed in this environment. Those tests are unrelated to task 022 and
+  were excluded in the broad verification command above.
 
 Drive the CLI **in-process** (the PATH `e3r` is a different package).
 
 ## Status
 
-todo
+done

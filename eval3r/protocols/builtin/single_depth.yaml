@@ -1,5 +1,5 @@
 schema_version: 1
-protocol_version: 0.2.0
+protocol_version: 0.3.0
 name: single_depth
 fidelity: eval3r_native
 
@@ -27,6 +27,8 @@ local_evaluation:
 
 alignment:
   mode: scale_median
+  allowed_modes: [none, scale_median, scale_least_squares, scale_affine]
+  scale_resolution: allowed
   estimate_on: depth
   solver: none
   granularity: per_frame

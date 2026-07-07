@@ -59,10 +59,12 @@ def test_align_none_override_exposes_scale_error(tmp_path: Path) -> None:
     assert m["delta_3"] == 0.0  # ratio 2.0 >= 1.953125
     assert m["rmse_log"] == pytest.approx(np.log(2.0))
     assert run.overrides["align"] == "none"
-    # The override changes evaluation behavior, so the hash differs from the builtin.
+    # Alignment adaptation is recorded outside protocol identity.
     from eval3r.protocols import load_protocol, protocol_hash
 
-    assert run.protocol_hash != protocol_hash(load_protocol("single_depth"))
+    assert run.protocol_hash == protocol_hash(load_protocol("single_depth"))
+    assert run.result.adaptation is not None
+    assert run.result.adaptation.alignment == "none"
 
 
 def test_run_directory_records_units_masks_and_alignment(tmp_path: Path) -> None:

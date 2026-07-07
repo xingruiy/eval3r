@@ -63,11 +63,19 @@ def _echo_config(run: GeometryRunOutput, pred: Path, gt: Path, out_dir: Path) ->
     table.add_row("ground truth", f"{gt}  [{run.overrides['gt_type']}]")
     table.add_row("output dir", str(out_dir))
     pred_world = run.overrides.get("pred_world_frame", "opencv")
+    adaptation = run.result.adaptation
     table.add_row(
         "world frame",
         f"pred={pred_world} -> internal=opencv "
         f"[{'transformed' if pred_world != 'opencv' else 'passthrough'}]",
     )
+    if adaptation is not None:
+        table.add_row(
+            "adaptation",
+            f"source={adaptation.source} reason={adaptation.reason} "
+            f"alignment={adaptation.alignment} "
+            f"[{'transformed' if adaptation.transformed else 'passthrough'}]",
+        )
     table.add_row(
         "alignment",
         f"mode={proto.alignment.mode} solver={proto.alignment.solver} "
@@ -134,6 +142,10 @@ def geometry(
         "opengl. An opengl prediction is rotated into eval3r's internal opencv world "
         "frame before metrics.",
     ),
+    adapt: str | None = typer.Option(
+        None, "--as", "--adapt",
+        help="Prediction adaptation override, e.g. opengl@sim3 or cw@opencv@sim3.",
+    ),
     protocol: str = typer.Option(
         "single_geometry", "--protocol", help="Built-in protocol name or path to a protocol YAML."
     ),
@@ -166,7 +178,7 @@ def geometry(
             pred, gt,
             input_type=input_type,  # type: ignore[arg-type]
             gt_type=gt_type,  # type: ignore[arg-type]
-            threshold=threshold, sample=sample, pred_world_frame=pred_world_frame,
+            threshold=threshold, sample=sample, adapt=adapt, pred_world_frame=pred_world_frame,
             protocol=protocol, method=method, command=command, return_run=True,
         )
     except Eval3rError as exc:
@@ -213,6 +225,14 @@ def _echo_depth_config(run: DepthRunOutput, pred: Path, gt: Path, out_dir: Path)
         "scale alignment",
         f"mode={proto.alignment.mode} granularity={proto.alignment.granularity}",
     )
+    if run.result.adaptation is not None:
+        adaptation = run.result.adaptation
+        table.add_row(
+            "adaptation",
+            f"source={adaptation.source} reason={adaptation.reason} "
+            f"alignment={adaptation.alignment} "
+            f"[{'transformed' if adaptation.transformed else 'passthrough'}]",
+        )
     table.add_row(
         "masking",
         f"invalid_values={proto.masking.invalid_depth_values} "
@@ -286,6 +306,10 @@ def depth(
         help="Scale alignment override: none | scale_median | scale_least_squares | "
         "scale_affine (default: the protocol's mode).",
     ),
+    adapt: str | None = typer.Option(
+        None, "--as", "--adapt",
+        help="Prediction adaptation override, e.g. relative@scale_median.",
+    ),
     align_granularity: str | None = typer.Option(
         None, "--align-granularity",
         help="Scale alignment granularity override: per_frame | per_sequence | "
@@ -321,7 +345,7 @@ def depth(
         run = evaluate_depth(
             pred, gt,
             depth_unit=depth_unit, gt_depth_unit=gt_depth_unit,
-            align=align, align_granularity=align_granularity,
+            align=align, adapt=adapt, align_granularity=align_granularity,
             protocol=protocol, method=method, command=command, return_run=True,
         )
     except Eval3rError as exc:
@@ -381,6 +405,15 @@ def _echo_pose_config(run: PoseRunOutput, pred: Path, gt: Path, out_dir: Path) -
         f"mode={proto.alignment.mode} solver={proto.alignment.solver} "
         f"granularity={proto.alignment.granularity}",
     )
+    if run.result.adaptation is not None:
+        adaptation = run.result.adaptation
+        table.add_row(
+            "adaptation",
+            f"source={adaptation.source} reason={adaptation.reason} "
+            f"pose={adaptation.pose_convention or 'passthrough'} "
+            f"alignment={adaptation.alignment} "
+            f"[{'transformed' if adaptation.transformed else 'passthrough'}]",
+        )
     table.add_row(
         "association",
         f"nearest_timestamp max_diff="
@@ -459,6 +492,10 @@ def pose(
         help="Trajectory alignment override: none | se3 | sim3 (or trajectory_se3 / "
         "trajectory_sim3; default: the protocol's mode).",
     ),
+    adapt: str | None = typer.Option(
+        None, "--as", "--adapt",
+        help="Prediction adaptation override, e.g. wc@opengl@trajectory_sim3.",
+    ),
     associate_max_diff: float | None = typer.Option(
         None, "--associate-max-diff",
         help="Timestamp association tolerance override in seconds "
@@ -511,7 +548,7 @@ def pose(
     try:
         run = evaluate_pose(
             pred, gt,
-            align=align, associate_max_diff=associate_max_diff, backend=backend,
+            align=align, adapt=adapt, associate_max_diff=associate_max_diff, backend=backend,
             pred_pose_format=pred_pose_convention, gt_pose_format=gt_pose_convention,
             protocol=protocol, method=method, command=command, return_run=True,
         )

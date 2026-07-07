@@ -20,6 +20,11 @@ from pathlib import Path
 from typing import Any, Literal
 
 from eval3r.backends.trajectory_evo import RPE_POSE_RELATIONS
+from eval3r.core.adaptation import (
+    AdaptationRecord,
+    adaptation_override_from_legacy,
+    resolve_adaptation,
+)
 from eval3r.core.errors import (
     AlignmentError,
     Eval3rError,
@@ -80,6 +85,7 @@ class PoseRunOutput:
     alignment_records: list[dict[str, Any]]
     overrides: dict[str, Any]
     config: dict[str, Any]
+    adaptation: AdaptationRecord | None = None
 
 
 # --- overrides ---------------------------------------------------------------------
@@ -88,38 +94,18 @@ class PoseRunOutput:
 def apply_pose_overrides(
     protocol: EvalProtocol,
     *,
-    align: str | None,
     associate_max_diff: float | None,
     backend: str | None,
 ) -> tuple[EvalProtocol, dict[str, Any]]:
     """Apply CLI/API pose flags to a protocol copy and record what changed.
 
-    Alignment mode and association tolerance change evaluation behavior, so the
-    caller recomputes the canonical hash. Overrides are refused when the
-    protocol's alignment spec disallows them (e.g. a metric-scale dataset
-    protocol pinning SE3: Sim3 must never be enabled silently there).
+    Association tolerance and backend selection change evaluation behavior, so
+    the caller recomputes the canonical hash. Alignment mode itself is resolved
+    as non-hashed prediction adaptation.
     """
     proto = protocol.model_copy(deep=True)
     overrides: dict[str, Any] = {}
 
-    if align is not None:
-        if align not in POSE_ALIGN_ALIASES:
-            raise AlignmentError(
-                f"--align '{align}' is not a trajectory alignment mode; choose one "
-                f"of: {', '.join(POSE_ALIGN_ALIASES)} (se3/sim3 are shorthands for "
-                f"trajectory_se3/trajectory_sim3)."
-            )
-        mode = POSE_ALIGN_ALIASES[align]
-        if mode != proto.alignment.mode and not proto.alignment.allow_override:
-            raise AlignmentError(
-                f"protocol '{proto.name}' pins alignment mode "
-                f"'{proto.alignment.mode}' and disallows overrides "
-                f"(allow_override: false); refusing --align {align}."
-            )
-        proto.alignment.mode = mode  # type: ignore[assignment]
-        proto.alignment.estimate_on = "trajectory" if mode != "none" else "none"
-        proto.alignment.solver = "evo" if mode != "none" else "none"
-        overrides["align"] = mode
     if associate_max_diff is not None:
         if associate_max_diff <= 0:
             raise InvalidTrajectoryError(
@@ -306,6 +292,7 @@ def run_single_file_pose(
     protocol: EvalProtocol,
     *,
     align: str | None = None,
+    adapt: str | None = None,
     associate_max_diff: float | None = None,
     backend: str | None = None,
     pred_pose_format: SourcePoseFormat | None = None,
@@ -332,9 +319,35 @@ def run_single_file_pose(
         gt_pose_format = protocol.ground_truth.source_pose_format
 
     proto, overrides = apply_pose_overrides(
-        protocol, align=align, associate_max_diff=associate_max_diff, backend=backend
+        protocol, associate_max_diff=associate_max_diff, backend=backend
     )
     phash = compute_protocol_hash(proto)
+    if align is not None and align not in POSE_ALIGN_ALIASES:
+        raise AlignmentError(
+            f"--align '{align}' is not a trajectory alignment mode; choose one "
+            f"of: {', '.join(POSE_ALIGN_ALIASES)} (se3/sim3 are shorthands for "
+            f"trajectory_se3/trajectory_sim3)."
+        )
+    adaptation_override = adaptation_override_from_legacy(
+        adapt=adapt,
+        align=POSE_ALIGN_ALIASES[align] if align is not None else None,
+        pred_pose_format=pred_pose_format,
+        scale="metric",
+        unit="m",
+    )
+    run_proto, adaptation = resolve_adaptation(proto, None, adaptation_override)
+    if pred_pose_format is not None and not (
+        adaptation_override
+        and (adaptation_override.direction is not None or adaptation_override.axes is not None)
+    ):
+        adaptation.pose_convention = pred_pose_format
+        adaptation.transformed = True
+    if align is not None:
+        overrides["align"] = POSE_ALIGN_ALIASES[align]
+    if adapt is not None:
+        overrides["adapt"] = adapt
+    if pred_pose_format is not None:
+        overrides["pred_pose_format"] = pred_pose_format
 
     stage_resolve_failure: SceneFailure | None = None
     missing = [
@@ -347,7 +360,7 @@ def run_single_file_pose(
             f"{role} trajectory file does not exist or is not a file: {path}"
             for role, path in missing
         ) + ". Expected TUM-format text files (timestamp x y z qx qy qz qw)."
-        if proto.failure_policy.policy == "abort":
+        if run_proto.failure_policy.policy == "abort":
             raise SceneEvaluationError(scene_id, "resolve", reason)
         stage_resolve_failure = SceneFailure(
             scene_id=scene_id, stage="resolve", reason=reason, recoverable=False
@@ -358,46 +371,47 @@ def run_single_file_pose(
     else:
         outcome = evaluate_pose_scene(
             scene_id, pred_path, gt_path,
-            protocol=proto, protocol_hash=phash, registry=registry,
-            pred_pose_format=pred_pose_format, gt_pose_format=gt_pose_format,
+            protocol=run_proto, protocol_hash=phash, registry=registry,
+            pred_pose_format=adaptation.pose_convention, gt_pose_format=gt_pose_format,
         )
 
-    if outcome.failure is not None and proto.failure_policy.policy == "abort":
+    if outcome.failure is not None and run_proto.failure_policy.policy == "abort":
         raise SceneEvaluationError(scene_id, outcome.failure.stage, outcome.failure.reason)
 
     backend_versions = registry.backend_versions(
-        {"trajectory": proto.backend_preferences.get("trajectory", "evo")}
+        {"trajectory": run_proto.backend_preferences.get("trajectory", "evo")}
     )
-    metrics = _aggregate_run_metrics(outcome, proto)
+    metrics = _aggregate_run_metrics(outcome, run_proto)
     alignment_records = (
         [outcome.alignment_record] if outcome.alignment_record is not None else []
     )
 
     result = RunResult(
-        schema_version=proto.schema_version,
+        schema_version=run_proto.schema_version,
         eval3r_version=_eval3r_version(),
         method=method,
         method_version=None,
-        dataset=proto.dataset,
-        split=proto.dataset.split,
-        protocol=proto.name,
-        protocol_version=proto.protocol_version,
+        dataset=run_proto.dataset,
+        split=run_proto.dataset.split,
+        protocol=run_proto.name,
+        protocol_version=run_proto.protocol_version,
         protocol_hash=phash,
-        fidelity=proto.fidelity,
-        ground_truth=proto.ground_truth,
-        local_evaluation=proto.local_evaluation,
+        fidelity=run_proto.fidelity,
+        ground_truth=run_proto.ground_truth,
+        local_evaluation=run_proto.local_evaluation,
         n_scenes_expected=1,
         n_scenes_evaluated=1 if outcome.failure is None else 0,
         failed_scenes=[outcome.failure] if outcome.failure else [],
-        failure_policy=proto.failure_policy,
+        failure_policy=run_proto.failure_policy,
         metrics=metrics,
-        metric_definitions=proto.metrics,
+        metric_definitions=run_proto.metrics,
         per_scene_metrics=outcome.scene_metrics,
-        confidence_policy=proto.confidence,
-        alignment=proto.alignment,
-        masking=proto.masking,
-        sampling=proto.sampling,
-        aggregation=proto.aggregation,
+        confidence_policy=run_proto.confidence,
+        alignment=run_proto.alignment,
+        adaptation=adaptation,
+        masking=run_proto.masking,
+        sampling=run_proto.sampling,
+        aggregation=run_proto.aggregation,
         backend_versions=backend_versions,
         environment=environment if environment is not None else {},
         command=command,
@@ -406,25 +420,27 @@ def run_single_file_pose(
     )
 
     config = {
-        "protocol": proto.name,
+        "protocol": run_proto.name,
         "protocol_hash": phash,
         "inputs": {
             "pred": str(pred_path),
             "gt": str(gt_path),
             "format": "tum",
-            "pred_pose_format": pred_pose_format,
+            "pred_pose_format": adaptation.pose_convention,
             "gt_pose_format": gt_pose_format,
         },
         "overrides": overrides,
+        "adaptation": adaptation.model_dump(mode="json"),
     }
 
     return PoseRunOutput(
         result=result,
-        protocol=proto,
+        protocol=run_proto,
         protocol_hash=phash,
         alignment_records=alignment_records,
         overrides=overrides,
         config=config,
+        adaptation=adaptation,
     )
 
 

@@ -18,6 +18,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from eval3r.core.types import (
+    AlignmentMode,
     GroundTruthModality,
     GTDensity,
     GTIndependence,
@@ -141,17 +142,9 @@ class SceneData(E3RModel):
 
 
 class AlignmentSpec(E3RModel):
-    mode: Literal[
-        "none",
-        "se3",
-        "sim3",
-        "icp",
-        "trajectory_se3",
-        "trajectory_sim3",
-        "scale_median",
-        "scale_least_squares",
-        "scale_affine",
-    ] = "none"
+    mode: AlignmentMode = "none"
+    allowed_modes: list[AlignmentMode] = []
+    scale_resolution: Literal["forbidden", "allowed", "required_if_relative"] = "forbidden"
     estimate_on: Literal[
         "none",
         "trajectory",

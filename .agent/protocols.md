@@ -23,6 +23,14 @@ Local evaluation status is always recorded.
 Every result includes the protocol hash.
 ```
 
+## Protocol identity and prediction adaptation
+
+The protocol hash is the scientific comparability contract. It includes the alignment policy and the allowed prediction-adaptation envelope (`alignment.allowed_modes` and `alignment.scale_resolution`). It does **not** include the concrete per-run adaptation chosen for one prediction.
+
+Per-run prediction adaptation is recorded separately as `RunResult.adaptation` and in `config.yaml`. The resolver combines prediction provenance (`PredictionManifest` / adapter `Reconstruction`) with `--as` / `--adapt` overrides; overrides win on conflict. If provenance declares `scale: relative` or `scale: unknown`, a permissive protocol can auto-select a scale-resolving mode inside its envelope. Restrictive official / official-like protocols use `scale_resolution: forbidden` and refuse such predictions loudly rather than silently rescaling them.
+
+Local `single_*` protocols intentionally have permissive envelopes for experiments. Dataset benchmark and official/server protocols pin restrictive envelopes unless the protocol explicitly documents scale resolution as scientifically valid.
+
 ## Fidelity labels
 
 ```text

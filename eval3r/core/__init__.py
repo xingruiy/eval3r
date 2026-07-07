@@ -7,6 +7,7 @@ of reaching into individual modules.
 
 from __future__ import annotations
 
+from eval3r.core.adaptation import AdaptationOverride, AdaptationRecord
 from eval3r.core.manifest import (
     ConfidenceManifestSpec,
     PredictionManifest,
@@ -57,6 +58,8 @@ __all__ = [
     "AggregationSpec",
     "FailurePolicySpec",
     "ReportingSpec",
+    "AdaptationOverride",
+    "AdaptationRecord",
     # manifest
     "UsesGTSpec",
     "ConfidenceManifestSpec",

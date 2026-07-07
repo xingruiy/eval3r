@@ -444,14 +444,20 @@ def align_geometry(
 
     with_scale = mode in _SCALE_MODES
     if with_scale and metric_scale:
-        allowed = bool(alignment.allow_override) or bool(alignment.parameters.get("allow_sim3"))
+        allowed_modes = list(alignment.allowed_modes) or [alignment.mode]
+        legacy_allowed = bool(alignment.allow_override) or bool(
+            alignment.parameters.get("allow_sim3")
+        )
+        allowed = (
+            alignment.scale_resolution != "forbidden" and mode in allowed_modes
+        ) or legacy_allowed
         if not allowed:
             raise AlignmentError(
                 f"Sim3 alignment (mode '{mode}') rescales the prediction and is disallowed for "
-                f"metric-scale protocols unless explicitly allowed (scene '{scene_id}'). "
-                f"Set alignment.parameters.allow_sim3 = true (or alignment.allow_override = true) "
-                f"in the protocol to permit scale correction, and know that the reported metrics "
-                f"then no longer reflect metric-scale error."
+                f"metric-scale protocols unless explicitly allowed by the protocol adaptation "
+                f"envelope (scene '{scene_id}'). Set alignment.allowed_modes to include "
+                f"'{mode}' and alignment.scale_resolution to 'allowed' when scale correction "
+                f"is scientifically valid for this protocol."
             )
 
     solver = alignment.solver

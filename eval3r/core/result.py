@@ -14,6 +14,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any, Literal
 
+from eval3r.core.adaptation import AdaptationRecord
 from eval3r.core.manifest import UsesGTSpec
 from eval3r.core.schema import (
     AggregationSpec,
@@ -92,6 +93,7 @@ class RunResult(E3RModel):
     per_scene_metrics: list[MetricResult] = []
     confidence_policy: ConfidenceSpec
     alignment: AlignmentSpec
+    adaptation: AdaptationRecord | None = None
     masking: MaskingSpec
     sampling: SamplingSpec
     aggregation: AggregationSpec

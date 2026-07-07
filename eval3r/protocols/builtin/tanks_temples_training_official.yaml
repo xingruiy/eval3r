@@ -1,5 +1,5 @@
 schema_version: 1
-protocol_version: 0.1.0
+protocol_version: 0.2.0
 name: tanks_temples_training_official
 fidelity: official
 
@@ -37,6 +37,8 @@ local_evaluation:
 
 alignment:
   mode: icp
+  allowed_modes: [icp]
+  scale_resolution: forbidden
   estimate_on: pointcloud
   solver: official_backend
   granularity: per_scene

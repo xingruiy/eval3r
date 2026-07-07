@@ -98,6 +98,7 @@ def evaluate_geometry(
     gt_type: GeometryKind = "pointcloud",
     threshold: float | None = None,
     sample: int | None = None,
+    adapt: str | None = None,
     pred_world_frame: str = "opencv",
     protocol: str = "single_geometry",
     method: str | None = None,
@@ -122,6 +123,7 @@ def evaluate_geometry(
         pred, gt, proto,
         input_type=input_type, gt_type=gt_type,
         threshold=threshold, sample=sample, method=method,
+        adapt=adapt,
         pred_world_frame=cast(WorldAxes, pred_world_frame),
         registry=registry, command=command, environment=environment,
     )
@@ -149,6 +151,7 @@ def evaluate_depth(
     depth_unit: float | None = None,
     gt_depth_unit: float | None = None,
     align: str | None = None,
+    adapt: str | None = None,
     align_granularity: str | None = None,
     protocol: str = "single_depth",
     method: str | None = None,
@@ -171,7 +174,7 @@ def evaluate_depth(
     run = run_single_file_depth(
         pred, gt, proto,
         pred_depth_unit=depth_unit, gt_depth_unit=gt_depth_unit,
-        align=align, align_granularity=align_granularity,
+        align=align, adapt=adapt, align_granularity=align_granularity,
         method=method, registry=registry, command=command, environment=environment,
     )
 
@@ -194,6 +197,7 @@ def evaluate_pose(
     gt: str | Path,
     *,
     align: str | None = None,
+    adapt: str | None = None,
     associate_max_diff: float | None = None,
     backend: str | None = None,
     pred_pose_format: str | None = None,
@@ -226,7 +230,7 @@ def evaluate_pose(
     environment = capture_environment(command=command)
     run = run_single_file_pose(
         pred, gt, proto,
-        align=align, associate_max_diff=associate_max_diff, backend=backend,
+        align=align, adapt=adapt, associate_max_diff=associate_max_diff, backend=backend,
         pred_pose_format=cast(SourcePoseFormat | None, pred_pose_format),
         gt_pose_format=cast(SourcePoseFormat | None, gt_pose_format),
         method=method, registry=registry, command=command, environment=environment,
@@ -450,6 +454,7 @@ def run_benchmark(
     root: str | Path | None = None,
     manifest: str | Path | None = None,
     method: str | None = None,
+    adapt: str | None = None,
     out_dir: str | Path | None = None,
     dataset_registry: DatasetRegistry | None = None,
     registry: BackendRegistry | None = None,
@@ -471,7 +476,7 @@ def run_benchmark(
     run = run_benchmark_geometry(
         pred_root, adapter, proto, split,
         manifest_path=manifest, registry=registry,
-        command=command, environment=environment, method=method,
+        command=command, environment=environment, method=method, adapt=adapt,
     )
 
     if out_dir is not None:
