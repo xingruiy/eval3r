@@ -28,6 +28,8 @@ EXPECTED_BUILTINS = {
     "tanks_temples_training_official",
     "tanks_temples_intermediate_server_only",
     "eth3d_training_official",
+    "neural_rgbd_geometry_culled",
+    "neural_rgbd_geometry_source",
 }
 
 # Regression table: name -> canonical protocol hash. Update deliberately (and bump
@@ -38,6 +40,8 @@ EXPECTED_HASHES = {
     "scannet_double_layer_geometry_5cm": "sha256:5a7f57763e3d6227fd23e538666d082eec63c27ca8ae10211317f15c0401e24a",
     "scannet_single_layer_geometry_5cm": "sha256:d8fa19896f75b3cae8a37f3273cc10bb4547beb9a5c7b874949e02c96fce9646",
     "scannet_test_single_layer_geometry_5cm": "sha256:864a238ad143ac48031457eb26d945c0f1ea4e75a80d438aa6b1428b80356bea",
+    "neural_rgbd_geometry_culled": "sha256:961ce743cbef9da800cbf4c24ded74db925872983b96b378c9355bdb9225de7e",
+    "neural_rgbd_geometry_source": "sha256:d6f0eeb37ad8be40aa05830df0803f21bd7f28250f510489193794f5fffe469a",
     "single_depth": "sha256:5af749bbea61dd7be60978780438d595cffa6013e01547ded556246a6850c938",
     "single_geometry": "sha256:7168bb180bf6f9c1feed8b75b40d74191cb6a57c814cc26c2b0933120121a781",
     "single_pose": "sha256:796eb35aebaca3c1b219993ab770b29daec8723157e23b3eb5f7b51f7286cf0e",

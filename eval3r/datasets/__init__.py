@@ -11,6 +11,7 @@ from eval3r.datasets.base import DatasetAdapter
 from eval3r.datasets.custom import CustomAdapter
 from eval3r.datasets.dtu import DTUAdapter
 from eval3r.datasets.eth3d import Eth3dAdapter
+from eval3r.datasets.neural_rgbd import NeuralRGBDAdapter
 from eval3r.datasets.registry import DatasetRegistry, default_registry
 from eval3r.datasets.scannet import ScanNetAdapter
 from eval3r.datasets.tanks_temples import TanksAndTemplesAdapter
@@ -20,6 +21,7 @@ __all__ = [
     "CustomAdapter",
     "DTUAdapter",
     "Eth3dAdapter",
+    "NeuralRGBDAdapter",
     "ScanNetAdapter",
     "TanksAndTemplesAdapter",
     "DatasetRegistry",

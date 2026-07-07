@@ -28,11 +28,12 @@ relevant `.agent/*.md` docs and the actual code — task notes can be stale.
 | 017 | [017-public-release-docs.md](017-public-release-docs.md) | Release docs, examples, packaging checks, PyPI prep | done |
 | 018 | [018-alignment-module.md](018-alignment-module.md) | SE3/Sim3 alignment (closest-point ICP + trajectory-first; no FPFH), mandatory visualization, `e3r align` | done |
 | 019 | [019-prediction-io.md](019-prediction-io.md) | Official eval3r-native prediction layout: `PredictionWriter` / `read_prediction_dir`, `e3r prediction` | done |
+| 020 | [020-neural-rgbd-geometry.md](020-neural-rgbd-geometry.md) | Neural-RGBD geometry adapter + culled/source mesh protocols (depth/pose deferred) | done |
 
-**All numbered tasks are done.** Remaining work is the intentionally deferred
-backlog below (each item needs its conventions pinned first — create a numbered
-task file when one is picked up) and the actual PyPI publish, which happens only
-on explicit user request (see the release checklist in task 017).
+Tasks 001–020 are done. Remaining work is the intentionally deferred backlog below (each item
+needs its conventions pinned first — create a numbered task file when one is picked up),
+Neural-RGBD depth/pose (geometry shipped in task 020), and the actual PyPI publish, which
+happens only on explicit user request (see the release checklist in task 017).
 
 Tasks must be executed in order unless a task's Scope says otherwise; each depends on the
 deliverables of the previous ones (schemas before adapters, metrics before runners, result
@@ -46,7 +47,8 @@ need is documented and proven by the core slices above:
 
 ```text
 7-Scenes adapter          (depth/pose; pinned Kinect intrinsics; 65535 invalid depth)
-Neural-RGBD adapter       (OpenGL convention; culled vs source mesh variants)
+Neural-RGBD depth/pose    (geometry done in task 020; depth/pose still deferred:
+                           OpenGL convention, focal.txt/poses.txt, neural_rgbd_depth.yaml)
 Replica adapter           (requires named + fingerprinted rendered trajectory bundle)
 Hypersim adapter          (ray-distance depth; meters_per_asset_unit; paid mesh assets)
 CO3D adapter              (frame_annotations.jgz; COLMAP-derived GT; object-centric)

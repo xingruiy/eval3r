@@ -1,0 +1,123 @@
+schema_version: 1
+protocol_version: 0.1.0
+name: neural_rgbd_geometry_culled
+fidelity: eval3r_native
+
+dataset:
+  dataset: neural_rgbd
+  variant: nrgbd_culled
+  split: all
+  version: neural_rgbd_official_meshes
+  fingerprint: null
+  notes:
+    - Culled GT mesh variant (gt_mesh_culled.ply); the exact synthetic mesh cropped to the
+      observed region. Do not mix with the source/uncropped variant.
+
+prediction_modality: mesh
+
+ground_truth:
+  modality: mesh
+  provenance: synthetic_exact
+  independence: independent
+  density: dense_surface
+  path: null
+  fingerprint: null
+  unit: m
+  source_pose_format: cam_to_world_opengl
+  normalized_convention: cam_to_world_opencv_meters
+  local_evaluation_status: supported
+  notes:
+    - Exact synthetic artist-mesh GT, culled to the observed frustum region.
+    - Geometry is mesh-to-mesh; the native OpenGL pose convention does not affect the score.
+
+local_evaluation:
+  status: supported
+  reason: released culled GT mesh is available locally.
+  public_gt_available: true
+  external_assets_required: []
+  official_server_required: false
+
+alignment:
+  mode: none
+  estimate_on: none
+  solver: none
+  granularity: per_scene
+  allow_override: false
+  parameters: {}
+
+confidence:
+  policy: none
+  allow_override: false
+
+masking:
+  pred_culling:
+    method: none
+  gt_culling:
+    method: none
+  valid_region:
+    method: none
+  ignore_invalid_depth: false
+  invalid_depth_values: []
+
+sampling:
+  pred:
+    method: surface_area
+    n_points: 200000
+    seed: derive
+  gt:
+    method: surface_area
+    n_points: 200000
+    seed: derive
+
+metrics:
+  - name: accuracy
+    statistic: mean
+  - name: completeness
+    statistic: mean
+  - name: chamfer
+    statistic: mean
+    reduction: mean
+  - name: precision
+    threshold: 0.05
+  - name: recall
+    threshold: 0.05
+  - name: fscore
+    threshold: 0.05
+    aggregation: per_scene_then_mean
+  - name: culled_fraction
+
+aggregation:
+  per_scene: true
+  mean: true
+  median: true
+  weighted_mean: false
+  weights: none
+
+failure_policy:
+  policy: skip_and_flag
+  worst_values: {}
+
+reporting:
+  save_protocol_copy: true
+  save_manifest_copy: true
+  save_environment: true
+  save_alignment_transforms: false
+  save_colored_errors: true
+  save_distance_histogram: true
+  formats: [json, csv, markdown, latex]
+
+backend_preferences:
+  mesh: trimesh
+  pointcloud: open3d
+  nearest_neighbor: scipy
+
+notes:
+  - Neural-RGBD reconstruction geometry against the released culled GT mesh
+    (gt_mesh_culled.ply). Community accuracy/completeness/chamfer + 5cm F-score convention
+    (both-direction nearest distances, threshold 0.05, surface-area sampling of 200000 points),
+    matching the reference driver's mesh-to-mesh eval.
+  - No eval-time culling runs; the culling is pre-baked into the released culled mesh, so
+    culled_fraction is recorded as 0. Alignment is none — prediction and GT share the dataset
+    world frame.
+  - eval3r_native, not official_like. Neural-RGBD has no official evaluation server; results
+    must not be presented as official Neural-RGBD benchmark numbers.

@@ -52,6 +52,8 @@ scannet_single_layer_geometry_5cm.yaml
 scannet_double_layer_geometry_5cm.yaml
 tanks_temples_training_official.yaml
 eth3d_training_official.yaml
+neural_rgbd_geometry_culled.yaml
+neural_rgbd_geometry_source.yaml
 ```
 
 Later built-ins (added together with their adapters):
@@ -60,7 +62,7 @@ Later built-ins (added together with their adapters):
 hypersim_depth.yaml
 seven_scenes_depth.yaml
 seven_scenes_pose.yaml
-neural_rgbd_depth.yaml
+neural_rgbd_depth.yaml   (deferred; geometry protocols above shipped first, task 020)
 replica_variant_geometry.yaml
 co3d_pose_eval3r_native.yaml
 kitti360_pose.yaml

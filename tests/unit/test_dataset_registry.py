@@ -20,6 +20,12 @@ def test_default_registry_has_custom() -> None:
     assert "custom" in default_registry().available()
 
 
+def test_default_registry_has_builtin_adapters() -> None:
+    available = default_registry().available()
+    for name in ("dtu", "eth3d", "neural_rgbd", "scannet", "tanks_temples"):
+        assert name in available
+
+
 def test_unknown_dataset_raises_with_names() -> None:
     reg = DatasetRegistry()
     reg.register("custom", CustomAdapter.factory)

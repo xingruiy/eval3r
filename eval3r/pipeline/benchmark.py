@@ -607,6 +607,14 @@ def run_benchmark_geometry(
 
     preflight(adapter, split, protocol)
 
+    # Adapters whose GT geometry depends on the protocol (e.g. Neural-RGBD's culled vs source
+    # mesh variant) can bind the protocol up front, because the interface's load_scene() is not
+    # handed a protocol. This is an opt-in hook; the dataset-specific decision stays in the
+    # adapter and adapters without protocol-dependent GT simply do not implement it.
+    bind_protocol = getattr(adapter, "bind_protocol", None)
+    if callable(bind_protocol):
+        bind_protocol(protocol)
+
     scenes = list(adapter.iter_scenes(split))
     phash = compute_protocol_hash(protocol)
     manifest, manifest_dict, inferred = load_or_infer_manifest(

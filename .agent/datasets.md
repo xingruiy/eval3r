@@ -484,6 +484,18 @@ Do not mix culled and uncropped mesh references under one protocol.
 Do not ignore the OpenGL convention warning.
 ```
 
+Status (task 020): the **geometry** adapter is implemented (`neural_rgbd`), evaluating a
+prediction mesh against the released official meshes at `<root>/<scene>/gt_mesh_culled.ply`
+(culled) or `gt_mesh.ply` (source/uncropped). Culled vs source is a protocol/variant decision
+(`neural_rgbd_geometry_culled` / `neural_rgbd_geometry_source`), never chosen silently. These
+released scenes are synthetic with exact artist-mesh GT, so GT is recorded as
+`synthetic_exact` / `independent` (a `_KNOWN_REAL_SCENES` classifier keeps the synthetic/real
+distinction for any future real-scene bundle). Geometry is mesh-to-mesh, so the OpenGL pose
+convention does not affect the score; it is recorded as a note and only matters for the
+**deferred** depth/pose evaluation (`neural_rgbd_depth.yaml`, focal.txt/poses.txt loading).
+The geometry protocols are `eval3r_native` community 5cm-F-score conventions (no official
+Neural-RGBD server), matching the mesh-to-mesh eval in the reference driver.
+
 ### Replica
 
 Adapter responsibilities:

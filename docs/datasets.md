@@ -81,6 +81,26 @@ official-looking numbers.
   voxel-normalized, free-space-aware scoring is never reimplemented.
 - Worked example: [ETH3D](examples/eth3d.md).
 
+### neural_rgbd
+
+Neural-RGBD reconstruction **geometry** evaluation (depth and pose are deferred). Scores a
+prediction mesh against the released official meshes at `<root>/<scene>/gt_mesh_culled.ply`
+(culled, the headline variant) or `gt_mesh.ply` (source/uncropped) — the `<root>` is the
+dataset's `nrgbd_meshes/official` directory. Culled vs source is chosen by protocol, never
+silently:
+
+- `neural_rgbd_geometry_culled` — GT is the culled mesh (cropped to the observed region).
+- `neural_rgbd_geometry_source` — GT is the full uncropped mesh; completeness/recall then
+  include unobserved regions.
+
+Both use mesh-to-mesh scoring with no alignment (prediction and GT share the world frame),
+surface-area sampling of 200k points, and the community 5 cm F-score convention
+(accuracy/completeness/chamfer + precision/recall/F-score). GT is exact synthetic geometry, so
+it is recorded as `synthetic_exact` / `independent`. These are `eval3r_native` numbers, not an
+official Neural-RGBD benchmark. Because geometry is mesh-to-mesh, the dataset's native OpenGL
+camera-pose convention does not affect the score (it matters only for the deferred depth/pose
+work).
+
 ### custom
 
 Single-file and simple-layout evaluation with user-declared ground truth (the
@@ -89,7 +109,7 @@ protocol.
 
 ## Planned adapters
 
-7-Scenes, Neural-RGBD, Replica, Hypersim, CO3D, BlendedMVS, and KITTI-360 are
+7-Scenes, Replica, Hypersim, CO3D, BlendedMVS, and KITTI-360 (and Neural-RGBD depth/pose) are
 intentionally deferred until the conventions each needs are pinned (see the project
 roadmap in the repository). Writing third-party adapters against the internal registry is
 possible but **not yet a stable public API** — see [Stability](index.md#stability).
