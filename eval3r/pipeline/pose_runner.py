@@ -27,17 +27,27 @@ from eval3r.core.errors import (
     SceneEvaluationError,
 )
 from eval3r.core.hashing import protocol_hash as compute_protocol_hash
+from eval3r.core.pose_convention import (
+    PoseConvention,
+    PoseConventionTransform,
+    read_tum_rows,
+)
 from eval3r.core.protocol import EvalProtocol
 from eval3r.core.registry import BackendRegistry, default_registry
 from eval3r.core.result import MetricResult, RunResult, SceneFailure
+from eval3r.core.types import SourcePoseFormat
+from eval3r.datasets.conventions import convention_for, normalized_convention_target
 from eval3r.metrics.pose import (
     alignment_scale_error,
     check_pose_alignment_spec,
     pose_metric_result,
     require_rpe_parameters,
 )
+from eval3r.predictions.writer import write_tum_trajectory
 
-PoseStage = Literal["resolve", "load", "align", "metric", "aggregate"]
+PoseStage = Literal["resolve", "convert", "load", "align", "metric", "aggregate"]
+
+_TRANSFORM = PoseConventionTransform()
 
 # CLI/API shorthands accepted for --align, normalized to first-class modes.
 POSE_ALIGN_ALIASES = {
@@ -124,6 +134,44 @@ def apply_pose_overrides(
     return proto, overrides
 
 
+# --- convention normalization (the "convert" stage) --------------------------------
+
+
+def _resolve_target(protocol: EvalProtocol) -> PoseConvention:
+    """The camera-pose convention both trajectories are brought to before metrics."""
+    nc = protocol.ground_truth.normalized_convention or "cam_to_world_opencv_meters"
+    return normalized_convention_target(nc)
+
+
+def _normalize_trajectory_convention(
+    path: Path,
+    src_fmt: SourcePoseFormat | None,
+    target: PoseConvention,
+    workdir: Path,
+    *,
+    role: str,
+) -> tuple[Path, bool]:
+    """Return ``(path_in_target_convention, transformed)`` for one TUM trajectory.
+
+    A no-op (returns the original path) when ``src_fmt`` is ``None`` (nothing declared,
+    so the trajectory is assumed already in the target convention) or when its declared
+    convention already equals ``target``. Otherwise the trajectory is read, converted
+    with the validated transformer, and written to a fresh file under ``workdir`` — the
+    original prediction file is never modified. Conversion happens **before** evo
+    association/Umeyama, so alignment stays a separate, still-meaningful step.
+    """
+    if src_fmt is None:
+        return path, False
+    src_conv = convention_for(src_fmt)
+    if src_conv == target:
+        return path, False
+    rows = read_tum_rows(path)
+    converted = _TRANSFORM.convert_tum_rows(rows, src_conv, target)
+    out = workdir / f"{role}_{path.stem}_as_{target.axes}_{target.direction}.txt"
+    write_tum_trajectory(converted, out)
+    return out, True
+
+
 # --- per-scene evaluation ------------------------------------------------------------
 
 
@@ -135,16 +183,44 @@ def evaluate_pose_scene(
     protocol: EvalProtocol,
     protocol_hash: str,
     registry: BackendRegistry,
+    pred_pose_format: SourcePoseFormat | None = None,
+    gt_pose_format: SourcePoseFormat | None = None,
 ) -> PoseSceneOutcome:
-    """Run load/associate → align → metric for one trajectory pair."""
+    """Run convert → load/associate → align → metric for one trajectory pair.
+
+    ``pred_pose_format`` / ``gt_pose_format`` declare the source pose convention of each
+    trajectory (a :class:`SourcePoseFormat`); when set and different from the protocol's
+    internal target, the trajectory is transformed to the target convention before any
+    association or alignment (the "convert" stage). ``None`` means passthrough.
+    """
+    import shutil
+    import tempfile
+
     backend = registry.require(
         "trajectory", protocol.backend_preferences.get("trajectory", "evo")
     )
     alignment = protocol.alignment
     association = dict(alignment.parameters)
+    target = _resolve_target(protocol)
 
-    stage: PoseStage = "load"
+    stage: PoseStage = "convert"
+    workdir = Path(tempfile.mkdtemp(prefix="eval3r_convention_"))
     try:
+        pred_path, pred_transformed = _normalize_trajectory_convention(
+            pred_path, pred_pose_format, target, workdir, role="pred"
+        )
+        gt_path, gt_transformed = _normalize_trajectory_convention(
+            gt_path, gt_pose_format, target, workdir, role="gt"
+        )
+        convention_meta = {
+            "pred_pose_format": pred_pose_format,
+            "gt_pose_format": gt_pose_format,
+            "target": f"{target.axes}/{target.direction}",
+            "pred_transformed": pred_transformed,
+            "gt_transformed": gt_transformed,
+        }
+
+        stage = "load"
         check_pose_alignment_spec(alignment)
 
         # ATE first: its backend result also carries the association counts and
@@ -189,6 +265,7 @@ def evaluate_pose_scene(
                 "n_dropped_pred": ate_result["n_dropped_pred"],
                 "n_dropped_gt": ate_result["n_dropped_gt"],
                 "association": ate_result["association"],
+                "convention": convention_meta,
             },
         )
     except Eval3rError as exc:
@@ -200,6 +277,9 @@ def evaluate_pose_scene(
             recoverable=stage != "load",
         )
         return PoseSceneOutcome(scene_id=scene_id, failure=failure)
+    finally:
+        # Any converted-trajectory temp files were only needed for this evaluation.
+        shutil.rmtree(workdir, ignore_errors=True)
 
 
 # --- run assembly ---------------------------------------------------------------------
@@ -228,17 +308,28 @@ def run_single_file_pose(
     align: str | None = None,
     associate_max_diff: float | None = None,
     backend: str | None = None,
+    pred_pose_format: SourcePoseFormat | None = None,
+    gt_pose_format: SourcePoseFormat | None = None,
     method: str | None = None,
     scene_id: str | None = None,
     registry: BackendRegistry | None = None,
     command: str | None = None,
     environment: dict[str, Any] | None = None,
 ) -> PoseRunOutput:
-    """Evaluate one predicted trajectory against ground truth under ``protocol``."""
+    """Evaluate one predicted trajectory against ground truth under ``protocol``.
+
+    ``pred_pose_format`` / ``gt_pose_format`` declare the source pose convention of the
+    prediction / ground-truth trajectory. When declared and different from the
+    protocol's internal target, the trajectory is transformed to the target convention
+    (the "convert" stage) before association and alignment; ``None`` means passthrough.
+    ``gt_pose_format`` defaults to the protocol's ``ground_truth.source_pose_format``.
+    """
     registry = registry or default_registry()
     pred_path = Path(pred_path)
     gt_path = Path(gt_path)
     scene_id = scene_id or pred_path.stem or "scene"
+    if gt_pose_format is None:
+        gt_pose_format = protocol.ground_truth.source_pose_format
 
     proto, overrides = apply_pose_overrides(
         protocol, align=align, associate_max_diff=associate_max_diff, backend=backend
@@ -268,6 +359,7 @@ def run_single_file_pose(
         outcome = evaluate_pose_scene(
             scene_id, pred_path, gt_path,
             protocol=proto, protocol_hash=phash, registry=registry,
+            pred_pose_format=pred_pose_format, gt_pose_format=gt_pose_format,
         )
 
     if outcome.failure is not None and proto.failure_policy.policy == "abort":
@@ -320,6 +412,8 @@ def run_single_file_pose(
             "pred": str(pred_path),
             "gt": str(gt_path),
             "format": "tum",
+            "pred_pose_format": pred_pose_format,
+            "gt_pose_format": gt_pose_format,
         },
         "overrides": overrides,
     }

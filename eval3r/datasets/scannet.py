@@ -35,6 +35,10 @@ import numpy as np
 
 from eval3r.backends.visibility_render import CameraTrajectory, trajectory_fingerprint
 from eval3r.core.errors import DatasetError
+from eval3r.core.pose_convention import (
+    INTERNAL_POSE_CONVENTION,
+    PoseConventionTransform,
+)
 from eval3r.core.schema import (
     DatasetCapabilities,
     GroundTruthSpec,
@@ -44,6 +48,7 @@ from eval3r.core.schema import (
 )
 from eval3r.core.types import SourcePoseFormat
 from eval3r.datasets.base import file_fingerprint, read_split_file
+from eval3r.datasets.conventions import convention_for
 
 if TYPE_CHECKING:
     from eval3r.core.manifest import PredictionManifest
@@ -215,6 +220,13 @@ class ScanNetAdapter:
                 f"render the observed region for visibility culling."
             )
         poses_arr = np.stack(poses, axis=0)
+        # Normalize the culling trajectory to the internal convention (c2w OpenCV) that
+        # CameraTrajectory promises the visibility backend. A validated no-op for
+        # ScanNet's cam_to_world_opencv export today; it makes the (N, 4, 4) contract
+        # correct for any future adapter whose poses are OpenGL or world-to-camera.
+        poses_arr = PoseConventionTransform().convert(
+            poses_arr, convention_for(self.source_pose_format), INTERNAL_POSE_CONVENTION
+        )
 
         intr_path = self._intrinsic_depth_path(scene_id)
         if not intr_path.is_file():

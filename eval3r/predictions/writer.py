@@ -35,9 +35,11 @@ from eval3r.core.manifest import (
 from eval3r.core.schema import DatasetVariant
 from eval3r.core.types import (
     IntrinsicsSource,
+    NormalizedConvention,
     PredictionModality,
     ScaleType,
     SourcePoseFormat,
+    WorldAxes,
 )
 from eval3r.predictions.layout import (
     ARRAY_FIELD_EXTENSIONS,
@@ -93,6 +95,8 @@ class PredictionWriter:
         variant: str | None = None,
         split: str | None = None,
         source_pose_format: SourcePoseFormat = "unknown",
+        normalized_convention: NormalizedConvention = "cam_to_world_opencv_meters",
+        world_frame: WorldAxes = "opencv",
         intrinsics_source: IntrinsicsSource = "unknown",
         unit: str = "m",
         depth_unit: float | None = None,
@@ -136,6 +140,8 @@ class PredictionWriter:
         self._scale: ScaleType = scale
         self._coordinate_frame = coordinate_frame
         self._source_pose_format: SourcePoseFormat = source_pose_format
+        self._normalized_convention: NormalizedConvention = normalized_convention
+        self._world_frame: WorldAxes = world_frame
         self._intrinsics_source: IntrinsicsSource = intrinsics_source
         self._unit = unit
         self._depth_unit = depth_unit
@@ -350,6 +356,8 @@ class PredictionWriter:
                     "prediction_modality": self._modality,
                     "coordinate_frame": self._coordinate_frame,
                     "source_pose_format": self._source_pose_format,
+                    "normalized_convention": self._normalized_convention,
+                    "world_frame": self._world_frame,
                     "scale": self._scale,
                     "unit": self._unit,
                     "depth_unit": self._depth_unit,

@@ -55,6 +55,7 @@ class SceneFailure(E3RModel):
     scene_id: str
     stage: Literal[
         "resolve",
+        "convert",
         "load",
         "normalize",
         "align",

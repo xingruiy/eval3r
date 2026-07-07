@@ -98,6 +98,38 @@ def test_writer_arrays_round_trip_and_manifest_validates(
     assert all(v.startswith("sha256:") for v in fingerprints.values())
 
 
+def test_writer_records_and_reader_picks_up_conventions(tmp_path: Path) -> None:
+    root = tmp_path / "preds"
+    rng = np.random.default_rng(1)
+    writer = make_writer(
+        root,
+        source_pose_format="cam_to_world_opengl",
+        world_frame="opengl",
+    )
+    writer.add_scene("scene_a", pointcloud=rng.random((50, 3)))
+    manifest = writer.finalize()
+
+    # The convention fields are recorded on the writer's manifest...
+    assert manifest.source_pose_format == "cam_to_world_opengl"
+    assert manifest.world_frame == "opengl"
+    assert manifest.normalized_convention == "cam_to_world_opencv_meters"
+
+    # ...survive serialization and are auto-picked-up by the reader.
+    data = yaml.safe_load((root / "manifest.yaml").read_text(encoding="utf-8"))
+    assert data["world_frame"] == "opengl"
+    parsed = PredictionManifest.model_validate(data)
+    assert parsed.world_frame == "opengl"
+    assert parsed.source_pose_format == "cam_to_world_opengl"
+
+
+def test_writer_world_frame_defaults_to_opencv(tmp_path: Path) -> None:
+    root = tmp_path / "preds"
+    writer = make_writer(root)
+    writer.add_scene("scene_a", pointcloud=np.random.default_rng(2).random((10, 3)))
+    manifest = writer.finalize()
+    assert manifest.world_frame == "opencv"
+
+
 def test_writer_copies_files_keeping_suffix(tmp_path: Path) -> None:
     source = tmp_path / "src"
     source.mkdir()

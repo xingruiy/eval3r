@@ -27,6 +27,7 @@ from eval3r.core.hashing import protocol_hash as compute_protocol_hash
 from eval3r.core.protocol import EvalProtocol
 from eval3r.core.registry import BackendRegistry, default_registry
 from eval3r.core.result import MetricResult, RunResult, SceneFailure
+from eval3r.core.types import WorldAxes
 from eval3r.metrics.diagnostics import build_diagnostic_metrics, partition_specs
 from eval3r.metrics.geometry import DirectionalDistances, compute_directional_distances
 from eval3r.pipeline.stages.align import (
@@ -38,7 +39,7 @@ from eval3r.pipeline.stages.align import (
 from eval3r.pipeline.stages.load import GeometryKind, load_geometry
 from eval3r.pipeline.stages.mask import apply_culling
 from eval3r.pipeline.stages.metric import compute_scene_metrics
-from eval3r.pipeline.stages.normalize import normalize_to_meters
+from eval3r.pipeline.stages.normalize import normalize_to_meters, normalize_world_frame
 from eval3r.pipeline.stages.sample import DEFAULT_BASE_SEED, sample_geometry
 
 # Stages the single-file geometry path runs, in order. A subset of SceneFailure.stage.
@@ -142,6 +143,7 @@ def evaluate_geometry_scene(
     base_seed: int = DEFAULT_BASE_SEED,
     pred_unit: str | None = None,
     gt_unit: str | None = None,
+    pred_world_frame: WorldAxes = "opencv",
     pred_trajectory: Path | None = None,
     gt_trajectory: Path | None = None,
 ) -> SceneOutcome:
@@ -150,6 +152,10 @@ def evaluate_geometry_scene(
     ``pred_unit`` / ``gt_unit`` are the source length units of the loaded files; each
     is normalized to metres in the ``normalize`` stage before alignment. ``None`` (the
     single-file default) means the geometry is already metric.
+    ``pred_world_frame`` is the world-frame (handedness) convention the prediction was
+    built in; when it is not the internal ``opencv`` frame the prediction geometry is
+    rotated into the internal frame in the ``normalize`` stage, before alignment. GT is
+    already internal (adapters normalize it), so no GT world-frame argument exists.
     ``pred_trajectory`` / ``gt_trajectory`` feed trajectory-first alignment
     (``estimate_on: trajectory``); a missing one is an explicit failure at stage
     ``align`` when that alignment is requested.
@@ -183,6 +189,9 @@ def evaluate_geometry_scene(
         stage = "normalize"
         pred = normalize_to_meters(pred, pred_unit)
         gt = normalize_to_meters(gt, gt_unit)
+        # World-frame convention: rotate an OpenGL-world prediction into the internal
+        # OpenCV world frame before alignment (GT is already internal).
+        pred = normalize_world_frame(pred, pred_world_frame)
 
         stage = "align"
         pred_before_align = pred
@@ -307,10 +316,16 @@ def run_single_file_geometry(
     registry: BackendRegistry | None = None,
     command: str | None = None,
     environment: dict[str, Any] | None = None,
+    pred_world_frame: WorldAxes = "opencv",
     pred_trajectory: str | Path | None = None,
     gt_trajectory: str | Path | None = None,
 ) -> GeometryRunOutput:
-    """Evaluate one prediction file against one GT file under ``protocol``."""
+    """Evaluate one prediction file against one GT file under ``protocol``.
+
+    ``pred_world_frame`` declares the prediction geometry's world-frame convention;
+    when it is not the internal ``opencv`` frame the geometry is rotated into the
+    internal frame before alignment (recorded in the run config).
+    """
     registry = registry or default_registry()
     pred_path = Path(pred_path)
     gt_path = Path(gt_path)
@@ -319,12 +334,15 @@ def run_single_file_geometry(
     proto, overrides = apply_geometry_overrides(
         protocol, input_type=input_type, gt_type=gt_type, threshold=threshold, sample=sample
     )
+    if pred_world_frame != "opencv":
+        overrides["pred_world_frame"] = pred_world_frame
     phash = compute_protocol_hash(proto)
 
     outcome = evaluate_geometry_scene(
         scene_id, pred_path, gt_path,
         protocol=proto, protocol_hash=phash,
         input_type=input_type, gt_type=gt_type, registry=registry,
+        pred_world_frame=pred_world_frame,
         pred_trajectory=Path(pred_trajectory) if pred_trajectory else None,
         gt_trajectory=Path(gt_trajectory) if gt_trajectory else None,
     )

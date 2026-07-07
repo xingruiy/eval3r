@@ -443,7 +443,7 @@ def _evaluate_scene_visibility_culled(
     from eval3r.metrics.diagnostics import build_diagnostic_metrics, partition_specs
     from eval3r.pipeline.stages.load import LoadedGeometry, load_geometry
     from eval3r.pipeline.stages.metric import compute_scene_metrics
-    from eval3r.pipeline.stages.normalize import normalize_to_meters
+    from eval3r.pipeline.stages.normalize import normalize_to_meters, normalize_world_frame
     from eval3r.pipeline.stages.sample import sample_geometry
 
     if not hasattr(adapter, "load_trajectory"):
@@ -497,6 +497,9 @@ def _evaluate_scene_visibility_culled(
         stage = "normalize"
         pred = normalize_to_meters(pred, recon.unit)
         gt = normalize_to_meters(gt, scene.ground_truth.unit)
+        # Rotate an OpenGL-world prediction into the internal frame before the GT
+        # trajectory renders/culls it (the culling trajectory is already internal).
+        pred = normalize_world_frame(pred, recon.world_frame)
 
         stage = "mask"
         cull = vis_backend.cull(pred.mesh, trajectory, tolerance=tolerance, **params)
@@ -553,6 +556,7 @@ def _evaluate_scene(
         pred_path = recon.path
         pred_kind = prediction_kind(recon)
         pred_unit = recon.unit
+        pred_world_frame = recon.world_frame
         scene = adapter.load_scene(scene_id)
         gt_path, gt_kind = gt_geometry(scene)
         gt_unit = scene.ground_truth.unit
@@ -576,7 +580,7 @@ def _evaluate_scene(
         scene_id, pred_path, gt_path,
         protocol=protocol, protocol_hash=protocol_hash,
         input_type=pred_kind, gt_type=gt_kind, registry=registry,  # type: ignore[arg-type]
-        pred_unit=pred_unit, gt_unit=gt_unit,
+        pred_unit=pred_unit, gt_unit=gt_unit, pred_world_frame=pred_world_frame,
         pred_trajectory=pred_trajectory, gt_trajectory=gt_trajectory,
     )
 

@@ -116,6 +116,25 @@ NormalizedConvention = Literal[
 ]
 ```
 
+### World axes (geometry world-frame convention)
+
+```python
+WorldAxes = Literal[
+    "opencv",
+    "opengl",
+]
+```
+
+`WorldAxes` labels the world-frame handedness of geometry vertices (mesh / point cloud
+/ pointmap), distinct from a per-camera pose convention. The internal frame is
+`opencv`; an `opengl` prediction is rotated into it (a proper 180° rotation about X,
+`F = diag(1, -1, -1, 1)`, never a reflection) before geometry metrics. Convention
+transforms (both the camera-pose `SourcePoseFormat` path and this world-frame path) are
+owned by `eval3r/core/pose_convention.py` and validated on every call; the
+`SourcePoseFormat -> PoseConvention` mapping lives in `eval3r/datasets/conventions.py`
+(unverified formats — `unknown`, `co3d_frame_annotations`, `tanks_temples_log` — raise
+rather than guess a handedness).
+
 ### Scale type
 
 ```python
@@ -300,6 +319,7 @@ class Reconstruction(BaseModel):
     coordinate_frame: str
     source_pose_format: SourcePoseFormat = "unknown"
     normalized_convention: NormalizedConvention = "cam_to_world_opencv_meters"
+    world_frame: WorldAxes = "opencv"
     scale: ScaleType
     unit: str = "m"
     depth_unit: float | None = None
@@ -313,12 +333,20 @@ class Reconstruction(BaseModel):
 Rules:
 
 ```text
-source_pose_format records what was found on disk
+source_pose_format records what was found on disk (drives the trajectory convert step)
 normalized_convention records what the adapter emitted internally
+world_frame records the geometry world-frame handedness of the prediction; an
+  "opengl" prediction is rotated into the internal "opencv" frame before geometry
+  metrics. Default "opencv" -> existing predictions are a no-op.
 unit is meters unless explicitly declared otherwise
 depth_unit is required for integer depth files
 confidence metadata is required when confidence is used or self-filtered
 ```
+
+`world_frame` is a prediction-side field only. It is deliberately **not** added to
+`GroundTruthSpec` / `EvalProtocol`: GT is already normalized to the internal frame by
+adapters, and the required target world frame is the fixed internal `opencv`, so no
+protocol field is needed and existing protocol hashes are unchanged.
 
 ## Scene data
 
@@ -374,6 +402,7 @@ class PredictionManifest(BaseModel):
     coordinate_frame: str
     source_pose_format: SourcePoseFormat = "unknown"
     normalized_convention: NormalizedConvention = "cam_to_world_opencv_meters"
+    world_frame: WorldAxes = "opencv"
     scale: ScaleType
     unit: str = "m"
     depth_unit: float | None = None
@@ -633,6 +662,7 @@ class SceneFailure(BaseModel):
     scene_id: str
     stage: Literal[
         "resolve",
+        "convert",
         "load",
         "normalize",
         "align",

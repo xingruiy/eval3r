@@ -19,6 +19,7 @@ from eval3r.core.types import (
     PredictionModality,
     ScaleType,
     SourcePoseFormat,
+    WorldAxes,
 )
 
 
@@ -55,6 +56,7 @@ class PredictionManifest(E3RModel):
     coordinate_frame: str
     source_pose_format: SourcePoseFormat = "unknown"
     normalized_convention: NormalizedConvention = "cam_to_world_opencv_meters"
+    world_frame: WorldAxes = "opencv"
     scale: ScaleType
     unit: str = "m"
     depth_unit: float | None = None

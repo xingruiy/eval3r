@@ -15,6 +15,7 @@ import shlex
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import get_args
 
 import typer
 from rich.console import Console
@@ -23,6 +24,8 @@ from rich.table import Table
 
 from eval3r.api import evaluate_depth, evaluate_geometry, evaluate_pose
 from eval3r.core.errors import Eval3rError
+from eval3r.core.protocol import EvalProtocol
+from eval3r.core.types import NormalizedConvention, SourcePoseFormat, WorldAxes
 from eval3r.metrics.depth import DEPTH_ALIGNMENT_GRANULARITIES, DEPTH_ALIGNMENT_MODES
 from eval3r.pipeline.depth_runner import DepthRunOutput
 from eval3r.pipeline.pose_runner import POSE_ALIGN_ALIASES, PoseRunOutput
@@ -39,6 +42,8 @@ err_console = Console(stderr=True)
 
 
 _KIND_CHOICES = ("pointcloud", "mesh")
+_POSE_FORMAT_CHOICES = get_args(SourcePoseFormat)
+_WORLD_FRAME_CHOICES = get_args(WorldAxes)
 
 
 def _echo_config(run: GeometryRunOutput, pred: Path, gt: Path, out_dir: Path) -> None:
@@ -57,6 +62,12 @@ def _echo_config(run: GeometryRunOutput, pred: Path, gt: Path, out_dir: Path) ->
     table.add_row("prediction", f"{pred}  [{run.overrides['input_type']}]")
     table.add_row("ground truth", f"{gt}  [{run.overrides['gt_type']}]")
     table.add_row("output dir", str(out_dir))
+    pred_world = run.overrides.get("pred_world_frame", "opencv")
+    table.add_row(
+        "world frame",
+        f"pred={pred_world} -> internal=opencv "
+        f"[{'transformed' if pred_world != 'opencv' else 'passthrough'}]",
+    )
     table.add_row(
         "alignment",
         f"mode={proto.alignment.mode} solver={proto.alignment.solver} "
@@ -117,6 +128,12 @@ def geometry(
     gt_type: str = typer.Option(
         "pointcloud", "--gt-input", help="Ground-truth type: pointcloud | mesh."
     ),
+    pred_world_frame: str = typer.Option(
+        "opencv", "--pred-world-frame",
+        help="World-frame convention the prediction geometry was built in: opencv | "
+        "opengl. An opengl prediction is rotated into eval3r's internal opencv world "
+        "frame before metrics.",
+    ),
     protocol: str = typer.Option(
         "single_geometry", "--protocol", help="Built-in protocol name or path to a protocol YAML."
     ),
@@ -135,6 +152,12 @@ def geometry(
                 f"{', '.join(_KIND_CHOICES)}."
             )
             raise typer.Exit(code=2)
+    if pred_world_frame not in _WORLD_FRAME_CHOICES:
+        err_console.print(
+            f"[bold red]invalid --pred-world-frame '{pred_world_frame}'[/]: choose one "
+            f"of {', '.join(_WORLD_FRAME_CHOICES)}."
+        )
+        raise typer.Exit(code=2)
 
     command = "e3r " + shlex.join(sys.argv[1:]) if len(sys.argv) > 1 else "e3r metric geometry"
 
@@ -143,8 +166,8 @@ def geometry(
             pred, gt,
             input_type=input_type,  # type: ignore[arg-type]
             gt_type=gt_type,  # type: ignore[arg-type]
-            threshold=threshold, sample=sample, protocol=protocol,
-            method=method, command=command, return_run=True,
+            threshold=threshold, sample=sample, pred_world_frame=pred_world_frame,
+            protocol=protocol, method=method, command=command, return_run=True,
         )
     except Eval3rError as exc:
         err_console.print(Panel(str(exc), title="evaluation failed", style="red", expand=False))
@@ -323,6 +346,17 @@ def depth(
     _echo_depth_outcome(run, out_dir)
 
 
+def _pose_target(proto: EvalProtocol) -> str:
+    """Human-readable internal pose-convention target for the config echo."""
+    from eval3r.datasets.conventions import normalized_convention_target
+
+    nc: NormalizedConvention = (
+        proto.ground_truth.normalized_convention or "cam_to_world_opencv_meters"
+    )
+    target = normalized_convention_target(nc)
+    return f"{target.axes}/{target.direction}"
+
+
 def _echo_pose_config(run: PoseRunOutput, pred: Path, gt: Path, out_dir: Path) -> None:
     proto = run.protocol
     table = Table(show_header=False, box=None, pad_edge=False)
@@ -335,6 +369,13 @@ def _echo_pose_config(run: PoseRunOutput, pred: Path, gt: Path, out_dir: Path) -
     table.add_row("prediction", f"{pred}  [tum]")
     table.add_row("ground truth", f"{gt}  [tum]")
     table.add_row("output dir", str(out_dir))
+    inputs = run.config.get("inputs", {})
+    pred_fmt = inputs.get("pred_pose_format") or "passthrough"
+    gt_fmt = inputs.get("gt_pose_format") or "passthrough"
+    table.add_row(
+        "convention",
+        f"pred={pred_fmt} gt={gt_fmt} -> target={_pose_target(proto)}",
+    )
     table.add_row(
         "alignment",
         f"mode={proto.alignment.mode} solver={proto.alignment.solver} "
@@ -384,6 +425,14 @@ def _echo_pose_outcome(run: PoseRunOutput, out_dir: Path) -> None:
             )
         console.print(metrics)
         meta = result.metadata
+        conv = meta.get("convention")
+        if conv is not None:
+            console.print(
+                f"[dim]convention: pred={conv['pred_pose_format'] or 'passthrough'} "
+                f"(transformed={conv['pred_transformed']}) "
+                f"gt={conv['gt_pose_format'] or 'passthrough'} "
+                f"(transformed={conv['gt_transformed']}) -> {conv['target']}[/]"
+            )
         console.print(
             f"[dim]association: {meta['n_associated']} pose(s) associated "
             f"(pred {meta['n_pred_poses']}, gt {meta['n_gt_poses']}; dropped "
@@ -418,6 +467,17 @@ def pose(
     backend: str | None = typer.Option(
         None, "--backend", help="Trajectory backend (default: the protocol's, evo)."
     ),
+    pred_pose_convention: str | None = typer.Option(
+        None, "--pred-pose-convention",
+        help="Source pose convention of the *prediction* trajectory (e.g. "
+        "cam_to_world_opengl, world_to_cam_colmap); transformed to the protocol's "
+        "internal convention before metrics. Default: assume already internal.",
+    ),
+    gt_pose_convention: str | None = typer.Option(
+        None, "--gt-pose-convention",
+        help="Source pose convention of the *ground-truth* trajectory (default: the "
+        "protocol's ground_truth.source_pose_format).",
+    ),
     protocol: str = typer.Option(
         "single_pose", "--protocol", help="Built-in protocol name or path to a protocol YAML."
     ),
@@ -435,6 +495,16 @@ def pose(
             f"{', '.join(POSE_ALIGN_ALIASES)}."
         )
         raise typer.Exit(code=2)
+    for label, value in (
+        ("--pred-pose-convention", pred_pose_convention),
+        ("--gt-pose-convention", gt_pose_convention),
+    ):
+        if value is not None and value not in _POSE_FORMAT_CHOICES:
+            err_console.print(
+                f"[bold red]invalid {label} '{value}'[/]: choose one of "
+                f"{', '.join(_POSE_FORMAT_CHOICES)}."
+            )
+            raise typer.Exit(code=2)
 
     command = "e3r " + shlex.join(sys.argv[1:]) if len(sys.argv) > 1 else "e3r metric pose"
 
@@ -442,6 +512,7 @@ def pose(
         run = evaluate_pose(
             pred, gt,
             align=align, associate_max_diff=associate_max_diff, backend=backend,
+            pred_pose_format=pred_pose_convention, gt_pose_format=gt_pose_convention,
             protocol=protocol, method=method, command=command, return_run=True,
         )
     except Eval3rError as exc:

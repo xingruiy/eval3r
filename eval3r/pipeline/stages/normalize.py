@@ -12,7 +12,14 @@ from __future__ import annotations
 import numpy as np
 
 from eval3r.core.errors import DatasetError
+from eval3r.core.pose_convention import (
+    INTERNAL_WORLD_AXES,
+    PoseConventionTransform,
+)
+from eval3r.core.types import WorldAxes
 from eval3r.pipeline.stages.load import LoadedGeometry
+
+_WORLD_TRANSFORM = PoseConventionTransform()
 
 # Length units eval3r knows how to convert to metres. Keys are lower-cased.
 _UNIT_TO_METERS: dict[str, float] = {
@@ -56,3 +63,22 @@ def normalize_to_meters(geometry: LoadedGeometry, unit: str | None) -> LoadedGeo
     if scale == 1.0:
         return geometry
     return geometry.transformed(scale_matrix(scale))
+
+
+def normalize_world_frame(
+    geometry: LoadedGeometry, world_frame: WorldAxes
+) -> LoadedGeometry:
+    """Rotate ``geometry`` from its declared world frame to eval3r's internal frame.
+
+    A no-op when ``world_frame`` is already the internal (``opencv``) frame; otherwise a
+    single global involution ``F`` (a proper 180 degree rotation about X, never a
+    reflection) maps the vertices into the internal frame. This is the geometry
+    counterpart of the pose "convert" stage: it is applied to a *prediction* built in an
+    OpenGL world frame before alignment/masking/sampling/metrics, so a declared
+    world-frame mismatch is fixed deterministically rather than left to alignment. GT is
+    already internal (adapters normalize it), so only the prediction side is passed here.
+    """
+    if world_frame == INTERNAL_WORLD_AXES:
+        return geometry
+    transform = _WORLD_TRANSFORM.world_transform(world_frame, INTERNAL_WORLD_AXES)
+    return geometry.transformed(transform)

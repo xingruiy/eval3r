@@ -57,6 +57,22 @@ Trajectories are TUM format (`timestamp x y z qx qy qz qw`); metrics are delegat
 [evo](https://github.com/MichaelGrupp/evo). ATE / RPE statistics, the association policy
 and tolerance, the alignment mode, and the estimated Sim3 scale are all recorded.
 
+If a prediction uses a different pose convention than the protocol's internal one
+(camera-to-world, OpenCV axes), declare it and eval3r transforms — and validates — the
+trajectory *before* association and alignment:
+
+```bash
+e3r metric pose pred_tum.txt --gt gt_tum.txt --align none \
+  --pred-pose-convention cam_to_world_opengl   # or world_to_cam_colmap, etc.
+```
+
+For geometry, a prediction built in an OpenGL world frame is rotated into the internal
+frame before metrics with `--pred-world-frame opengl`. The transform is a proper
+rotation (never a reflection), validated on every call, and recorded in the run; the
+`SourcePoseFormat` / `world_frame` fields written by `PredictionWriter` are picked up
+automatically. Unverified conventions (`unknown`, `co3d_frame_annotations`,
+`tanks_temples_log`) raise rather than guess a handedness.
+
 ## Dataset benchmarks
 
 ```bash

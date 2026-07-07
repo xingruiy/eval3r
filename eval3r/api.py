@@ -21,6 +21,7 @@ from eval3r.core.protocol import EvalProtocol
 from eval3r.core.registry import BackendRegistry, default_registry
 from eval3r.core.result import RunResult
 from eval3r.core.schema import AlignmentSpec
+from eval3r.core.types import SourcePoseFormat, WorldAxes
 from eval3r.datasets import default_registry as default_dataset_registry
 from eval3r.datasets.registry import DatasetRegistry
 from eval3r.pipeline.benchmark import BenchmarkRunOutput, run_benchmark_geometry
@@ -97,6 +98,7 @@ def evaluate_geometry(
     gt_type: GeometryKind = "pointcloud",
     threshold: float | None = None,
     sample: int | None = None,
+    pred_world_frame: str = "opencv",
     protocol: str = "single_geometry",
     method: str | None = None,
     out_dir: str | Path | None = None,
@@ -108,9 +110,11 @@ def evaluate_geometry(
 
     ``protocol`` is a built-in name or a path to a protocol YAML. CLI-style
     ``threshold`` / ``sample`` / input-type flags are applied as recorded overrides.
-    When ``out_dir`` is given a full run directory is written there. Returns the
-    :class:`RunResult` by default, or the richer :class:`GeometryRunOutput` when
-    ``return_run`` is true.
+    ``pred_world_frame`` declares the prediction's world-frame convention (``opencv``
+    or ``opengl``); an ``opengl`` prediction is rotated into eval3r's internal
+    ``opencv`` world frame before alignment. When ``out_dir`` is given a full run
+    directory is written there. Returns the :class:`RunResult` by default, or the
+    richer :class:`GeometryRunOutput` when ``return_run`` is true.
     """
     proto = load_protocol(protocol)
     environment = capture_environment(command=command)
@@ -118,6 +122,7 @@ def evaluate_geometry(
         pred, gt, proto,
         input_type=input_type, gt_type=gt_type,
         threshold=threshold, sample=sample, method=method,
+        pred_world_frame=cast(WorldAxes, pred_world_frame),
         registry=registry, command=command, environment=environment,
     )
 
@@ -191,6 +196,8 @@ def evaluate_pose(
     align: str | None = None,
     associate_max_diff: float | None = None,
     backend: str | None = None,
+    pred_pose_format: str | None = None,
+    gt_pose_format: str | None = None,
     protocol: str = "single_pose",
     method: str | None = None,
     out_dir: str | Path | None = None,
@@ -207,12 +214,21 @@ def evaluate_pose(
     seconds; both are recorded as overrides (the protocol hash changes
     accordingly). Association counts, alignment mode, and the estimated Sim3
     scale are recorded in result metadata and ``alignment_transforms.json``.
+
+    ``pred_pose_format`` / ``gt_pose_format`` declare each trajectory's source pose
+    convention (a :class:`~eval3r.core.types.SourcePoseFormat`, e.g.
+    ``"cam_to_world_opengl"`` or ``"world_to_cam_colmap"``). When declared and
+    different from the protocol's internal target, the trajectory is transformed to
+    the target convention (validated) **before** association and alignment;
+    ``gt_pose_format`` defaults to the protocol's ``ground_truth.source_pose_format``.
     """
     proto = load_protocol(protocol)
     environment = capture_environment(command=command)
     run = run_single_file_pose(
         pred, gt, proto,
         align=align, associate_max_diff=associate_max_diff, backend=backend,
+        pred_pose_format=cast(SourcePoseFormat | None, pred_pose_format),
+        gt_pose_format=cast(SourcePoseFormat | None, gt_pose_format),
         method=method, registry=registry, command=command, environment=environment,
     )
 

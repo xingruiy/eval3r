@@ -76,6 +76,15 @@ NormalizedConvention: TypeAlias = Literal[
     "cam_to_world_opencv_meters",
 ]
 
+# World-frame (handedness) convention of geometry vertices — mesh / point-cloud /
+# pointmap. Distinct from a camera-pose convention: it labels the world axes the
+# geometry lives in, not a per-camera pose. eval3r's internal world frame is
+# ``opencv``; an ``opengl`` prediction is flipped to it before geometry metrics.
+WorldAxes: TypeAlias = Literal[
+    "opencv",
+    "opengl",
+]
+
 ScaleType: TypeAlias = Literal[
     "metric",
     "relative",

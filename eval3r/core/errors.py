@@ -32,6 +32,19 @@ class AlignmentError(Eval3rError):
     """An alignment transform could not be estimated or is disallowed by the protocol."""
 
 
+class PoseConventionError(Eval3rError):
+    """A pose/coordinate-convention transform could not be applied or failed validation.
+
+    Raised by the convention transformer (``eval3r/core/pose_convention.py``) and the
+    source-format mapping (``eval3r/datasets/conventions.py``) when a source format
+    cannot be mapped to a verified convention, or when a produced transform fails a
+    truthfulness invariant (non-orthonormal/reflected rotation, broken homogeneous row,
+    non-finite value, failed round-trip, or a camera-center/inverse-consistency check).
+    Messages name the pose index, the invariant, the numeric residual versus tolerance,
+    and the ``(src -> dst)`` conversion involved.
+    """
+
+
 class CullingError(Eval3rError):
     """A masking/culling policy could not be applied on the single-file path."""
 
