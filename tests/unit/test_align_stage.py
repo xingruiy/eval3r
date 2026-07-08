@@ -2,9 +2,8 @@
 
 Covers the new solver semantics: ``mode: icp`` refusal, required-parameter
 enforcement (``max_correspondence_distance`` / ``associate_max_diff`` are never
-defaulted), the Sim3-on-metric-scale guard on every scale-changing path, analytic
-trajectory-first propagation via the real evo backend, and the visualization
-capture.
+defaulted), metric-scale Sim3 alignment, analytic trajectory-first propagation
+via the real evo backend, and the visualization capture.
 """
 
 from __future__ import annotations
@@ -85,31 +84,35 @@ def test_icp_solver_rejects_estimate_on_trajectory() -> None:
         )
 
 
-def test_sim3_icp_guarded_on_metric_scale_protocols() -> None:
+def test_sim3_icp_runs_on_metric_scale_when_selected() -> None:
     pts = np.random.default_rng(0).random((10, 3))
     spec = AlignmentSpec(
         mode="sim3", solver="icp", estimate_on="pointcloud",
         parameters={"max_correspondence_distance": 0.1},
     )
-    with pytest.raises(AlignmentError, match="metric-scale"):
-        align_geometry(
-            _cloud(pts), _cloud(pts), spec,
-            scene_id="s", metric_scale=True, registration_backend=REGISTRATION,
-        )
+    _aligned, result = align_geometry(
+        _cloud(pts), _cloud(pts), spec,
+        scene_id="s", metric_scale=True, registration_backend=REGISTRATION,
+    )
+    assert result.mode == "sim3"
+    assert result.scale == pytest.approx(1.0)
 
 
-def test_sim3_trajectory_guarded_on_metric_scale_protocols(tmp_path: Path) -> None:
+def test_sim3_trajectory_runs_on_metric_scale_when_selected(tmp_path: Path) -> None:
     pts = np.random.default_rng(0).random((10, 3))
+    _write_tum(tmp_path / "p.txt", pts)
+    _write_tum(tmp_path / "g.txt", pts)
     spec = AlignmentSpec(
         mode="sim3", solver="umeyama", estimate_on="trajectory",
         parameters={"associate_max_diff": 0.01},
     )
-    with pytest.raises(AlignmentError, match="metric-scale"):
-        align_geometry(
-            _cloud(pts), _cloud(pts), spec,
-            scene_id="s", metric_scale=True, trajectory_backend=TRAJECTORY,
-            pred_trajectory=tmp_path / "p.txt", gt_trajectory=tmp_path / "g.txt",
-        )
+    _aligned, result = align_geometry(
+        _cloud(pts), _cloud(pts), spec,
+        scene_id="s", metric_scale=True, trajectory_backend=TRAJECTORY,
+        pred_trajectory=tmp_path / "p.txt", gt_trajectory=tmp_path / "g.txt",
+    )
+    assert result.mode == "sim3"
+    assert result.scale == pytest.approx(1.0)
 
 
 def test_trajectory_mode_requires_both_trajectories() -> None:
@@ -167,7 +170,7 @@ def test_icp_path_recovers_known_sim3_and_records_provenance() -> None:
     dst = 0.5 * src @ rot.T + np.array([0.3, -0.2, 0.1])
     spec = AlignmentSpec(
         mode="sim3", solver="icp", estimate_on="pointcloud",
-        parameters={"max_correspondence_distance": 0.5, "allow_sim3": True},
+        parameters={"max_correspondence_distance": 0.5},
     )
     aligned, result = align_geometry(
         _cloud(src), _cloud(dst), spec,

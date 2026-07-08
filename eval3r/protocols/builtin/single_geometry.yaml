@@ -35,8 +35,6 @@ local_evaluation:
 
 alignment:
   mode: none
-  allowed_modes: [none, se3, sim3]
-  scale_resolution: allowed
   estimate_on: none
   solver: none
   granularity: per_scene

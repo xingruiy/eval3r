@@ -2,12 +2,12 @@
 
 Protocols define how evaluation is performed. They are the main unit of comparability in `eval3r`.
 
-A protocol is not just a list of metrics. It also defines dataset variant, ground-truth provenance, local evaluability, alignment, masking, sampling, confidence handling, metric definitions, aggregation, failure policy, reporting, and backend preferences.
+A protocol is not just a list of metrics. It also defines dataset variant, ground-truth provenance, local evaluability, scoring alignment defaults, masking, sampling, confidence handling, metric definitions, aggregation, failure policy, reporting, and backend preferences.
 
 ## Protocol rules
 
 ```text
-Metrics never choose alignment silently.
+Alignment/Unit conversion are always recorded.
 Sampling seeds are always recorded.
 Metric thresholds are always explicit.
 Metric statistics are always explicit.
@@ -25,11 +25,11 @@ Every result includes the protocol hash.
 
 ## Protocol identity and prediction adaptation
 
-The protocol hash is the scientific comparability contract. It includes the alignment policy and the allowed prediction-adaptation envelope (`alignment.allowed_modes` and `alignment.scale_resolution`). It does **not** include the concrete per-run adaptation chosen for one prediction.
+The protocol hash is the scoring contract. It covers protocol-defined evaluation semantics: dataset/GT meaning, metric definitions, thresholds, masking, culling, confidence handling, sampling, aggregation, failure policy, and backend choices that affect the metric.
 
-Per-run prediction adaptation is recorded separately as `RunResult.adaptation` and in `config.yaml`. The resolver combines prediction provenance (`PredictionManifest` / adapter `Reconstruction`) with `--as` / `--adapt` overrides; overrides win on conflict. If provenance declares `scale: relative` or `scale: unknown`, a permissive protocol can auto-select a scale-resolving mode inside its envelope. Restrictive official / official-like protocols use `scale_resolution: forbidden` and refuse such predictions loudly rather than silently rescaling them.
+Prediction adaptation is not a protocol allow/deny boundary. The resolver combines prediction provenance (`PredictionManifest` / adapter `Reconstruction`) with `--as` / `--adapt` overrides; overrides win on conflict. The chosen pose convention, world frame, unit, scale declaration, and alignment/adaptation method are per-run prediction configuration and are recorded in `RunResult.adaptation` and `config.yaml`.
 
-Local `single_*` protocols intentionally have permissive envelopes for experiments. Dataset benchmark and official/server protocols pin restrictive envelopes unless the protocol explicitly documents scale resolution as scientifically valid.
+Protocols must not define adaptation allowlists, scale-resolution gates, or any equivalent permission envelope. Official / official-like comparability comes from the scoring protocol and recorded run metadata, not from refusing predictions because they declare relative/unknown scale, a different pose convention, or a user-selected adaptation method.
 
 ## Fidelity labels
 

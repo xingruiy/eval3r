@@ -37,8 +37,6 @@ local_evaluation:
 
 alignment:
   mode: icp
-  allowed_modes: [icp]
-  scale_resolution: forbidden
   estimate_on: pointcloud
   solver: official_backend
   granularity: per_scene

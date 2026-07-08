@@ -679,7 +679,7 @@ Rules:
 
 ```text
 ICP never runs by default
-Sim3 is disallowed for metric-scale protocols unless explicitly allowed
+Sim3 and other scale-resolving choices are user/prediction adaptation choices, not protocol permission gates
 alignment parameters and transforms are saved
 alignment backend is saved
 alignment residuals are saved when available

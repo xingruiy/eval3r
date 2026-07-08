@@ -74,7 +74,7 @@ alignment_scale_error  |ln s| of the estimated alignment scale    unitless
 The statistic (rmse/mean/median/...) is explicit per metric; RPE `delta` and `delta_unit`
 (frames/seconds/meters) are never defaulted — RPE at 1 frame is not comparable to RPE at
 1 second. Alignment modes are `none` / `trajectory_se3` / `trajectory_sim3` (Umeyama via
-evo); metric-scale protocols should pin SE3 so Sim3 can never be enabled silently. Every
+evo); users choose the intended alignment/adaptation mode explicitly. Every
 result records the association policy and tolerance, associated/dropped pose counts on
 both sides, the alignment mode, and the Sim3 scale when used.
 

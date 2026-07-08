@@ -87,10 +87,10 @@ receives the same overlays under `debug/` (`<scene>_alignment_before.ply`, …,
 `alignment_transforms.json` and in the `registration` / `trajectory` backend
 versions.
 
-Two guards protect metric comparability:
+Two guards keep alignment explicit:
 
-- **Sim3 on metric-scale protocols is refused** unless the protocol explicitly
-  allows it (`alignment.parameters.allow_sim3: true` or `allow_override: true`) —
-  rescaling the prediction changes what the metrics mean.
+- **Scale-resolving alignment is a user/prediction adaptation choice**: choose `sim3`
+  only when that is the intended evaluation setup. eval3r records the transform and
+  estimated scale instead of treating it as a protocol permission gate.
 - **ICP never runs silently**: a protocol must select `solver: icp`, and its
   correspondence distance must be pinned in the protocol.

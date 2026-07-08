@@ -161,7 +161,6 @@ ground-truth independence
 ground-truth density
 local evaluation status
 prediction modality
-alignment
 masking and culling
 confidence policy
 sampling
@@ -174,8 +173,6 @@ backend preferences
 Metrics must not silently choose:
 
 ```text
-alignment
-scale handling
 thresholds
 masking
 culling
@@ -184,6 +181,12 @@ sampling seed
 confidence threshold
 aggregation order
 ```
+
+Protocols must not define prediction-adaptation permission gates. Do not add protocol
+fields that allow or refuse predictions based on their declared pose convention,
+coordinate frame, scale type, or user-selected alignment/adaptation method. Prediction
+adaptation is run configuration: resolve it from the prediction manifest and explicit
+CLI/API overrides, then record what happened for reproducibility.
 
 When changing a built-in protocol, update:
 

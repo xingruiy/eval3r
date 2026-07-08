@@ -99,9 +99,10 @@ evaluating. Runs are refused before any computation when the split is not locall
 evaluable (e.g. Tanks and Temples intermediate, ETH3D test — those are server-only).
 See the worked examples: [DTU](examples/dtu.md), [ScanNet](examples/scannet.md),
 [Tanks and Temples](examples/tanks_temples.md), [ETH3D](examples/eth3d.md).
-Official and official-like protocols declare restrictive adaptation envelopes. A
-manifest with `scale: relative` under such a protocol is refused with an actionable
-message instead of being silently rescaled.
+Prediction adaptation is chosen by the manifest and explicit CLI/API overrides, then
+recorded with the run. Protocols do not define adaptation allowlists or refuse a
+prediction solely because it declares relative/unknown scale, a different pose
+convention, or a user-selected alignment method.
 
 ## Protocols
 
@@ -122,7 +123,7 @@ e3r diff runs/method_a runs/method_b
 Strict by default: runs with different protocol hashes are refused with the full reason.
 `--loose` allows the comparison but labels the output NON-STRICT, and comparability
 warnings (differing GT provenance, coverage, failure policy, alignment, confidence,
-adaptation, sampling, backend officialness) are always printed. See
+sampling, backend officialness) are always printed. See
 [Reproducibility](reproducibility.md#report-comparability).
 
 ## Python API

@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import pytest
 
-from eval3r.core.adaptation import AdaptationRecord
 from eval3r.core.errors import RunComparisonError
 from eval3r.core.result import SceneFailure
 from eval3r.core.schema import (
@@ -132,22 +131,6 @@ def test_none_metric_values_give_none_delta(two_runs) -> None:
             {
                 "alignment": AlignmentSpec(
                     mode="sim3", estimate_on="pointcloud", solver="umeyama"
-                )
-            },
-        ),
-        (
-            "adaptation",
-            {
-                "adaptation": AdaptationRecord(
-                    pose_convention=None,
-                    world_frame="opengl",
-                    unit="m",
-                    scale="metric",
-                    alignment="none",
-                    reason="override",
-                    source="override",
-                    within_envelope=True,
-                    transformed=True,
                 )
             },
         ),

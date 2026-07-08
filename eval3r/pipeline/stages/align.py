@@ -27,9 +27,8 @@ assumes 1:1 correspondence between the pred and gt alignment points; unequal cou
 fail with an explicit message pointing at the two correspondence-free paths.
 
 Per ``.agent/plan.md`` alignment policy: ICP never runs by default (a protocol must
-select ``solver: icp``), and Sim3 is disallowed for metric-scale protocols unless
-explicitly allowed (via ``alignment.parameters.allow_sim3`` or
-``alignment.allow_override``).
+select ``solver: icp``), and scale-resolving alignment is a user/prediction
+adaptation choice rather than a protocol permission gate.
 """
 
 from __future__ import annotations
@@ -443,22 +442,6 @@ def align_geometry(
         raise AlignmentError(f"unsupported alignment mode '{mode}' (scene '{scene_id}').")
 
     with_scale = mode in _SCALE_MODES
-    if with_scale and metric_scale:
-        allowed_modes = list(alignment.allowed_modes) or [alignment.mode]
-        legacy_allowed = bool(alignment.allow_override) or bool(
-            alignment.parameters.get("allow_sim3")
-        )
-        allowed = (
-            alignment.scale_resolution != "forbidden" and mode in allowed_modes
-        ) or legacy_allowed
-        if not allowed:
-            raise AlignmentError(
-                f"Sim3 alignment (mode '{mode}') rescales the prediction and is disallowed for "
-                f"metric-scale protocols unless explicitly allowed by the protocol adaptation "
-                f"envelope (scene '{scene_id}'). Set alignment.allowed_modes to include "
-                f"'{mode}' and alignment.scale_resolution to 'allowed' when scale correction "
-                f"is scientifically valid for this protocol."
-            )
 
     solver = alignment.solver
     if solver == "icp":

@@ -22,9 +22,9 @@ See [Result schema](schema.md) for the run directory and `results.json` contents
 metrics: the protocol name/version/**hash**, fidelity, dataset variant, GT
 provenance/independence/density and **fingerprint**, local-evaluation status, the
 alignment/masking/sampling/confidence/failure policies in effect, recorded overrides,
-scene coverage and structured failures, backend names and versions (including official
-tool commits and any compatibility patch applied to make an official tool run), the
-resolved command, and platform/Python facts.
+prediction adaptation metadata, scene coverage and structured failures, backend names
+and versions (including official tool commits and any compatibility patch applied to make
+an official tool run), the resolved command, and platform/Python facts.
 
 ## Ground-truth fingerprinting
 
@@ -61,7 +61,8 @@ backend officialness   (fidelity and the official_eval backend used)
 ```
 
 `e3r diff` refuses strict comparisons when protocol hashes differ; `--loose` allows the
-comparison but labels every output NON-STRICT.
+comparison but labels every output NON-STRICT. Prediction adaptation records are kept for
+reproducibility and auditability; they are not comparability warnings.
 
 ## Determinism
 

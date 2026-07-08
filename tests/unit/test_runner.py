@@ -133,24 +133,13 @@ def test_align_none_is_identity_passthrough() -> None:
     assert res.matrix == np.eye(4).tolist()
 
 
-def test_sim3_disallowed_on_metric_scale_without_permission() -> None:
-    rng = np.random.default_rng(2)
-    src = rng.normal(size=(20, 3))
-    with pytest.raises(AlignmentError) as exc:
-        align_geometry(
-            _pc(src), _pc(2 * src), AlignmentSpec(mode="sim3"),
-            scene_id="s", metric_scale=True,
-        )
-    assert "metric-scale" in str(exc.value)
-
-
-def test_sim3_allowed_with_explicit_parameter() -> None:
+def test_sim3_runs_on_metric_scale_when_selected() -> None:
     rng = np.random.default_rng(3)
     src = rng.normal(size=(20, 3))
     dst = 2.0 * src + np.array([1.0, 0, 0])
     out, res = align_geometry(
         _pc(src), _pc(dst),
-        AlignmentSpec(mode="sim3", parameters={"allow_sim3": True}),
+        AlignmentSpec(mode="sim3"),
         scene_id="s", metric_scale=True,
     )
     assert res.scale == pytest.approx(2.0, rel=1e-6)
@@ -162,7 +151,7 @@ def test_sim3_requires_correspondence() -> None:
     with pytest.raises(AlignmentError) as exc:
         align_geometry(
             _pc(np.zeros((5, 3))), _pc(np.zeros((6, 3))),
-            AlignmentSpec(mode="sim3", parameters={"allow_sim3": True}),
+            AlignmentSpec(mode="sim3"),
             scene_id="s", metric_scale=True,
         )
     assert "1:1 correspondence" in str(exc.value)

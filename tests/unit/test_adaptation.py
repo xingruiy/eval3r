@@ -64,26 +64,23 @@ def test_unknown_and_duplicate_tokens_report_vocabulary() -> None:
     assert "Valid tokens:" in str(duplicate.value)
 
 
-def test_relative_scale_auto_adapts_inside_permissive_envelope() -> None:
+def test_relative_scale_is_recorded_without_auto_alignment() -> None:
     proto = load_protocol("single_geometry")
     before = protocol_hash(proto)
     run_proto, record = resolve_adaptation(proto, _manifest(scale="relative"), None)
     assert protocol_hash(proto) == before
-    assert record.alignment == "sim3"
-    assert record.reason == "auto_scale_resolution"
-    assert record.within_envelope is True
-    assert run_proto.alignment.mode == "sim3"
+    assert record.scale == "relative"
+    assert record.alignment == "none"
+    assert record.reason == "passthrough"
+    assert run_proto.alignment.mode == "none"
 
 
-def test_relative_scale_refuses_under_forbidden_envelope() -> None:
+def test_relative_scale_is_not_refused_by_official_like_protocol() -> None:
     proto = load_protocol("dtu_official_like_pointcloud")
-    with pytest.raises(AlignmentError) as exc:
-        resolve_adaptation(proto, _manifest(scale="relative"), None)
-    message = str(exc.value)
-    assert "protocol 'dtu_official_like_pointcloud'" in message
-    assert "scale='relative'" in message
-    assert "scale_resolution: forbidden" in message
-    assert "Use a metric prediction" in message
+    run_proto, record = resolve_adaptation(proto, _manifest(scale="relative"), None)
+    assert record.scale == "relative"
+    assert record.alignment == proto.alignment.mode
+    assert run_proto.alignment.mode == proto.alignment.mode
 
 
 def test_convention_composition_matches_convention_for() -> None:

@@ -34,7 +34,7 @@ image origin: top-left
 
 The adapter must also record the source convention before normalization. Do not discard whether the dataset stored `world_to_cam_colmap`, `cam_to_world_opengl`, `tanks_temples_log`, `co3d_frame_annotations`, or another native format.
 
-Prediction provenance is load-bearing. `PredictionManifest.scale` and adapter `Reconstruction.scale` are consumed by the adaptation resolver; do not record `relative` or `unknown` scale as inert metadata. If a dataset protocol forbids scale adaptation, relative/unknown-scale predictions are refused before scoring. Geometry `world_frame`, pose `source_pose_format`, and length/depth units must likewise be populated so the run can record whether the prediction was passed through or transformed into the protocol's frame.
+Prediction provenance is load-bearing. `PredictionManifest.scale` and adapter `Reconstruction.scale` are consumed by the adaptation resolver; do not record `relative` or `unknown` scale as inert metadata. Protocols must not forbid scale adaptation or refuse predictions solely because they declare relative/unknown scale. Geometry `world_frame`, pose `source_pose_format`, and length/depth units must likewise be populated so the run can record whether the prediction was passed through or transformed into the evaluation frame.
 
 ## Adapter interface
 

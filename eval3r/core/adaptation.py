@@ -1,9 +1,8 @@
 """Prediction adaptation resolution.
 
-The protocol hash represents the scientific contract, including the allowed
-adaptation envelope. This module resolves one prediction's declared provenance
-and optional compact override into an effective, non-hashed adaptation record and
-an evaluation protocol copy with the effective alignment mode.
+This module resolves one prediction's declared provenance and optional compact override
+into an effective adaptation record and an evaluation protocol copy with the selected
+alignment mode. Adaptation is run configuration, not a protocol permission gate.
 """
 
 from __future__ import annotations
@@ -36,7 +35,6 @@ class AdaptationRecord(E3RModel):
     alignment: AlignmentMode
     reason: str
     source: str
-    within_envelope: bool
     transformed: bool = False
     metadata: dict[str, Any] = Field(default_factory=dict)
 
@@ -182,9 +180,7 @@ def resolve_adaptation(
     world_frame = _resolve_world_frame(protocol, provenance, override)
     pose_fmt = _resolve_pose_format(protocol, provenance, override)
 
-    allowed = list(proto.alignment.allowed_modes) or [proto.alignment.mode]
-    desired = _desired_alignment(proto, pred_scale, override, allowed)
-    _check_envelope(proto, desired, pred_scale, allowed)
+    desired = _desired_alignment(proto, override)
 
     old_mode = proto.alignment.mode
     if desired != proto.alignment.mode:
@@ -201,12 +197,7 @@ def resolve_adaptation(
         alignment=desired,
         reason=reason,
         source=source,
-        within_envelope=True,
         transformed=_transformed(protocol, pose_fmt, world_frame, pred_unit, old_mode, desired),
-        metadata={
-            "allowed_modes": allowed,
-            "scale_resolution": proto.alignment.scale_resolution,
-        },
     )
     return proto, record
 
@@ -267,64 +258,11 @@ def _split_pose_format(fmt: SourcePoseFormat) -> tuple[str | None, WorldAxes | N
 
 def _desired_alignment(
     proto: EvalProtocol,
-    scale: ScaleType,
     override: AdaptationOverride | None,
-    allowed: list[AlignmentMode],
 ) -> AlignmentMode:
     if override is not None and override.alignment_mode is not None:
-        if (
-            override.alignment_mode != proto.alignment.mode
-            and not proto.alignment.allow_override
-        ):
-            raise AlignmentError(
-                f"protocol '{proto.name}' pins alignment mode "
-                f"'{proto.alignment.mode}' and disallows legacy alignment overrides "
-                f"(allow_override: false); refusing adaptation alignment "
-                f"'{override.alignment_mode}'."
-            )
         return override.alignment_mode
-    if scale not in {"relative", "unknown"}:
-        return proto.alignment.mode
-    if proto.alignment.scale_resolution == "forbidden":
-        return proto.alignment.mode
-    modality = proto.prediction_modality
-    if modality == "camera_trajectory":
-        return _first_allowed(allowed, ["trajectory_sim3", "sim3"], proto.alignment.mode)
-    if modality in {"single_depth", "depth_sequence"}:
-        return _first_allowed(
-            allowed, ["scale_median", "scale_least_squares", "scale_affine"], proto.alignment.mode
-        )
-    return _first_allowed(allowed, ["sim3", "trajectory_sim3"], proto.alignment.mode)
-
-
-def _first_allowed(
-    allowed: list[AlignmentMode], candidates: list[AlignmentMode], fallback: AlignmentMode
-) -> AlignmentMode:
-    for candidate in candidates:
-        if candidate in allowed:
-            return candidate
-    return fallback
-
-
-def _check_envelope(
-    proto: EvalProtocol,
-    desired: AlignmentMode,
-    scale: ScaleType,
-    allowed: list[AlignmentMode],
-) -> None:
-    if desired not in allowed:
-        raise AlignmentError(
-            f"prediction adaptation requested alignment '{desired}', but protocol "
-            f"'{proto.name}' allows only {allowed}. Use a protocol whose "
-            f"alignment.allowed_modes includes '{desired}', or remove the adaptation override."
-        )
-    if scale in {"relative", "unknown"} and proto.alignment.scale_resolution == "forbidden":
-        raise AlignmentError(
-            f"prediction declares scale='{scale}', but protocol '{proto.name}' forbids "
-            f"scale adaptation (scale_resolution: forbidden; allowed_modes: {allowed}). "
-            f"Use a metric prediction, or choose a protocol that permits scale resolution "
-            f"such as sim3 / trajectory_sim3 / depth scale alignment."
-        )
+    return proto.alignment.mode
 
 
 def _sync_alignment_shape(proto: EvalProtocol, mode: AlignmentMode) -> None:
@@ -350,8 +288,6 @@ def _reason(
 ) -> str:
     if override and override.alignment_mode is not None:
         return "override"
-    if scale in {"relative", "unknown"} and desired != old_mode:
-        return "auto_scale_resolution"
     return "passthrough"
 
 

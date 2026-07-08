@@ -29,8 +29,6 @@ local_evaluation:
 
 alignment:
   mode: trajectory_sim3
-  allowed_modes: [none, trajectory_se3, trajectory_sim3]
-  scale_resolution: allowed
   estimate_on: trajectory
   solver: evo
   granularity: per_scene

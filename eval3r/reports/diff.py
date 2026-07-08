@@ -134,12 +134,6 @@ def _sampling_summary(result: RunResult) -> str:
     )
 
 
-def _adaptation_summary(result: RunResult) -> str:
-    if result.adaptation is None:
-        return "adaptation=(none)"
-    return str(result.adaptation.model_dump(mode="json", exclude_none=True))
-
-
 def build_warnings(a: RunResult, b: RunResult) -> list[DiffWarning]:
     """Comparability warnings per ``.agent/reproducibility.md``."""
     checks: list[tuple[str, str, str, str]] = [
@@ -178,12 +172,6 @@ def build_warnings(a: RunResult, b: RunResult) -> list[DiffWarning]:
             "errors were measured after different alignment",
             a.alignment.mode,
             b.alignment.mode,
-        ),
-        (
-            "adaptation",
-            "runs share protocol identity but adapted predictions differently",
-            _adaptation_summary(a),
-            _adaptation_summary(b),
         ),
         (
             "confidence_policy",

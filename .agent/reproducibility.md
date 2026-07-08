@@ -162,7 +162,6 @@ prediction modality
 ground-truth specification
 local-evaluation status
 alignment
-alignment allowed envelope (`allowed_modes`, `scale_resolution`)
 masking / culling
 confidence policy
 sampling
@@ -402,10 +401,9 @@ alignment mode differs
 confidence policy differs
 sampling count differs
 backend officialness differs
-adaptation record differs while protocol hash matches
 ```
 
-`e3r diff` should refuse strict comparisons when protocol hashes differ. A loose comparison mode may be allowed, but it should label the result as non-strict. When protocol hashes match but `AdaptationRecord` differs, strict diff is allowed and emits a warning because the scientific contract is the same but the prediction entered that contract through a different non-hashed adaptation path.
+`e3r diff` should refuse strict comparisons when protocol hashes differ. A loose comparison mode may be allowed, but it should label the result as non-strict. Prediction adaptation records are reproducibility metadata, not diff comparability triggers.
 
 ## Result schema compatibility
 

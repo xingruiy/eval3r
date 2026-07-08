@@ -175,7 +175,6 @@ ALL_INSTANCES: list[BaseModel] = [
         alignment="none",
         reason="passthrough",
         source="default",
-        within_envelope=True,
     ),
     SamplingSideSpec(),
     SamplingSpec(pred=SamplingSideSpec(), gt=SamplingSideSpec()),

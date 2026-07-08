@@ -33,8 +33,6 @@ local_evaluation:
 # metric computation is performed; the CLI refuses to run local metrics here.
 alignment:
   mode: none
-  allowed_modes: [none]
-  scale_resolution: forbidden
   estimate_on: none
   solver: none
   granularity: per_scene

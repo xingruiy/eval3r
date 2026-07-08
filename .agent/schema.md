@@ -447,8 +447,6 @@ class AlignmentSpec(BaseModel):
         "scale_least_squares",
         "scale_affine",
     ] = "none"
-    allowed_modes: list[AlignmentMode] = []
-    scale_resolution: Literal["forbidden", "allowed", "required_if_relative"] = "forbidden"
     estimate_on: Literal[
         "none",
         "trajectory",
@@ -469,9 +467,9 @@ class AlignmentSpec(BaseModel):
     parameters: dict = {}
 ```
 
-The `scale_median`, `scale_least_squares`, and `scale_affine` modes are the depth scale-alignment modes from `.agent/metrics.md`. Depth protocols must declare scale alignment through `mode` and `granularity`, never through free-form `parameters`, so the choice is visible, hashed, and reported.
+The `scale_median`, `scale_least_squares`, and `scale_affine` modes are the depth scale-alignment modes from `.agent/metrics.md`. Depth protocols must declare their default scale alignment through `mode` and `granularity`, never through free-form `parameters`, so the scoring default is visible, hashed, and reported.
 
-`allowed_modes` and `scale_resolution` define the hashed prediction-adaptation envelope. An empty `allowed_modes` list means "only `mode` is allowed" for backward-compatible protocol text. `scale_resolution: forbidden` refuses relative/unknown-scale predictions; `allowed` permits scale-resolving modes inside `allowed_modes`; `required_if_relative` documents protocols where metric predictions pass through but relative/unknown predictions must be scale-resolved. The concrete per-run choice is recorded in `AdaptationRecord`, not by mutating the protocol hash.
+Alignment specs must not include adaptation allowlists, scale-resolution gates, or any equivalent prediction-adaptation permission envelope. User-supplied prediction adaptation is resolved from prediction provenance and explicit overrides, then recorded in `AdaptationRecord`; it is not a protocol permission check.
 
 ## Prediction adaptation schema
 
@@ -492,7 +490,6 @@ class AdaptationRecord(BaseModel):
     alignment: AlignmentMode
     reason: str
     source: str
-    within_envelope: bool
     transformed: bool = False
     metadata: dict = {}
 ```
@@ -511,7 +508,7 @@ Geometry alignment has exactly two correspondence-free estimation paths — clos
 | `mode: se3\|sim3`, `solver: umeyama`, `estimate_on: trajectory` | pred trajectory associated (evo, explicit `associate_max_diff`) and Umeyama-aligned onto the gt trajectory; the 4x4 is propagated to the geometry |
 | `mode: icp` | **refused** — the mode must state the transform class (`se3`/`sim3` + `solver: icp`) so rigid-vs-similarity scale handling stays explicit |
 
-Required `parameters` (never defaulted silently): ICP needs `max_correspondence_distance` (metres); trajectory alignment needs `associate_max_diff` (seconds). The Sim3-on-metric-scale guard applies to every scale-changing path. Whenever a non-`none` alignment runs in a pipeline, before/after overlay PLYs and an orthographic projection PNG are written to the run directory's `debug/` (debug output, not evaluation behavior — no schema/hash impact); `e3r align` / `align_geometries` always write them.
+Required `parameters` (never defaulted silently): ICP needs `max_correspondence_distance` (metres); trajectory alignment needs `associate_max_diff` (seconds). Whenever a non-`none` alignment runs in a pipeline, before/after overlay PLYs and an orthographic projection PNG are written to the run directory's `debug/` (debug output, not evaluation behavior — no schema/hash impact); `e3r align` / `align_geometries` always write them.
 
 ## Sampling schema
 
@@ -795,7 +792,7 @@ class RunDiff(BaseModel):
     scenes_only_in_b: list[str] = []
 ```
 
-Warnings fire on the comparability triggers from `.agent/reproducibility.md`: protocol hash (loose mode only — strict mode refuses instead), GT provenance/independence, local evaluation status, scene coverage, failure policy, alignment mode, adaptation record, confidence policy, sampling counts, and backend officialness (fidelity + `official_eval` backend entry).
+Warnings fire on the comparability triggers from `.agent/reproducibility.md`: protocol hash (loose mode only — strict mode refuses instead), GT provenance/independence, local evaluation status, scene coverage, failure policy, alignment mode, confidence policy, sampling counts, and backend officialness (fidelity + `official_eval` backend entry).
 
 ## Canonical hashing
 

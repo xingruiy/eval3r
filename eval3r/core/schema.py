@@ -143,8 +143,6 @@ class SceneData(E3RModel):
 
 class AlignmentSpec(E3RModel):
     mode: AlignmentMode = "none"
-    allowed_modes: list[AlignmentMode] = []
-    scale_resolution: Literal["forbidden", "allowed", "required_if_relative"] = "forbidden"
     estimate_on: Literal[
         "none",
         "trajectory",

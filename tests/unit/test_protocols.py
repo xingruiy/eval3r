@@ -35,18 +35,18 @@ EXPECTED_BUILTINS = {
 # Regression table: name -> canonical protocol hash. Update deliberately (and bump
 # the protocol version) when a protocol's evaluation behavior changes.
 EXPECTED_HASHES = {
-    "dtu_official_like_pointcloud": "sha256:af601b9340b833f75b01359653b502903ace11783ed1f46dd5cb08989db9ddb0",
-    "eth3d_training_official": "sha256:b98c4ffa41e3153cd8a2ce930804ef66797b55c945568f4bc9c7b01c1261b3e6",
-    "scannet_double_layer_geometry_5cm": "sha256:0a97c4341e6e464685289efdf27467c400031ba27353dc4327c2e58ac6b1e5da",
-    "scannet_single_layer_geometry_5cm": "sha256:0d14eb271693d3989958f6a5b5b043caa29f6ea59d1ee0c7b3f727e0b90f3047",
-    "scannet_test_single_layer_geometry_5cm": "sha256:1116492e7f58e6721e5bd29df1dd0c200aa1c8bbfdb0fd1b0c5f7f14884f00dc",
-    "neural_rgbd_geometry_culled": "sha256:51068ee74de7f5ae716020a70d40e4c32277cc68d6aa4632b044093fd6d965c3",
-    "neural_rgbd_geometry_source": "sha256:71d9e57d2db54793f1689256e22127c4b44e9ee215dc721bdbc8865c8fdb42bc",
-    "single_depth": "sha256:49cad750df8e34ceaaf8656147c60512676734828841c728974a91bb90f7adff",
-    "single_geometry": "sha256:4be36cde991da73ee1b083d9c786364b827f70ecd7966efd8096ec28438ecfc3",
-    "single_pose": "sha256:7b865d6fe0362175ddbda0592abfb4aaf238c5f6018959a4e467145d534f632b",
-    "tanks_temples_intermediate_server_only": "sha256:0ba663f77dc6c2c4f1ce80c7c7b0d39a46c04f555b7132ff1544755933291b78",
-    "tanks_temples_training_official": "sha256:253f271c69bf81ec57a26e467460178e60f933cd4f4143d30f7848df69144e9f",
+    "dtu_official_like_pointcloud": "sha256:251123ac1c0a674d6309baac50f24f07727fc9b1229d743c703be7c74daecb3f",
+    "eth3d_training_official": "sha256:de47a1b7d31b9d31757be0540612d9ba030adaf605637182fc19d2811fff76b3",
+    "scannet_double_layer_geometry_5cm": "sha256:ebede3780da161a3771e4c47cf4786d6b3d8ee39e7e99b231310f8d6886f14ce",
+    "scannet_single_layer_geometry_5cm": "sha256:39befa72ba1eeb40e98295077a7d0ee098596e5df12357aaea758dffb12b3c18",
+    "scannet_test_single_layer_geometry_5cm": "sha256:4cdd952ba7cfbd24b9e81b5f2ea68bad4c330b3b0e9c5a5cbb1f301c9c8fbf88",
+    "neural_rgbd_geometry_culled": "sha256:7abc708264d033f081e3d7e86f2d4398e6eaf84d77cb155d30c81c5d0cb85910",
+    "neural_rgbd_geometry_source": "sha256:e955be6c7bb99b45128b441dec82b9aca11bc7c28d20700fdb215c6b4f5a0f11",
+    "single_depth": "sha256:1ceffc7e9cd1f77ef071619b7ce0c058a41707ceecce6e520522c29c9eeb056e",
+    "single_geometry": "sha256:ac14364fc693fef0e4bdd50cf7e6ad80fc219569f0efb6f93a6b7f4d4a61c942",
+    "single_pose": "sha256:36570e9b2a113191a3b7afd64ca90bf573042500dc21e27a2bd40adccfb2f568",
+    "tanks_temples_intermediate_server_only": "sha256:223c263c11d8b251846e779185425caab42b2cf87a42b104b16b21b4efa49048",
+    "tanks_temples_training_official": "sha256:cfb79c04616c6083ef6bbe05a90fbba8973f3f871ce051fb4e944205eb591e82",
 }
 
 
