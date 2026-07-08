@@ -13,8 +13,7 @@ association and alignment policies; `e3r metric pose` runs end-to-end.
 - `metrics/pose.py`: normalize evo output into `MetricResult`s; record number of
   associated and dropped poses, association parameters (`associate_max_diff`), alignment
   mode, Sim3 scale when used, backend name + version.
-- Alignment modes `trajectory_se3` / `trajectory_sim3` via evo; Sim3 disallowed for
-  metric-scale protocols unless explicitly allowed by the protocol.
+- Alignment modes `trajectory_se3` / `trajectory_sim3` via evo.
 - Diagnostic metric `alignment_scale_error = |log(s)|`.
 - `single_pose` built-in protocol through the task-007 runner; alignment transforms saved
   to `alignment_transforms.json`.
@@ -75,6 +74,10 @@ association and alignment policies; `e3r metric pose` runs end-to-end.
 
 ## Decisions
 
+Superseded design note (2026-07-08): protocol-level Sim3/adaptation gates were removed.
+Users may choose pose convention, scale declaration, and alignment/adaptation method; eval3r
+records the resulting adaptation instead of refusing it through the protocol.
+
 - **evo Python API in-process, not the evo CLI.** evo is a required base pip dependency
   (a delegation backend like scipy — the official-toolbox rule does not apply to an
   eval3r_native protocol), the API returns exact float statistics without stdout parsing,
@@ -98,10 +101,8 @@ association and alignment policies; `e3r metric pose` runs end-to-end.
 - `pipeline/pose_runner.py` mirrors the task-007/014 runners (stages resolve → load →
   align → metric → aggregate, same failure policies / SceneFailure / RunResult assembly).
   CLI shorthands `se3`/`sim3` normalize to the first-class `trajectory_se3` /
-  `trajectory_sim3` before hashing. **Sim3 guard**: an `--align` override that changes
-  the protocol's mode is refused when `alignment.allow_override` is false, so a
-  metric-scale dataset protocol pinning `trajectory_se3` can never have Sim3 enabled
-  silently (integration-tested with a pinned protocol variant). The alignment record
+  `trajectory_sim3` before hashing. Treats alignment selection
+  as prediction/run adaptation and records it instead of protocol-gating it. The alignment record
   (mode, rotation, translation, scale, `|ln s|`, n_poses_used) goes to
   `alignment_transforms.json`; association counts go to RunResult.metadata.
 - API `evaluate_pose(...)` (+ lazy re-export), CLI `e3r metric pose` with `--align`,

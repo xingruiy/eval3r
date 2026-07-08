@@ -4,9 +4,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
 import pytest
 
+from eval3r.backends.pointcloud_plyfile import PlyfilePointCloudBackend
 from eval3r.core.errors import BenchmarkError, SceneEvaluationError
+from eval3r.core.pose_convention import F
 from eval3r.core.schema import DatasetCapabilities, FailurePolicySpec, LocalEvaluationSpec
 from eval3r.datasets import CustomAdapter
 from eval3r.pipeline.benchmark import (
@@ -86,6 +89,30 @@ def test_all_scenes_pass_aggregate_mean() -> None:
     # two per-scene results per metric (scene_a + scene_b)
     fscores = [m for m in run.result.per_scene_metrics if m.name == "fscore"]
     assert {m.scene_id for m in fscores} == {"scene_a", "scene_b"}
+
+
+def test_benchmark_adapt_world_frame_controls_scene_normalization(tmp_path: Path) -> None:
+    root = tmp_path / "dataset"
+    preds = tmp_path / "preds"
+    (root / "splits").mkdir(parents=True)
+    (root / "splits" / "pair.txt").write_text("scene_a\n", encoding="utf-8")
+
+    rng = np.random.default_rng(0)
+    gt_pts = rng.normal(size=(500, 3))
+    pred_pts = gt_pts @ F[:3, :3].T
+    writer = PlyfilePointCloudBackend()
+    writer.save_pointcloud(gt_pts, root / "gt" / "scene_a.ply")
+    writer.save_pointcloud(pred_pts, preds / "scene_a.ply")
+
+    passthrough = run_benchmark_geometry(preds, CustomAdapter(root), _proto(), "pair")
+    assert passthrough.result.metrics["chamfer"] > 1e-2
+
+    adapted = run_benchmark_geometry(
+        preds, CustomAdapter(root), _proto(), "pair", adapt="opengl"
+    )
+    assert adapted.result.metrics["chamfer"] < 1e-9
+    assert adapted.result.adaptation is not None
+    assert adapted.result.adaptation.world_frame == "opengl"
 
 
 def test_abort_policy_stops_on_unresolvable_scene() -> None:

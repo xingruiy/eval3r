@@ -22,6 +22,7 @@ from rich.table import Table
 
 from eval3r.core.environment import capture_environment
 from eval3r.core.errors import Eval3rError
+from eval3r.core.registry import default_registry as default_backend_registry
 from eval3r.datasets import default_registry as default_dataset_registry
 from eval3r.pipeline.benchmark import (
     BenchmarkRunOutput,
@@ -31,6 +32,8 @@ from eval3r.pipeline.benchmark import (
 )
 from eval3r.pipeline.runner import SceneOutcome
 from eval3r.protocols import load_protocol
+from eval3r.reports.alignment_vis import write_alignment_vis_outputs
+from eval3r.reports.plots import write_geometry_debug_outputs
 from eval3r.reports.run_directory import default_run_dir_name, write_run_directory
 
 benchmark_app = typer.Typer(
@@ -153,6 +156,18 @@ def benchmark_run(
         protocol=run.protocol, manifest=run.manifest, config=run.config,
         environment=run.result.environment, backend_versions=run.result.backend_versions,
         alignment_transforms=run.alignment_transforms,
+    )
+    pointcloud_backend = default_backend_registry().require(
+        "pointcloud", run.protocol.backend_preferences.get("pointcloud", "plyfile")
+    )
+    write_geometry_debug_outputs(
+        run.debug_scenes, out_dir,
+        reporting=run.protocol.reporting,
+        pointcloud_backend=pointcloud_backend,
+    )
+    write_alignment_vis_outputs(
+        run.alignment_vis, out_dir,
+        pointcloud_backend=pointcloud_backend,
     )
     _echo_summary(run, out_dir)
 

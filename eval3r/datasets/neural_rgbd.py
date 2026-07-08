@@ -11,6 +11,7 @@ Official mesh layout (``<root>/<scene>/``, i.e. the dataset's ``nrgbd_meshes/off
     gt_mesh.ply          exact (uncropped/source) synthetic GT mesh
     gt_mesh_culled.ply   GT mesh culled to the observed region (the headline variant)
     neural_rgbd.ply      the Neural-RGBD method's own reconstruction (an example prediction)
+    gt_trajectory_tum.txt optional GT camera trajectory for trajectory-first alignment
 
 **Culled vs source is a protocol/variant decision, never chosen here silently.** The protocol
 declares ``dataset.variant`` (``*culled*`` or ``*source*``/``*uncropped*``) and the adapter
@@ -141,6 +142,10 @@ class NeuralRGBDAdapter:
     def _gt_mesh_path(self, scene_id: str, variant: str | None = None) -> Path:
         return self._scene_dir(scene_id) / _MESH_FILES[variant or self.mesh_variant]
 
+    def _gt_trajectory_path(self, scene_id: str) -> Path | None:
+        path = self._scene_dir(scene_id) / "gt_trajectory_tum.txt"
+        return path if path.is_file() else None
+
     def _split_file(self, split: str) -> Path | None:
         for candidate in (self.root / f"{split}.txt", self.root / "splits" / f"{split}.txt"):
             if candidate.is_file():
@@ -193,6 +198,7 @@ class NeuralRGBDAdapter:
             dataset=self.name,
             variant=self.mesh_variant,
             gt_mesh=gt_path,
+            gt_trajectory=self._gt_trajectory_path(scene_id),
             ground_truth=self.load_ground_truth(scene_id, protocol=None),  # type: ignore[arg-type]
             capabilities=self.capabilities,
             metadata={
@@ -200,6 +206,9 @@ class NeuralRGBDAdapter:
                 "source_pose_format": self.source_pose_format,
                 "mesh_variant": self.mesh_variant,
                 "gt_mesh": str(gt_path),
+                "gt_trajectory": str(self._gt_trajectory_path(scene_id))
+                if self._gt_trajectory_path(scene_id) is not None
+                else None,
                 "scene_kind": "real" if scene_id in _KNOWN_REAL_SCENES else "synthetic",
             },
         )

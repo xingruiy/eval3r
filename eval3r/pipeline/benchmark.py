@@ -36,6 +36,7 @@ from eval3r.core.manifest import PredictionManifest
 from eval3r.core.protocol import EvalProtocol
 from eval3r.core.registry import BackendRegistry, default_registry
 from eval3r.core.result import MetricResult, RunResult, SceneFailure
+from eval3r.core.types import WorldAxes
 from eval3r.datasets.base import DatasetAdapter, gt_geometry, prediction_kind
 from eval3r.pipeline.runner import SceneOutcome, evaluate_geometry_scene
 from eval3r.pipeline.stages.sample import DEFAULT_BASE_SEED
@@ -437,6 +438,8 @@ def _evaluate_scene_visibility_culled(
     protocol_hash: str,
     registry: BackendRegistry,
     base_seed: int,
+    pred_unit_override: str | None = None,
+    pred_world_frame_override: WorldAxes | None = None,
 ) -> SceneOutcome:
     """Evaluate one scene with render+TSDF visibility culling of the prediction.
 
@@ -501,11 +504,11 @@ def _evaluate_scene_visibility_culled(
         )
 
         stage = "normalize"
-        pred = normalize_to_meters(pred, recon.unit)
+        pred = normalize_to_meters(pred, pred_unit_override or recon.unit)
         gt = normalize_to_meters(gt, scene.ground_truth.unit)
         # Rotate an OpenGL-world prediction into the internal frame before the GT
         # trajectory renders/culls it (the culling trajectory is already internal).
-        pred = normalize_world_frame(pred, recon.world_frame)
+        pred = normalize_world_frame(pred, pred_world_frame_override or recon.world_frame)
 
         stage = "mask"
         cull = vis_backend.cull(pred.mesh, trajectory, tolerance=tolerance, **params)
@@ -551,6 +554,8 @@ def _evaluate_scene(
     protocol: EvalProtocol,
     protocol_hash: str,
     registry: BackendRegistry,
+    pred_unit_override: str | None = None,
+    pred_world_frame_override: WorldAxes | None = None,
 ) -> SceneOutcome:
     """Resolve prediction + GT, then run the task-007 geometry stages for one scene."""
     try:
@@ -561,8 +566,8 @@ def _evaluate_scene(
             )
         pred_path = recon.path
         pred_kind = prediction_kind(recon)
-        pred_unit = recon.unit
-        pred_world_frame = recon.world_frame
+        pred_unit = pred_unit_override or recon.unit
+        pred_world_frame = pred_world_frame_override or recon.world_frame
         scene = adapter.load_scene(scene_id)
         gt_path, gt_kind = gt_geometry(scene)
         gt_unit = scene.ground_truth.unit
@@ -641,6 +646,25 @@ def run_benchmark_geometry(
     run_protocol, adaptation = resolve_adaptation(
         protocol, resolve_manifest, adaptation_override
     )
+    has_manifest_adaptation = resolve_manifest is not None
+    pred_unit_override = (
+        adaptation.unit
+        if has_manifest_adaptation
+        or (adaptation_override is not None and adaptation_override.unit is not None)
+        else None
+    )
+    pred_world_frame_override = (
+        adaptation.world_frame
+        if has_manifest_adaptation
+        or (
+            adaptation_override is not None
+            and (
+                adaptation_override.world_frame is not None
+                or adaptation_override.axes is not None
+            )
+        )
+        else None
+    )
     if adapt is not None:
         manifest_dict["adapt_override"] = adapt
 
@@ -691,10 +715,14 @@ def run_benchmark_geometry(
             outcome = _evaluate_scene_visibility_culled(
                 adapter, pred_root, resolve_manifest, scene_id, run_protocol, phash,
                 registry, DEFAULT_BASE_SEED,
+                pred_unit_override=pred_unit_override,
+                pred_world_frame_override=pred_world_frame_override,
             )
         else:
             outcome = _evaluate_scene(
-                adapter, pred_root, resolve_manifest, scene_id, run_protocol, phash, registry
+                adapter, pred_root, resolve_manifest, scene_id, run_protocol, phash, registry,
+                pred_unit_override=pred_unit_override,
+                pred_world_frame_override=pred_world_frame_override,
             )
         if progress is not None:
             progress(scene_id, outcome)

@@ -17,8 +17,7 @@ plus the `evaluate_geometry` Python API.
   failed, which scene, which file, which protocol required it, and how to fix it when
   obvious.
 - Alignment stage for point sets: `none`, `se3`, `sim3` (Umeyama). ICP is deferred until a
-  backend exists. Sim3 is disallowed for metric-scale protocols unless explicitly allowed.
-  Transforms are passed to the task-006 writer.
+  backend exists. Transforms are passed to the task-006 writer.
 - CLI `e3r metric geometry pred.ply --gt gt.ply --threshold 0.05 --sample 200000 --input
   pointcloud --gt-input pointcloud` and mesh variant, mapping flags onto the
   `single_geometry` protocol as recorded overrides.
@@ -68,14 +67,15 @@ plus the `evaluate_geometry` Python API.
 
 ## Decisions
 
+Superseded design note (2026-07-08): Sim3 is no longer disallowed by metric-scale
+protocols. Prediction adaptation is user/run configuration, not a protocol permission gate;
+selected scale-resolving alignment runs and is recorded.
+
 - New errors `AlignmentError`, `CullingError`, `SceneEvaluationError` (the last carries
   scene_id + stage for the `abort` policy) live in `core/errors.py`.
 - Single-file masking supports only `method: none`; dataset masks (obs/visibility/official)
   raise `CullingError` pointing at `e3r benchmark run` (task 011+) rather than silently
   evaluating unmasked geometry.
-- Sim3 (scale-correcting) alignment is refused for metric-scale protocols unless
-  `alignment.parameters.allow_sim3` (or `alignment.allow_override`) is set, with a message
-  that the metrics then no longer reflect metric-scale error.
 - Seeds: explicit ints pass through; `derive`/`None` derives a stable 32-bit seed from a base
   seed (default 0) and `scene_id:role`, so repeated runs match and pred/gt differ.
 - Timestamps: `RunResult.timestamp` is UTC with a `Z` suffix and the default run-dir name uses
@@ -107,4 +107,3 @@ whose `results.json` carries every field `.agent/reproducibility.md` requires. V
 ## Status
 
 done
-

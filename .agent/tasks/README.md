@@ -30,10 +30,9 @@ relevant `.agent/*.md` docs and the actual code — task notes can be stale.
 | 019 | [019-prediction-io.md](019-prediction-io.md) | Official eval3r-native prediction layout: `PredictionWriter` / `read_prediction_dir`, `e3r prediction` | done |
 | 020 | [020-neural-rgbd-geometry.md](020-neural-rgbd-geometry.md) | Neural-RGBD geometry adapter + culled/source mesh protocols (depth/pose deferred) | done |
 | 021 | [021-pose-convention-transforms.md](021-pose-convention-transforms.md) | First-class pose/coordinate convention transforms (axis/direction/world-frame) with validation, wired through pose+geometry runners, CLI, API, writer | done |
-| 022 | [022-prediction-adaptation.md](022-prediction-adaptation.md) | Provenance-driven prediction adaptation + two-level protocol identity: allowed alignment envelope (hashed) vs non-hashed `AdaptationRecord`; `scale` made load-bearing; compact `--as cw@opencv@sim3` grammar; metric + benchmark paths | done |
+| 022 | [022-prediction-adaptation.md](022-prediction-adaptation.md) | Provenance-driven prediction adaptation; 2026-07-08 note supersedes the old protocol envelope design, so adaptation is recorded run metadata rather than protocol-gated comparability state | done |
 
-Tasks 001–021 are done; task 022 is the next slice (first non-`done`). Remaining work beyond it
-is the intentionally deferred backlog below (each item
+Tasks 001–022 are done. Remaining work beyond them is the intentionally deferred backlog below (each item
 needs its conventions pinned first — create a numbered task file when one is picked up),
 Neural-RGBD depth/pose (geometry shipped in task 020), and the actual PyPI publish, which
 happens only on explicit user request (see the release checklist in task 017).

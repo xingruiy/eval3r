@@ -14,6 +14,14 @@ applied and why.
 Numbers for the existing metric path with metric predictions must be **byte-for-byte
 unchanged** (regression guarantee): adaptation is a no-op on that path.
 
+## Superseded Design Note
+
+The protocol adaptation envelope described below was removed on 2026-07-08. Protocols no
+longer define adaptation allowlists, scale-resolution gates, or diff comparability warnings
+for prediction adaptation. `AdaptationRecord` remains run metadata, but prediction pose
+convention, coordinate frame, scale declaration, and alignment/adaptation method are selected
+by the manifest and explicit user overrides, not allowed/refused by a protocol.
+
 ## Scope
 
 - New `eval3r/core/adaptation.py`:
@@ -142,6 +150,11 @@ Confirmed with the user (senior CV researcher) before planning:
    rules).
 
 ## Verification
+
+Superseded verification note (2026-07-08): tests and hashes were updated after removing
+protocol adaptation gates. The current expected behavior is that relative/unknown scale is
+recorded, not refused by official-like protocols, and adaptation differences do not emit
+`e3r diff` comparability warnings.
 
 - Implemented `tests/unit/test_adaptation.py`: order-independence, alias parsing,
   unknown/duplicate token errors with vocabulary, relative-scale auto-adaptation under
