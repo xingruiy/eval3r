@@ -115,6 +115,7 @@ notes:
   - Neural-RGBD reconstruction geometry against the released source/uncropped GT mesh
     (gt_mesh.ply). Same 5cm F-score convention as neural_rgbd_geometry_culled but against the
     full mesh, so completeness/recall include unobserved regions.
-  - Alignment is none — prediction and GT share the dataset world frame. No eval-time culling.
+  - The protocol does not force alignment by default; prediction and GT are expected to
+    share the dataset world frame. No eval-time culling.
   - eval3r_native, not official_like. Neural-RGBD has no official evaluation server; results
     must not be presented as official Neural-RGBD benchmark numbers.

@@ -93,8 +93,9 @@ silently:
 - `neural_rgbd_geometry_source` — GT is the full uncropped mesh; completeness/recall then
   include unobserved regions.
 
-Both use mesh-to-mesh scoring with no alignment (prediction and GT share the world frame),
-surface-area sampling of 200k points, and the community 5 cm F-score convention
+Both use mesh-to-mesh scoring whose protocol default does not force alignment
+(prediction and GT are expected to share the world frame), surface-area sampling of
+200k points, and the community 5 cm F-score convention
 (accuracy/completeness/chamfer + precision/recall/F-score). GT is exact synthetic geometry, so
 it is recorded as `synthetic_exact` / `independent`. These are `eval3r_native` numbers, not an
 official Neural-RGBD benchmark. Because geometry is mesh-to-mesh, the dataset's native OpenGL

@@ -77,6 +77,11 @@ alignment:
     # associate_max_diff: 0.01          # trajectory: required, seconds
 ```
 
+`mode: none` is the identity default: the protocol does not force alignment.
+It is not a prohibition on per-run adaptation. A relative-scale method can still
+be scored on metric ground truth by explicitly requesting an alignment such as
+`--as sim3`; eval3r records that choice in the run's adaptation metadata.
+
 For trajectory-first alignment in a benchmark, the prediction trajectory comes
 from the manifest entry (`trajectory:`) and the GT trajectory from the dataset
 adapter; a missing one is an explicit per-scene failure at stage `align`.

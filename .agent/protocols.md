@@ -29,6 +29,8 @@ The protocol hash is the scoring contract. It covers protocol-defined evaluation
 
 Prediction adaptation is not a protocol allow/deny boundary. The resolver combines prediction provenance (`PredictionManifest` / adapter `Reconstruction`) with `--as` / `--adapt` overrides; overrides win on conflict. The chosen pose convention, world frame, unit, scale declaration, and alignment/adaptation method are per-run prediction configuration and are recorded in `RunResult.adaptation` and `config.yaml`.
 
+A protocol alignment of `mode: none` means the protocol does not force alignment by default; it does not forbid a user from explicitly selecting alignment for a run, such as evaluating a relative-scale prediction on a metric dataset with `--as sim3`.
+
 Protocols must not define adaptation allowlists, scale-resolution gates, or any equivalent permission envelope. Official / official-like comparability comes from the scoring protocol and recorded run metadata, not from refusing predictions because they declare relative/unknown scale, a different pose convention, or a user-selected adaptation method.
 
 ## Fidelity labels

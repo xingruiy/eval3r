@@ -471,6 +471,13 @@ The `scale_median`, `scale_least_squares`, and `scale_affine` modes are the dept
 
 Alignment specs must not include adaptation allowlists, scale-resolution gates, or any equivalent prediction-adaptation permission envelope. User-supplied prediction adaptation is resolved from prediction provenance and explicit overrides, then recorded in `AdaptationRecord`; it is not a protocol permission check.
 
+`mode: none` means the protocol does not force an alignment by default. It is an
+identity default, not a statement that alignment is forbidden for every run. For
+example, a relative-scale prediction can be evaluated against metric ground truth
+by explicitly selecting a per-run alignment/adaptation mode such as `--as sim3`;
+that choice is recorded in `AdaptationRecord` while the protocol remains the
+same scoring contract.
+
 ## Prediction adaptation schema
 
 ```python
@@ -502,7 +509,7 @@ Geometry alignment has exactly two correspondence-free estimation paths — clos
 
 | Protocol spec | Meaning |
 |---|---|
-| `mode: none` | identity; prediction untouched |
+| `mode: none` | identity default; the protocol does not force alignment unless the run's prediction adaptation explicitly selects one |
 | `mode: se3\|sim3`, `solver: none\|umeyama` (`estimate_on` != `trajectory`) | corresponded Umeyama (equal counts, matched order) |
 | `mode: se3\|sim3`, `solver: icp`, `estimate_on: pointcloud` | closest-point ICP (Open3D point-to-point); `with_scaling = (mode == sim3)`; coarse init = centroid translation (+ RMS-radius scale for sim3), recorded |
 | `mode: se3\|sim3`, `solver: umeyama`, `estimate_on: trajectory` | pred trajectory associated (evo, explicit `associate_max_diff`) and Umeyama-aligned onto the gt trajectory; the 4x4 is propagated to the geometry |

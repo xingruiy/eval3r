@@ -117,7 +117,7 @@ notes:
     (both-direction nearest distances, threshold 0.05, surface-area sampling of 200000 points),
     matching the reference driver's mesh-to-mesh eval.
   - No eval-time culling runs; the culling is pre-baked into the released culled mesh, so
-    culled_fraction is recorded as 0. Alignment is none — prediction and GT share the dataset
-    world frame.
+    culled_fraction is recorded as 0. The protocol does not force alignment by default;
+    prediction and GT are expected to share the dataset world frame.
   - eval3r_native, not official_like. Neural-RGBD has no official evaluation server; results
     must not be presented as official Neural-RGBD benchmark numbers.
