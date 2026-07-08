@@ -170,7 +170,7 @@ def test_colored_ply_point_count_matches_input(tmp_path) -> None:
     records = write_geometry_debug_outputs(
         [("scene0", dist)], tmp_path, reporting=reporting, pointcloud_backend=backend
     )
-    ply = tmp_path / "debug" / "scene0_error.ply"
+    ply = tmp_path / "debug" / "scenes" / "scene0" / "error.ply"
     assert ply.is_file()
     points = backend.load_pointcloud(ply)
     assert points.shape == (50, 3)
@@ -187,15 +187,17 @@ def test_histogram_written_as_png_with_manifest(tmp_path) -> None:
         reporting=reporting,
         pointcloud_backend=PlyfilePointCloudBackend(),
     )
-    png = tmp_path / "debug" / "scene0_histogram.png"
+    png = tmp_path / "debug" / "scenes" / "scene0" / "histogram.png"
     assert png.is_file()
     assert png.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n"
     manifest = json.loads((tmp_path / "debug" / "debug_outputs.json").read_text())
     record = manifest["debug_outputs"][0]
     assert record["scene_id"] == "scene0"
-    assert record["histogram_png"] == "scene0_histogram.png"
+    assert record["histogram_png"] == "scenes/scene0/histogram.png"
     assert record["n_points_pred"] == 30
-    assert not (tmp_path / "debug" / "scene0_error.ply").exists()
+    assert not (tmp_path / "debug" / "scenes" / "scene0" / "error.ply").exists()
+    index = json.loads((tmp_path / "debug" / "debug_index.json").read_text())
+    assert "debug_outputs" in index["debug_artifacts"]
 
 
 def test_histogram_survives_constant_distances(tmp_path) -> None:

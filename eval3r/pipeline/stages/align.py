@@ -66,6 +66,7 @@ class AlignmentResult:
     n_correspondences: int | None = None
     fitness: float | None = None
     parameters: dict[str, Any] = field(default_factory=dict)
+    trajectory_vis: Any | None = None
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -99,6 +100,23 @@ class AlignmentVisData:
     alignment: dict[str, Any]
     subsample_seed: int
     max_points: int
+
+
+@dataclass
+class TrajectoryAlignmentVisData:
+    """Associated trajectory positions shown for a trajectory alignment estimate."""
+
+    scene_id: str
+    pred_before: np.ndarray
+    pred_after: np.ndarray
+    gt: np.ndarray
+    alignment: dict[str, Any]
+    association: dict[str, Any]
+    n_pred_poses: int
+    n_gt_poses: int
+    n_associated: int
+    n_dropped_pred: int
+    n_dropped_gt: int
 
 
 #: Per-side point cap for visualization captures (keeps benchmark memory bounded).
@@ -384,6 +402,30 @@ def _align_trajectory(
         residual_rmse=float(record["residual_rmse"]),
         n_correspondences=int(record["n_associated"]),
         parameters=resolved,
+    )
+    result.trajectory_vis = TrajectoryAlignmentVisData(
+        scene_id=scene_id,
+        pred_before=np.asarray(record["trajectory_vis"]["pred_before"], dtype=np.float64),
+        pred_after=np.asarray(record["trajectory_vis"]["pred_after"], dtype=np.float64),
+        gt=np.asarray(record["trajectory_vis"]["gt"], dtype=np.float64),
+        alignment={
+            "scene_id": scene_id,
+            "mode": traj_mode,
+            "solver": "evo",
+            "estimate_on": "trajectory",
+            "matrix": matrix.tolist(),
+            "scale": float(record["scale"]),
+            "rotation": record["rotation"],
+            "translation": record["translation"],
+            "residual_rmse": float(record["residual_rmse"]),
+            "n_correspondences": int(record["n_associated"]),
+        },
+        association=record["association"],
+        n_pred_poses=int(record["n_pred_poses"]),
+        n_gt_poses=int(record["n_gt_poses"]),
+        n_associated=int(record["n_associated"]),
+        n_dropped_pred=int(record["n_dropped_pred"]),
+        n_dropped_gt=int(record["n_dropped_gt"]),
     )
     return pred.transformed(matrix), result
 

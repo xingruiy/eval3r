@@ -70,6 +70,7 @@ class SceneOutcome:
     alignment: AlignmentResult | None = None
     debug: DirectionalDistances | None = None
     alignment_vis: AlignmentVisData | None = None
+    trajectory_alignment_vis: Any | None = None
 
 
 @dataclass
@@ -85,6 +86,7 @@ class GeometryRunOutput:
     adaptation: AdaptationRecord | None = None
     debug_scenes: list[tuple[str, DirectionalDistances]] = field(default_factory=list)
     alignment_vis: list[AlignmentVisData] = field(default_factory=list)
+    trajectory_alignment_vis: list[Any] = field(default_factory=list)
 
 
 # --- overrides -----------------------------------------------------------------
@@ -257,6 +259,7 @@ def evaluate_geometry_scene(
         return SceneOutcome(
             scene_id=scene_id, metrics=metrics, alignment=alignment, debug=distances,
             alignment_vis=alignment_vis,
+            trajectory_alignment_vis=alignment.trajectory_vis,
         )
     except Eval3rError as exc:
         failure = SceneFailure(
@@ -442,6 +445,11 @@ def run_single_file_geometry(
         ),
         alignment_vis=(
             [outcome.alignment_vis] if outcome.alignment_vis is not None else []
+        ),
+        trajectory_alignment_vis=(
+            [outcome.trajectory_alignment_vis]
+            if outcome.trajectory_alignment_vis is not None
+            else []
         ),
     )
 

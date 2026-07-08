@@ -18,7 +18,7 @@ from typer.testing import CliRunner
 
 from eval3r import evaluate_pose
 from eval3r.cli.main import app
-from eval3r.core.errors import AlignmentError, SceneEvaluationError
+from eval3r.core.errors import SceneEvaluationError
 from eval3r.reports.json import read_run_result_json
 
 runner = CliRunner()
@@ -133,6 +133,28 @@ def test_run_directory_records_association_and_alignment(tmp_path: Path) -> None
     assert record["n_poses_used"] == 20
     assert len(record["rotation"]) == 3 and len(record["translation"]) == 3
 
+    scene_debug = out / "debug" / "scenes" / "pred_tum"
+    assert (scene_debug / "trajectory_alignment_before.ply").is_file()
+    assert (scene_debug / "trajectory_alignment_after.ply").is_file()
+    assert (scene_debug / "trajectory_alignment_projections.png").is_file()
+    per_scene = json.loads((scene_debug / "trajectory_alignment.json").read_text())
+    assert per_scene["counts"]["n_associated"] == 20
+    manifest = json.loads((out / "debug" / "trajectory_alignment_vis.json").read_text())
+    vis_record = manifest["trajectory_alignment_visualizations"][0]
+    assert vis_record["before_ply"] == (
+        "scenes/pred_tum/trajectory_alignment_before.ply"
+    )
+    index = json.loads((out / "debug" / "debug_index.json").read_text())
+    assert "trajectory_alignment_visualizations" in index["debug_artifacts"]
+
+
+def test_align_none_writes_no_trajectory_visualization(tmp_path: Path) -> None:
+    pred, gt = _write_pair(tmp_path)
+    out = tmp_path / "run_none"
+    run = evaluate_pose(pred, gt, align="none", out_dir=out, return_run=True)
+    assert run.trajectory_alignment_vis == []
+    assert not (out / "debug").exists()
+
 
 def test_missing_prediction_file_aborts_explicitly(tmp_path: Path) -> None:
     gt = _write_tum(tmp_path / "gt.txt", _positions(5))
@@ -153,9 +175,9 @@ def test_no_timestamp_overlap_aborts_with_reason(tmp_path: Path) -> None:
         evaluate_pose(pred, gt)
 
 
-def test_pinned_alignment_protocol_refuses_override(tmp_path: Path) -> None:
-    # A protocol that pins its alignment (allow_override: false) must refuse
-    # --align (the Sim3-on-metric-scale guard).
+def test_alignment_override_is_recorded_as_run_adaptation(tmp_path: Path) -> None:
+    # Prediction adaptation is run configuration, not a protocol permission gate.
+    # Legacy allow_override: false protocol files are not allowed to reject it.
     import yaml
 
     from eval3r.protocols import load_protocol_text
@@ -172,8 +194,10 @@ def test_pinned_alignment_protocol_refuses_override(tmp_path: Path) -> None:
     load_protocol_text(pinned.read_text(), source=str(pinned))  # sanity: valid
 
     pred, gt = _write_pair(tmp_path)
-    with pytest.raises(AlignmentError, match="allow_override"):
-        evaluate_pose(pred, gt, align="sim3", protocol=str(pinned))
+    run = evaluate_pose(pred, gt, align="sim3", protocol=str(pinned), return_run=True)
+    assert run.protocol.alignment.mode == "trajectory_sim3"
+    assert run.result.adaptation is not None
+    assert run.result.adaptation.alignment == "trajectory_sim3"
 
 
 def test_cli_pose_writes_run_directory(tmp_path: Path) -> None:
@@ -189,12 +213,16 @@ def test_cli_pose_writes_run_directory(tmp_path: Path) -> None:
     )
     assert result.exit_code == 0, result.output
     assert (out / "results.json").is_file()
+    assert (
+        out / "debug" / "scenes" / "pred_tum" / "trajectory_alignment_before.ply"
+    ).is_file()
     written = read_run_result_json(out / "results.json")
     assert written.metrics["ate"] == pytest.approx(0.0, abs=1e-9)
     assert written.metrics["alignment_scale_error"] == pytest.approx(math.log(2.0), abs=1e-9)
     # The CLI echoes the resolved configuration, not just an exit code.
     assert "single_pose" in result.output
     assert "trajectory_sim3" in result.output
+    assert "debug artifacts" in result.output
 
 
 def test_cli_rejects_unknown_align_mode(tmp_path: Path) -> None:

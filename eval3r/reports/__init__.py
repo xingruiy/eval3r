@@ -7,6 +7,12 @@ reports (with partial-coverage banners), run diffing, and debug outputs
 
 from __future__ import annotations
 
+from eval3r.reports.alignment_vis import (
+    write_alignment_vis_outputs,
+    write_alignment_visualization,
+    write_trajectory_alignment_vis_outputs,
+    write_trajectory_alignment_visualization,
+)
 from eval3r.reports.csv import (
     PER_SCENE_COLUMNS,
     per_scene_rows,
@@ -53,6 +59,10 @@ __all__ = [
     "write_distance_histogram",
     "write_error_colored_pointcloud",
     "write_geometry_debug_outputs",
+    "write_alignment_visualization",
+    "write_alignment_vis_outputs",
+    "write_trajectory_alignment_visualization",
+    "write_trajectory_alignment_vis_outputs",
     "RunDiff",
     "diff_runs",
     "load_run_result",

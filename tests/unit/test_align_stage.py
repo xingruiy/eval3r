@@ -215,6 +215,10 @@ def test_trajectory_path_propagates_transform_to_geometry(tmp_path: Path) -> Non
     # Association accounting is recorded for the writer.
     assert result.parameters["n_associated"] == 30
     assert result.parameters["association"]["associate_max_diff"] == 0.01
+    assert result.trajectory_vis is not None
+    assert result.trajectory_vis.scene_id == "scene1"
+    assert result.trajectory_vis.n_associated == 30
+    np.testing.assert_allclose(result.trajectory_vis.pred_after, result.trajectory_vis.gt)
 
 
 def test_trajectory_path_missing_file_error_names_the_file(tmp_path: Path) -> None:

@@ -32,7 +32,10 @@ from eval3r.pipeline.benchmark import (
 )
 from eval3r.pipeline.runner import SceneOutcome
 from eval3r.protocols import load_protocol
-from eval3r.reports.alignment_vis import write_alignment_vis_outputs
+from eval3r.reports.alignment_vis import (
+    write_alignment_vis_outputs,
+    write_trajectory_alignment_vis_outputs,
+)
 from eval3r.reports.plots import write_geometry_debug_outputs
 from eval3r.reports.run_directory import default_run_dir_name, write_run_directory
 
@@ -97,6 +100,21 @@ def _echo_summary(run: BenchmarkRunOutput, out_dir: Path) -> None:
     for name, value in result.metrics.items():
         metrics.add_row(name, "-" if value is None else f"{value:.6g}")
     console.print(metrics)
+    emitted = []
+    if run.debug_scenes:
+        emitted.append("geometry errors/histograms")
+    if run.alignment_vis:
+        emitted.append("geometry alignment")
+    if run.trajectory_alignment_vis:
+        emitted.append("trajectory alignment")
+    if emitted:
+        debug = Table(show_header=False, box=None, pad_edge=False)
+        debug.add_column(style="bold cyan")
+        debug.add_column()
+        debug.add_row("scene debug root", str(out_dir / "debug" / "scenes"))
+        debug.add_row("emitted", ", ".join(emitted))
+        debug.add_row("indexes", "debug/debug_index.json")
+        console.print(Panel(debug, title="debug artifacts", expand=False))
     console.print(f"[green]run directory written:[/] {out_dir}")
 
 
@@ -167,6 +185,10 @@ def benchmark_run(
     )
     write_alignment_vis_outputs(
         run.alignment_vis, out_dir,
+        pointcloud_backend=pointcloud_backend,
+    )
+    write_trajectory_alignment_vis_outputs(
+        run.trajectory_alignment_vis, out_dir,
         pointcloud_backend=pointcloud_backend,
     )
     _echo_summary(run, out_dir)

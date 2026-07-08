@@ -29,7 +29,7 @@ import numpy as np
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 from matplotlib.figure import Figure
 
-from eval3r.pipeline.stages.align import AlignmentVisData
+from eval3r.pipeline.stages.align import AlignmentVisData, TrajectoryAlignmentVisData
 from eval3r.reports.json import dump_json
 
 #: Fixed overlay colors (RGB uint8): prediction in red-orange, ground truth in blue.
@@ -40,6 +40,30 @@ GT_COLOR = (49, 130, 189)
 PNG_MAX_POINTS = 20_000
 
 _PROJECTIONS = (("XY", 0, 1), ("XZ", 0, 2), ("YZ", 1, 2))
+
+
+def _scene_debug_dir(run_dir: Path, scene_id: str) -> Path:
+    return Path(run_dir) / "debug" / "scenes" / scene_id
+
+
+def _relative_debug_path(run_dir: Path, path: Path) -> str:
+    return path.relative_to(Path(run_dir) / "debug").as_posix()
+
+
+def _update_debug_index(run_dir: Path, key: str, records: list[dict[str, Any]]) -> None:
+    if not records:
+        return
+    debug_dir = Path(run_dir) / "debug"
+    index_path = debug_dir / "debug_index.json"
+    if index_path.is_file():
+        import json
+
+        index = json.loads(index_path.read_text(encoding="utf-8"))
+    else:
+        index = {"debug_artifacts": {}}
+    artifacts = index.setdefault("debug_artifacts", {})
+    artifacts[key] = records
+    dump_json(index, index_path)
 
 
 def _merged_overlay(pred: np.ndarray, gt: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
@@ -142,7 +166,7 @@ def write_alignment_vis_outputs(
     *,
     pointcloud_backend: Any,
 ) -> list[dict[str, Any]]:
-    """Write every captured scene's artifacts into ``<run_dir>/debug/``.
+    """Write every captured scene's artifacts into ``debug/scenes/<scene_id>/``.
 
     Returns the manifest records, also written to ``debug/alignment_vis.json``.
     A no-op when nothing was captured (i.e. every scene's alignment mode was
@@ -150,14 +174,126 @@ def write_alignment_vis_outputs(
     """
     if not captures:
         return []
-    debug_dir = Path(run_dir) / "debug"
-    records = [
-        write_alignment_visualization(
-            vis, debug_dir,
+    run_dir = Path(run_dir)
+    debug_dir = run_dir / "debug"
+    records = []
+    for vis in captures:
+        scene_dir = _scene_debug_dir(run_dir, vis.scene_id)
+        record = write_alignment_visualization(
+            vis, scene_dir,
             pointcloud_backend=pointcloud_backend,
-            prefix=f"{vis.scene_id}_alignment",
+            prefix="alignment",
         )
-        for vis in captures
-    ]
+        record["scene_debug_dir"] = _relative_debug_path(run_dir, scene_dir)
+        for key in ("before_ply", "after_ply", "projections_png"):
+            record[key] = f"{record['scene_debug_dir']}/{record[key]}"
+        records.append(record)
     dump_json({"alignment_visualizations": records}, debug_dir / "alignment_vis.json")
+    _update_debug_index(run_dir, "alignment_visualizations", records)
+    return records
+
+
+def write_trajectory_alignment_json(
+    vis: TrajectoryAlignmentVisData,
+    path: Path,
+    record: dict[str, Any],
+) -> None:
+    """Write the per-scene trajectory alignment metadata and position counts."""
+    dump_json(
+        {
+            "scene_id": vis.scene_id,
+            "alignment": vis.alignment,
+            "association": vis.association,
+            "counts": {
+                "n_pred_poses": vis.n_pred_poses,
+                "n_gt_poses": vis.n_gt_poses,
+                "n_associated": vis.n_associated,
+                "n_dropped_pred": vis.n_dropped_pred,
+                "n_dropped_gt": vis.n_dropped_gt,
+            },
+            "artifacts": record,
+        },
+        path,
+    )
+
+
+def write_trajectory_alignment_visualization(
+    vis: TrajectoryAlignmentVisData,
+    out_dir: Path,
+    *,
+    pointcloud_backend: Any,
+) -> dict[str, Any]:
+    """Write one trajectory alignment capture and return its manifest record."""
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    before_ply = out_dir / "trajectory_alignment_before.ply"
+    after_ply = out_dir / "trajectory_alignment_after.ply"
+    png = out_dir / "trajectory_alignment_projections.png"
+    meta_json = out_dir / "trajectory_alignment.json"
+
+    points, colors = _merged_overlay(vis.pred_before, vis.gt)
+    pointcloud_backend.save_pointcloud(points, before_ply, colors=colors)
+    points, colors = _merged_overlay(vis.pred_after, vis.gt)
+    pointcloud_backend.save_pointcloud(points, after_ply, colors=colors)
+
+    projection_vis = AlignmentVisData(
+        scene_id=vis.scene_id,
+        pred_before=vis.pred_before,
+        pred_after=vis.pred_after,
+        gt=vis.gt,
+        alignment=vis.alignment,
+        subsample_seed=0,
+        max_points=int(vis.pred_before.shape[0]),
+    )
+    write_alignment_projections_png(projection_vis, png)
+
+    record = {
+        "scene_id": vis.scene_id,
+        "before_ply": before_ply.name,
+        "after_ply": after_ply.name,
+        "projections_png": png.name,
+        "metadata_json": meta_json.name,
+        "pred_color": list(PRED_COLOR),
+        "gt_color": list(GT_COLOR),
+        "n_points_pred": int(vis.pred_before.shape[0]),
+        "n_points_gt": int(vis.gt.shape[0]),
+        "alignment": vis.alignment,
+        "association": vis.association,
+        "n_pred_poses": vis.n_pred_poses,
+        "n_gt_poses": vis.n_gt_poses,
+        "n_associated": vis.n_associated,
+        "n_dropped_pred": vis.n_dropped_pred,
+        "n_dropped_gt": vis.n_dropped_gt,
+    }
+    write_trajectory_alignment_json(vis, meta_json, record)
+    return record
+
+
+def write_trajectory_alignment_vis_outputs(
+    captures: list[TrajectoryAlignmentVisData],
+    run_dir: Path,
+    *,
+    pointcloud_backend: Any,
+) -> list[dict[str, Any]]:
+    """Write trajectory alignment debug artifacts into per-scene directories."""
+    if not captures:
+        return []
+    run_dir = Path(run_dir)
+    debug_dir = run_dir / "debug"
+    records = []
+    for vis in captures:
+        scene_dir = _scene_debug_dir(run_dir, vis.scene_id)
+        record = write_trajectory_alignment_visualization(
+            vis, scene_dir, pointcloud_backend=pointcloud_backend
+        )
+        record["scene_debug_dir"] = _relative_debug_path(run_dir, scene_dir)
+        for key in ("before_ply", "after_ply", "projections_png", "metadata_json"):
+            record[key] = f"{record['scene_debug_dir']}/{record[key]}"
+        records.append(record)
+    dump_json(
+        {"trajectory_alignment_visualizations": records},
+        debug_dir / "trajectory_alignment_vis.json",
+    )
+    _update_debug_index(run_dir, "trajectory_alignment_visualizations", records)
     return records

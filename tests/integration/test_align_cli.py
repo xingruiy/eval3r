@@ -196,11 +196,17 @@ def test_pipeline_run_writes_alignment_overlays_to_debug(tmp_path: Path) -> None
     assert run.result.metrics["accuracy"] == pytest.approx(0.0, abs=1e-6)
 
     debug = out_dir / "debug"
-    assert (debug / "pred_alignment_before.ply").is_file()
-    assert (debug / "pred_alignment_after.ply").is_file()
-    assert (debug / "pred_alignment_projections.png").is_file()
+    scene_debug = debug / "scenes" / "pred"
+    assert (scene_debug / "alignment_before.ply").is_file()
+    assert (scene_debug / "alignment_after.ply").is_file()
+    assert (scene_debug / "alignment_projections.png").is_file()
     manifest = json.loads((debug / "alignment_vis.json").read_text(encoding="utf-8"))
     assert manifest["alignment_visualizations"][0]["alignment"]["solver"] == "icp"
+    assert manifest["alignment_visualizations"][0]["before_ply"] == (
+        "scenes/pred/alignment_before.ply"
+    )
+    index = json.loads((debug / "debug_index.json").read_text(encoding="utf-8"))
+    assert "alignment_visualizations" in index["debug_artifacts"]
 
     # The registration backend version is recorded with the run.
     assert run.result.backend_versions["registration"]["name"] == "open3d"

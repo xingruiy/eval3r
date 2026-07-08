@@ -25,6 +25,7 @@ from matplotlib.figure import Figure
 
 from eval3r.core.schema import ReportingSpec
 from eval3r.metrics.geometry import DirectionalDistances
+from eval3r.reports.alignment_vis import _relative_debug_path, _scene_debug_dir, _update_debug_index
 from eval3r.reports.json import dump_json
 
 #: Colormap for error-colored point clouds (low error = dark blue, high = red).
@@ -127,29 +128,33 @@ def write_geometry_debug_outputs(
     if not debug_scenes:
         return []
 
-    debug_dir = Path(run_dir) / "debug"
+    run_dir = Path(run_dir)
+    debug_dir = run_dir / "debug"
     records: list[dict[str, Any]] = []
     for scene_id, distances in debug_scenes:
+        scene_dir = _scene_debug_dir(run_dir, scene_id)
         record: dict[str, Any] = {
             "scene_id": scene_id,
             "n_points_pred": distances.n_points_pred,
             "n_points_gt": distances.n_points_gt,
+            "scene_debug_dir": _relative_debug_path(run_dir, scene_dir),
         }
         if reporting.save_colored_errors:
             vmax = float(distances.pred_to_gt.max()) if distances.pred_to_gt.size else 0.0
-            ply_path = debug_dir / f"{scene_id}_error.ply"
+            ply_path = scene_dir / "error.ply"
             write_error_colored_pointcloud(
                 distances, ply_path, pointcloud_backend=pointcloud_backend, vmax=vmax
             )
-            record["error_colored_ply"] = ply_path.name
+            record["error_colored_ply"] = _relative_debug_path(run_dir, ply_path)
             record["colormap"] = ERROR_COLORMAP
             record["colormap_vmax"] = vmax
         if reporting.save_distance_histogram:
-            png_path = debug_dir / f"{scene_id}_histogram.png"
+            png_path = scene_dir / "histogram.png"
             write_distance_histogram(distances, png_path, scene_id=scene_id)
-            record["histogram_png"] = png_path.name
+            record["histogram_png"] = _relative_debug_path(run_dir, png_path)
             record["histogram_bins"] = HISTOGRAM_BINS
         records.append(record)
 
     dump_json({"debug_outputs": records}, debug_dir / "debug_outputs.json")
+    _update_debug_index(run_dir, "debug_outputs", records)
     return records

@@ -25,11 +25,17 @@ from rich.table import Table
 from eval3r.api import evaluate_depth, evaluate_geometry, evaluate_pose
 from eval3r.core.errors import Eval3rError
 from eval3r.core.protocol import EvalProtocol
+from eval3r.core.registry import default_registry
 from eval3r.core.types import NormalizedConvention, SourcePoseFormat, WorldAxes
 from eval3r.metrics.depth import DEPTH_ALIGNMENT_GRANULARITIES, DEPTH_ALIGNMENT_MODES
 from eval3r.pipeline.depth_runner import DepthRunOutput
 from eval3r.pipeline.pose_runner import POSE_ALIGN_ALIASES, PoseRunOutput
 from eval3r.pipeline.runner import GeometryRunOutput
+from eval3r.reports.alignment_vis import (
+    write_alignment_vis_outputs,
+    write_trajectory_alignment_vis_outputs,
+)
+from eval3r.reports.plots import write_geometry_debug_outputs
 from eval3r.reports.run_directory import default_run_dir_name, write_run_directory
 
 metric_app = typer.Typer(
@@ -44,6 +50,12 @@ err_console = Console(stderr=True)
 _KIND_CHOICES = ("pointcloud", "mesh")
 _POSE_FORMAT_CHOICES = get_args(SourcePoseFormat)
 _WORLD_FRAME_CHOICES = get_args(WorldAxes)
+
+
+def _pointcloud_backend(run: GeometryRunOutput | PoseRunOutput):
+    return default_registry().require(
+        "pointcloud", run.protocol.backend_preferences.get("pointcloud", "plyfile")
+    )
 
 
 def _echo_config(run: GeometryRunOutput, pred: Path, gt: Path, out_dir: Path) -> None:
@@ -117,7 +129,38 @@ def _echo_outcome(run: GeometryRunOutput, out_dir: Path) -> None:
         for name, value in result.metrics.items():
             metrics.add_row(name, "-" if value is None else f"{value:.6g}")
         console.print(metrics)
+    _echo_debug_artifacts(
+        out_dir,
+        geometry_debug=bool(run.debug_scenes),
+        geometry_alignment=bool(run.alignment_vis),
+        trajectory_alignment=bool(run.trajectory_alignment_vis),
+    )
     console.print(f"[green]run directory written:[/] {out_dir}")
+
+
+def _echo_debug_artifacts(
+    out_dir: Path,
+    *,
+    geometry_debug: bool = False,
+    geometry_alignment: bool = False,
+    trajectory_alignment: bool = False,
+) -> None:
+    emitted = []
+    if geometry_debug:
+        emitted.append("geometry errors/histograms")
+    if geometry_alignment:
+        emitted.append("geometry alignment")
+    if trajectory_alignment:
+        emitted.append("trajectory alignment")
+    if not emitted:
+        return
+    table = Table(show_header=False, box=None, pad_edge=False)
+    table.add_column(style="bold cyan")
+    table.add_column()
+    table.add_row("scene debug root", str(out_dir / "debug" / "scenes"))
+    table.add_row("emitted", ", ".join(emitted))
+    table.add_row("indexes", "debug/debug_index.json")
+    console.print(Panel(table, title="debug artifacts", expand=False))
 
 
 @metric_app.command("geometry")
@@ -200,6 +243,18 @@ def geometry(
         protocol=run.protocol, config=run.config,
         environment=run.result.environment, backend_versions=run.result.backend_versions,
         alignment_transforms=run.alignment_transforms,
+    )
+    pc_backend = _pointcloud_backend(run)
+    write_geometry_debug_outputs(
+        run.debug_scenes, out_dir,
+        reporting=run.protocol.reporting,
+        pointcloud_backend=pc_backend,
+    )
+    write_alignment_vis_outputs(
+        run.alignment_vis, out_dir, pointcloud_backend=pc_backend
+    )
+    write_trajectory_alignment_vis_outputs(
+        run.trajectory_alignment_vis, out_dir, pointcloud_backend=pc_backend
     )
     _echo_outcome(run, out_dir)
 
@@ -478,6 +533,7 @@ def _echo_pose_outcome(run: PoseRunOutput, out_dir: Path) -> None:
                 f"|ln s|={record['scale_error']:.6g} "
                 f"n_poses={record['n_poses_used']}[/]"
             )
+    _echo_debug_artifacts(out_dir, trajectory_alignment=bool(run.trajectory_alignment_vis))
     console.print(f"[green]run directory written:[/] {out_dir}")
 
 
@@ -570,5 +626,9 @@ def pose(
         protocol=run.protocol, config=run.config,
         environment=run.result.environment, backend_versions=run.result.backend_versions,
         alignment_transforms=run.alignment_records,
+    )
+    write_trajectory_alignment_vis_outputs(
+        run.trajectory_alignment_vis, out_dir,
+        pointcloud_backend=_pointcloud_backend(run),
     )
     _echo_pose_outcome(run, out_dir)

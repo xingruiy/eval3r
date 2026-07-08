@@ -65,6 +65,7 @@ class BenchmarkRunOutput:
     adaptation: AdaptationRecord | None = None
     debug_scenes: list[tuple[str, Any]] = field(default_factory=list)
     alignment_vis: list[Any] = field(default_factory=list)
+    trajectory_alignment_vis: list[Any] = field(default_factory=list)
 
 
 # --- manifest ------------------------------------------------------------------
@@ -687,6 +688,7 @@ def run_benchmark_geometry(
     alignment_transforms: list[dict[str, Any]] = []
     debug_scenes: list[tuple[str, Any]] = []
     alignment_vis: list[Any] = []
+    trajectory_alignment_vis: list[Any] = []
     evaluated = 0
     tnt_out_root = (
         Path(tempfile.mkdtemp(prefix="eval3r_tnt_"))
@@ -736,6 +738,8 @@ def run_benchmark_geometry(
                 debug_scenes.append((scene_id, outcome.debug))
             if outcome.alignment_vis is not None:
                 alignment_vis.append(outcome.alignment_vis)
+            if outcome.trajectory_alignment_vis is not None:
+                trajectory_alignment_vis.append(outcome.trajectory_alignment_vis)
             continue
 
         # failed scene: apply the protocol's failure policy.
@@ -825,6 +829,7 @@ def run_benchmark_geometry(
         adaptation=adaptation,
         debug_scenes=debug_scenes,
         alignment_vis=alignment_vis,
+        trajectory_alignment_vis=trajectory_alignment_vis,
     )
 
 

@@ -9,12 +9,13 @@ import numpy as np
 from plyfile import PlyData
 
 from eval3r.backends.pointcloud_plyfile import PlyfilePointCloudBackend
-from eval3r.pipeline.stages.align import AlignmentVisData
+from eval3r.pipeline.stages.align import AlignmentVisData, TrajectoryAlignmentVisData
 from eval3r.reports.alignment_vis import (
     GT_COLOR,
     PRED_COLOR,
     write_alignment_vis_outputs,
     write_alignment_visualization,
+    write_trajectory_alignment_vis_outputs,
 )
 
 PC = PlyfilePointCloudBackend()
@@ -84,16 +85,89 @@ def test_run_directory_outputs_land_in_debug_with_scene_prefix(tmp_path: Path) -
     records = write_alignment_vis_outputs(captures, tmp_path, pointcloud_backend=PC)
     assert len(records) == 2
     debug = tmp_path / "debug"
-    assert (debug / "sceneA_alignment_before.ply").is_file()
-    assert (debug / "sceneB_alignment_after.ply").is_file()
-    assert (debug / "sceneA_alignment_projections.png").is_file()
+    assert (debug / "scenes" / "sceneA" / "alignment_before.ply").is_file()
+    assert (debug / "scenes" / "sceneB" / "alignment_after.ply").is_file()
+    assert (debug / "scenes" / "sceneA" / "alignment_projections.png").is_file()
     manifest = json.loads((debug / "alignment_vis.json").read_text(encoding="utf-8"))
     assert [r["scene_id"] for r in manifest["alignment_visualizations"]] == [
         "sceneA",
         "sceneB",
     ]
+    assert manifest["alignment_visualizations"][0]["before_ply"] == (
+        "scenes/sceneA/alignment_before.ply"
+    )
+    index = json.loads((debug / "debug_index.json").read_text(encoding="utf-8"))
+    assert "alignment_visualizations" in index["debug_artifacts"]
 
 
 def test_no_captures_writes_nothing(tmp_path: Path) -> None:
     assert write_alignment_vis_outputs([], tmp_path, pointcloud_backend=PC) == []
+    assert not (tmp_path / "debug").exists()
+
+
+def _trajectory_vis(scene_id: str = "traj") -> TrajectoryAlignmentVisData:
+    pred_before = np.array(
+        [[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [2.0, 0.0, 0.0]], dtype=float
+    )
+    pred_after = pred_before + np.array([0.5, 0.0, 0.0])
+    gt = pred_after.copy()
+    matrix = np.eye(4)
+    matrix[:3, 3] = [0.5, 0.0, 0.0]
+    return TrajectoryAlignmentVisData(
+        scene_id=scene_id,
+        pred_before=pred_before,
+        pred_after=pred_after,
+        gt=gt,
+        alignment={
+            "scene_id": scene_id,
+            "mode": "trajectory_se3",
+            "solver": "evo",
+            "estimate_on": "trajectory",
+            "matrix": matrix.tolist(),
+            "scale": 1.0,
+            "rotation": np.eye(3).tolist(),
+            "translation": [0.5, 0.0, 0.0],
+            "residual_rmse": 0.0,
+            "n_correspondences": 3,
+        },
+        association={
+            "policy": "nearest_timestamp",
+            "associate_max_diff": 0.01,
+            "offset": 0.0,
+        },
+        n_pred_poses=3,
+        n_gt_poses=4,
+        n_associated=3,
+        n_dropped_pred=0,
+        n_dropped_gt=1,
+    )
+
+
+def test_writes_trajectory_alignment_artifacts_and_indexes(tmp_path: Path) -> None:
+    records = write_trajectory_alignment_vis_outputs(
+        [_trajectory_vis("sceneT")], tmp_path, pointcloud_backend=PC
+    )
+    assert len(records) == 1
+    debug = tmp_path / "debug"
+    scene_dir = debug / "scenes" / "sceneT"
+    assert (scene_dir / "trajectory_alignment_before.ply").is_file()
+    assert (scene_dir / "trajectory_alignment_after.ply").is_file()
+    assert (scene_dir / "trajectory_alignment_projections.png").is_file()
+    per_scene = json.loads(
+        (scene_dir / "trajectory_alignment.json").read_text(encoding="utf-8")
+    )
+    assert per_scene["counts"]["n_associated"] == 3
+    assert per_scene["association"]["associate_max_diff"] == 0.01
+
+    manifest = json.loads((debug / "trajectory_alignment_vis.json").read_text())
+    record = manifest["trajectory_alignment_visualizations"][0]
+    assert record["scene_id"] == "sceneT"
+    assert record["before_ply"] == "scenes/sceneT/trajectory_alignment_before.ply"
+    assert record["n_dropped_gt"] == 1
+    index = json.loads((debug / "debug_index.json").read_text())
+    assert "trajectory_alignment_visualizations" in index["debug_artifacts"]
+
+
+def test_no_trajectory_captures_writes_nothing(tmp_path: Path) -> None:
+    assert write_trajectory_alignment_vis_outputs([], tmp_path, pointcloud_backend=PC) == []
     assert not (tmp_path / "debug").exists()

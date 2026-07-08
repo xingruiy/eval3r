@@ -515,7 +515,7 @@ Geometry alignment has exactly two correspondence-free estimation paths — clos
 | `mode: se3\|sim3`, `solver: umeyama`, `estimate_on: trajectory` | pred trajectory associated (evo, explicit `associate_max_diff`) and Umeyama-aligned onto the gt trajectory; the 4x4 is propagated to the geometry |
 | `mode: icp` | **refused** — the mode must state the transform class (`se3`/`sim3` + `solver: icp`) so rigid-vs-similarity scale handling stays explicit |
 
-Required `parameters` (never defaulted silently): ICP needs `max_correspondence_distance` (metres); trajectory alignment needs `associate_max_diff` (seconds). Whenever a non-`none` alignment runs in a pipeline, before/after overlay PLYs and an orthographic projection PNG are written to the run directory's `debug/` (debug output, not evaluation behavior — no schema/hash impact); `e3r align` / `align_geometries` always write them.
+Required `parameters` (never defaulted silently): ICP needs `max_correspondence_distance` (metres); trajectory alignment needs `associate_max_diff` (seconds). Whenever a non-`none` geometry alignment runs in a pipeline, before/after overlay PLYs and an orthographic projection PNG are written under `debug/scenes/<scene_id>/` with `debug/alignment_vis.json` and `debug/debug_index.json` top-level indexes. Whenever trajectory alignment is actually estimated, the associated trajectory positions before/after alignment and GT positions are written under the same per-scene debug directory with `debug/trajectory_alignment_vis.json`. These are debug outputs, not evaluation behavior — no schema/hash impact; `e3r align` / `align_geometries` always write standalone geometry alignment artifacts.
 
 ## Sampling schema
 

@@ -19,6 +19,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
 
+import numpy as np
+
 from eval3r.backends.trajectory_evo import RPE_POSE_RELATIONS
 from eval3r.core.adaptation import (
     AdaptationRecord,
@@ -48,6 +50,7 @@ from eval3r.metrics.pose import (
     pose_metric_result,
     require_rpe_parameters,
 )
+from eval3r.pipeline.stages.align import TrajectoryAlignmentVisData
 from eval3r.predictions.writer import write_tum_trajectory
 
 PoseStage = Literal["resolve", "convert", "load", "align", "metric", "aggregate"]
@@ -71,6 +74,7 @@ class PoseSceneOutcome:
     scene_id: str
     scene_metrics: list[MetricResult] = field(default_factory=list)
     alignment_record: dict[str, Any] | None = None
+    trajectory_alignment_vis: TrajectoryAlignmentVisData | None = None
     metadata: dict[str, Any] = field(default_factory=dict)
     failure: SceneFailure | None = None
 
@@ -86,6 +90,7 @@ class PoseRunOutput:
     overrides: dict[str, Any]
     config: dict[str, Any]
     adaptation: AdaptationRecord | None = None
+    trajectory_alignment_vis: list[TrajectoryAlignmentVisData] = field(default_factory=list)
 
 
 # --- overrides ---------------------------------------------------------------------
@@ -240,10 +245,41 @@ def evaluate_pose_scene(
         align_rec = dict(ate_result["alignment"])
         align_rec["scale_error"] = alignment_scale_error(float(align_rec["scale"]))
         align_rec["scene_id"] = scene_id
+        trajectory_vis = None
+        if alignment.mode != "none":
+            trajectory_vis = TrajectoryAlignmentVisData(
+                scene_id=scene_id,
+                pred_before=np.asarray(
+                    ate_result["trajectory_vis"]["pred_before"], dtype=np.float64
+                ),
+                pred_after=np.asarray(
+                    ate_result["trajectory_vis"]["pred_after"], dtype=np.float64
+                ),
+                gt=np.asarray(ate_result["trajectory_vis"]["gt"], dtype=np.float64),
+                alignment={
+                    "scene_id": scene_id,
+                    "mode": align_rec["mode"],
+                    "solver": "evo",
+                    "estimate_on": "trajectory",
+                    "matrix": align_rec["matrix"],
+                    "scale": align_rec["scale"],
+                    "rotation": align_rec["rotation"],
+                    "translation": align_rec["translation"],
+                    "residual_rmse": align_rec["residual_rmse"],
+                    "n_correspondences": ate_result["n_associated"],
+                },
+                association=ate_result["association"],
+                n_pred_poses=ate_result["n_pred_poses"],
+                n_gt_poses=ate_result["n_gt_poses"],
+                n_associated=ate_result["n_associated"],
+                n_dropped_pred=ate_result["n_dropped_pred"],
+                n_dropped_gt=ate_result["n_dropped_gt"],
+            )
         return PoseSceneOutcome(
             scene_id=scene_id,
             scene_metrics=results,
             alignment_record=align_rec,
+            trajectory_alignment_vis=trajectory_vis,
             metadata={
                 "n_pred_poses": ate_result["n_pred_poses"],
                 "n_gt_poses": ate_result["n_gt_poses"],
@@ -385,6 +421,11 @@ def run_single_file_pose(
     alignment_records = (
         [outcome.alignment_record] if outcome.alignment_record is not None else []
     )
+    trajectory_alignment_vis = (
+        [outcome.trajectory_alignment_vis]
+        if outcome.trajectory_alignment_vis is not None
+        else []
+    )
 
     result = RunResult(
         schema_version=run_proto.schema_version,
@@ -438,6 +479,7 @@ def run_single_file_pose(
         protocol=run_proto,
         protocol_hash=phash,
         alignment_records=alignment_records,
+        trajectory_alignment_vis=trajectory_alignment_vis,
         overrides=overrides,
         config=config,
         adaptation=adaptation,

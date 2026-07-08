@@ -22,10 +22,21 @@ runs/2026-07-04_153000_dtu_mymethod/
   alignment_transforms.json  per-scene/per-granularity alignment records (when alignment ran)
   logs.txt
   results.md / results.tex / report.html    when reporting.formats requests them
-  debug/                     when the protocol requests debug outputs
-    debug_outputs.json       parameters that shaped them (colormap, vmax, bins, counts)
-    <scene>_error.ply        prediction points colored by pred→gt distance
-    <scene>_histogram.png    distance histograms, both directions
+  debug/                     when debug artifacts are emitted
+    debug_index.json         run-level index of emitted debug artifact classes
+    debug_outputs.json       geometry error/histogram manifest
+    alignment_vis.json       geometry alignment visualization manifest
+    trajectory_alignment_vis.json
+    scenes/<scene>/
+      error.ply
+      histogram.png
+      alignment_before.ply
+      alignment_after.ply
+      alignment_projections.png
+      trajectory_alignment_before.ply
+      trajectory_alignment_after.ply
+      trajectory_alignment_projections.png
+      trajectory_alignment.json
 ```
 
 ## `results.json` (RunResult)

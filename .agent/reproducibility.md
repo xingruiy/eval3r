@@ -37,9 +37,21 @@ runs/
     results.tex
     report.html
     debug/
+      debug_index.json
       debug_outputs.json
-      scene0000_00_error.ply
-      scene0000_00_histogram.png
+      alignment_vis.json
+      trajectory_alignment_vis.json
+      scenes/
+        scene0000_00/
+          error.ply
+          histogram.png
+          alignment_before.ply
+          alignment_after.ply
+          alignment_projections.png
+          trajectory_alignment_before.ply
+          trajectory_alignment_after.ply
+          trajectory_alignment_projections.png
+          trajectory_alignment.json
 ```
 
 Only files actually produced should be present, but `results.json`, `protocol.yaml`, `environment.json`, and `logs.txt` should be standard for every run. `manifest.yaml` should be present for benchmark runs.
@@ -47,11 +59,17 @@ Only files actually produced should be present, but `results.json`, `protocol.ya
 `results.md`, `results.tex`, and `report.html` are written only when the protocol's
 `reporting.formats` requests `markdown` / `latex` / `html`; every one of them shows the
 run's scene coverage, failure reasons, failure policy, and a partial-coverage banner
-whenever the aggregates do not cover every expected scene. `debug/` outputs are written
+whenever the aggregates do not cover every expected scene. Heavy per-scene debug artifacts
+live under `debug/scenes/<scene_id>/`, while top-level manifests keep runs discoverable:
+`debug/debug_outputs.json` for geometry error clouds / histograms,
+`debug/alignment_vis.json` for geometry before/after alignment overlays, and
+`debug/trajectory_alignment_vis.json` for trajectory alignment overlays. `debug/debug_index.json`
+indexes every debug artifact class emitted by the run. Geometry error outputs are written
 only when the protocol requests them (`save_colored_errors` / `save_distance_histogram`);
-`debug/debug_outputs.json` records the parameters that shaped them (colormap, colormap
-vmax, histogram bins, per-scene point counts). Only the eval3r-native geometry path can
-produce per-point debug outputs; official-toolbox paths own their distance computation.
+trajectory alignment outputs are written automatically whenever trajectory alignment is
+actually estimated (`trajectory_se3` / `trajectory_sim3` pose runs, or geometry alignment
+with `estimate_on: trajectory`). Only the eval3r-native geometry path can produce per-point
+debug outputs; official-toolbox paths own their distance computation.
 
 ## Required result fields
 

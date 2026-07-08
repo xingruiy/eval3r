@@ -114,6 +114,8 @@ class EvoTrajectoryBackend:
             ) from exc
 
         n_associated = pred_assoc.num_poses
+        pred_positions_before = np.asarray(pred_assoc.positions_xyz, dtype=np.float64).copy()
+        gt_positions = np.asarray(gt_assoc.positions_xyz, dtype=np.float64).copy()
         pred_aligned = copy.deepcopy(pred_assoc)
         rotation = np.eye(3)
         translation = np.zeros(3)
@@ -130,6 +132,12 @@ class EvoTrajectoryBackend:
                     f"{exc}"
                 ) from exc
 
+        matrix = np.eye(4)
+        matrix[:3, :3] = scale * np.asarray(rotation, dtype=np.float64)
+        matrix[:3, 3] = np.asarray(translation, dtype=np.float64)
+        pred_positions_after = np.asarray(pred_aligned.positions_xyz, dtype=np.float64).copy()
+        residuals = pred_positions_after - gt_positions
+        residual_rmse = float(np.sqrt(np.mean(np.sum(residuals**2, axis=1))))
         metadata: dict[str, Any] = {
             "n_pred_poses": n_pred,
             "n_gt_poses": n_gt,
@@ -146,7 +154,14 @@ class EvoTrajectoryBackend:
                 "scale": float(scale),
                 "rotation": np.asarray(rotation).tolist(),
                 "translation": np.asarray(translation).tolist(),
+                "matrix": matrix.tolist(),
+                "residual_rmse": residual_rmse,
                 "n_poses_used": n_associated,
+            },
+            "trajectory_vis": {
+                "pred_before": pred_positions_before.tolist(),
+                "pred_after": pred_positions_after.tolist(),
+                "gt": gt_positions.tolist(),
             },
         }
         return gt_assoc, pred_aligned, metadata
@@ -173,16 +188,12 @@ class EvoTrajectoryBackend:
         )
         alignment = meta["alignment"]
         scale = float(alignment["scale"])
-        matrix = np.eye(4)
-        matrix[:3, :3] = scale * np.asarray(alignment["rotation"], dtype=np.float64)
-        matrix[:3, 3] = np.asarray(alignment["translation"], dtype=np.float64)
-        residuals = pred_aligned.positions_xyz - gt_assoc.positions_xyz
         return {
-            "matrix": matrix.tolist(),
+            "matrix": alignment["matrix"],
             "scale": scale,
             "rotation": alignment["rotation"],
             "translation": alignment["translation"],
-            "residual_rmse": float(np.sqrt(np.mean(np.sum(residuals**2, axis=1)))),
+            "residual_rmse": alignment["residual_rmse"],
             **meta,
         }
 

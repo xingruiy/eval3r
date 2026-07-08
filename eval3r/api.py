@@ -43,6 +43,7 @@ from eval3r.protocols import load_protocol
 from eval3r.reports.alignment_vis import (
     write_alignment_vis_outputs,
     write_alignment_visualization,
+    write_trajectory_alignment_vis_outputs,
 )
 from eval3r.reports.diff import RunDiff, diff_runs  # noqa: F401  (public API re-export)
 from eval3r.reports.json import dump_json
@@ -86,6 +87,20 @@ def _write_alignment_vis(
     if not captures:
         return
     write_alignment_vis_outputs(
+        captures, out_dir, pointcloud_backend=_pointcloud_backend(protocol, registry)
+    )
+
+
+def _write_trajectory_alignment_vis(
+    captures: list[Any],
+    protocol: EvalProtocol,
+    out_dir: Path,
+    registry: BackendRegistry | None,
+) -> None:
+    """Write trajectory alignment debug artifacts when trajectory alignment ran."""
+    if not captures:
+        return
+    write_trajectory_alignment_vis_outputs(
         captures, out_dir, pointcloud_backend=_pointcloud_backend(protocol, registry)
     )
 
@@ -245,6 +260,9 @@ def evaluate_pose(
             environment=run.result.environment,
             backend_versions=run.result.backend_versions,
             alignment_transforms=run.alignment_records,
+        )
+        _write_trajectory_alignment_vis(
+            run.trajectory_alignment_vis, run.protocol, Path(out_dir), registry
         )
 
     return run if return_run else run.result
@@ -492,5 +510,8 @@ def run_benchmark(
         )
         _write_debug_outputs(run.debug_scenes, run.protocol, Path(out_dir), registry)
         _write_alignment_vis(run.alignment_vis, run.protocol, Path(out_dir), registry)
+        _write_trajectory_alignment_vis(
+            run.trajectory_alignment_vis, run.protocol, Path(out_dir), registry
+        )
 
     return run if return_run else run.result

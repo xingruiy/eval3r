@@ -86,11 +86,16 @@ For trajectory-first alignment in a benchmark, the prediction trajectory comes
 from the manifest entry (`trajectory:`) and the GT trajectory from the dataset
 adapter; a missing one is an explicit per-scene failure at stage `align`.
 
-Whenever a non-`none` alignment actually runs, the run directory automatically
-receives the same overlays under `debug/` (`<scene>_alignment_before.ply`, …,
-`debug/alignment_vis.json`), and the applied transform is recorded in
-`alignment_transforms.json` and in the `registration` / `trajectory` backend
-versions.
+Whenever a non-`none` geometry alignment actually runs, the run directory
+automatically receives overlays under `debug/scenes/<scene>/` and a top-level
+`debug/alignment_vis.json` manifest. Whenever trajectory alignment is actually
+estimated, pure pose runs and trajectory-first geometry runs also write
+`trajectory_alignment_before.ply`, `trajectory_alignment_after.ply`,
+`trajectory_alignment_projections.png`, and `trajectory_alignment.json` under
+the same per-scene debug directory, with `debug/trajectory_alignment_vis.json`
+and `debug/debug_index.json` as run-level indexes. The applied transform is
+recorded in `alignment_transforms.json` and in the `registration` / `trajectory`
+backend versions.
 
 Two guards keep alignment explicit:
 
