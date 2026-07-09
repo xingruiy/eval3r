@@ -195,7 +195,8 @@ class DTUAdapter:
         if not obs_path.is_file():
             raise DatasetError(
                 f"DTU ObsMask for scan {scan} is missing: expected {obs_path}. The official-like "
-                f"protocol requires ObsMask; use a native protocol without ObsMask if it is unavailable."
+                "protocol requires ObsMask; use a native protocol without ObsMask if it is "
+                "unavailable."
             )
         mat = loadmat(str(obs_path))
         for key in ("ObsMask", "BB", "Res"):
