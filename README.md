@@ -162,6 +162,15 @@ prove the interface.
 Documentation lives in
 [`docs/`](https://github.com/xingruiy/eval3r/blob/main/docs/index.md) (built with mkdocs).
 
+## Contributing and license
+
+Contributions are welcome. Please read
+[`CONTRIBUTING.md`](https://github.com/xingruiy/eval3r/blob/main/CONTRIBUTING.md)
+before opening a pull request.
+
+`eval3r` is distributed under the
+[`MIT License`](https://github.com/xingruiy/eval3r/blob/main/LICENSE).
+
 ## Citation
 
 If eval3r is useful in your research, please cite the software:
