@@ -77,11 +77,11 @@ always recorded in result metadata).
 
 | Dataset | Split | Fidelity | Ground truth | Local evaluation |
 |---|---|---|---|---|
-| DTU | test | `official_like` | laser scan (independent) | validated port of the official MATLAB evaluation (ObsMask + Plane); optional MATLAB path |
+| DTU | test | `native` | laser scan (independent) | validated port of the official MATLAB evaluation (ObsMask + Plane); optional MATLAB path |
 | Tanks and Temples | training | `official` | laser scan (independent) | wraps the real official toolbox (user-supplied checkout, pinned `open3d==0.9` interpreter) |
 | ETH3D high-res DSLR | training | `official` | laser scan (independent) | wraps the real official `multi-view-evaluation` binary (user-supplied build) |
-| ScanNet | val / test | `eval3r_native` | BundleFusion mesh (reconstruction-derived) | community single-/double-layer 5 cm F-score convention; never official numbers |
-| custom | — | `eval3r_native` | user-declared | single-file and simple-layout evaluation |
+| ScanNet | val / test | `native` | BundleFusion mesh (reconstruction-derived) | community single-/double-layer 5 cm F-score convention; never official numbers |
+| custom | — | `native` | user-declared | single-file and simple-layout evaluation |
 
 Tanks and Temples intermediate/advanced and ETH3D test are **server-only**: eval3r refuses
 to produce local official-looking numbers for withheld-GT splits.
@@ -100,12 +100,12 @@ the hash; `e3r diff` refuses to compare runs whose hashes differ unless you expl
 
 ```bash
 e3r protocol list
-e3r protocol show dtu_official_like_pointcloud
+e3r protocol show dtu_native_pointcloud
 ```
 
-Protocols also carry a **fidelity** label — `official` (wraps the real official tool),
-`official_like` (validated local port, regression-tested), `eval3r_native` (defined by
-eval3r; repeatable but no leaderboard comparability claim), or `server_only`. eval3r never
+Protocols also carry one of three **fidelity** labels: `official` (wraps the real
+official tool), `native` (evaluated locally by eval3r, including validated local ports and
+eval3r-defined protocols), or `server` (withheld-GT server evaluation only). eval3r never
 substitutes a lookalike evaluator for an official one.
 
 ## Backend delegation
@@ -122,7 +122,7 @@ are written into every result.
 e3r benchmark run preds/ \
   --dataset dtu \
   --split test \
-  --protocol dtu_official_like_pointcloud \
+  --protocol dtu_native_pointcloud \
   --root /data/DTU
 ```
 
