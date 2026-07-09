@@ -33,8 +33,10 @@ relevant `.agent/*.md` docs and the actual code — task notes can be stale.
 | 022 | [022-prediction-adaptation.md](022-prediction-adaptation.md) | Provenance-driven prediction adaptation; 2026-07-08 note supersedes the old protocol envelope design, so adaptation is recorded run metadata rather than protocol-gated comparability state | done |
 | 023 | [023-trajectory-alignment-debug-vis.md](023-trajectory-alignment-debug-vis.md) | Trajectory alignment debug visualization for pose and trajectory-first geometry alignment; per-scene debug artifact layout with run-level indexes | done |
 | 024 | [024-fusion-policy-docs.md](024-fusion-policy-docs.md) | Remove blanket fusion/TSDF/RGB-D prohibitions from design docs; allow required delegated backend support | done |
+| 025 | [025-ci-prediction-validate-message.md](025-ci-prediction-validate-message.md) | CI fix: keep missing prediction manifest reason stable under Rich wrapping | done |
+| 026 | [026-ci-node-action-upgrade.md](026-ci-node-action-upgrade.md) | CI fix: upgrade first-party actions to Node 24 action versions | done |
 
-Tasks 001–024 are done. Remaining work beyond them is the intentionally deferred backlog below (each item
+Tasks 001–026 are done. Remaining work beyond them is the intentionally deferred backlog below (each item
 needs its conventions pinned first — create a numbered task file when one is picked up),
 Neural-RGBD depth/pose (geometry shipped in task 020), and the actual PyPI publish, which
 happens only on explicit user request (see the release checklist in task 017).

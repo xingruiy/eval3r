@@ -55,7 +55,7 @@ def load_prediction_manifest(root: Path | str) -> PredictionManifest:
         )
     if not manifest_path.is_file():
         raise PredictionLayoutError(
-            f"prediction root {root} has no manifest.yaml; an eval3r-native "
+            f"no manifest.yaml for prediction root {root}; an eval3r-native "
             f"prediction directory always carries its manifest at the root "
             f"(write it with PredictionWriter, or author one by hand)."
         )

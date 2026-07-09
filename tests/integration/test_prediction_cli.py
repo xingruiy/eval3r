@@ -74,7 +74,7 @@ def test_cli_validate_reports_tampered_and_missing_files(written_dir: Path) -> N
 def test_cli_validate_fails_without_manifest(tmp_path: Path) -> None:
     empty = tmp_path / "empty"
     empty.mkdir()
-    result = runner.invoke(app, ["prediction", "validate", str(empty)])
+    result = runner.invoke(app, ["prediction", "validate", str(empty)], terminal_width=80)
     assert result.exit_code == 1
     assert "no manifest.yaml" in result.output
 
