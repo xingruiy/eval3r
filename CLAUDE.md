@@ -4,7 +4,7 @@ This file gives operating rules for coding agents working on `eval3r`.
 
 ## Project summary
 
-`eval3r` is a plain 3D reconstruction evaluation library. It evaluates meshes, point clouds, depth predictions, and trajectories under explicit dataset-aware protocols.
+`eval3r` is a 3D reconstruction evaluation library. It evaluates meshes, point clouds, depth predictions, and trajectories under explicit dataset-aware protocols.
 
 `eval3r` is a research-oriented project. Correctness, explicitness, and inspectability outrank packaging minimalism and install footprint. Every dependency is a required base dependency and is always installed; there is no optional-extra system to reason about. Prefer surfacing the full truth of what happened (what was resolved, what failed, and why) over terse or convenient output.
 
@@ -23,34 +23,34 @@ reports
 
 The library should delegate common geometry, camera, trajectory, and IO work to existing libraries where practical.
 
-## Hard boundaries
+## Reconstruction and fusion support
 
-Do not add support for these **as reconstruction methods**:
+TSDF integration, RGB-D fusion, volumetric fusion, online mapping, and
+SLAM-style reconstruction support may be added when an evaluation protocol or
+dataset workflow genuinely requires it. Commodity fusion/integration work should
+be delegated to established backends such as Open3D rather than reimplemented in
+eval3r. These paths must be explicit, protocol- or run-configuration controlled,
+and recorded in result metadata with backend names, versions, parameters,
+inputs, and any produced intermediate geometry.
 
-```text
-TSDF integration
-RGB-D fusion
-volumetric fusion
-online mapping
-SLAM tracking
-learned reconstruction methods
-mesh repair as a default preprocessing step
-large proprietary dataset downloads inside the package
-```
+Do not add support for learned reconstruction methods, mesh repair as a default
+preprocessing step, or large proprietary dataset downloads inside the package.
 
-Depth sequences are supported for depth metrics. They are not converted into scene reconstructions by eval3r.
+Depth sequences are supported for depth metrics. Any conversion of depth or
+RGB-D sequences into scene geometry must be an explicit evaluation workflow,
+delegated to the chosen backend, and recorded in metadata.
 
-### Evaluation-time visibility culling exception
+### Evaluation-time visibility culling
 
 Offscreen depth rendering (pyrender) and TSDF volume integration (open3d) are permitted
-**solely as an evaluation-time visibility-culling mechanism** — rendering a *prediction's*
-depth from the ground-truth camera trajectory and TSDF-trimming the prediction to the
-observed region before scoring (the community ScanNet single-/double-layer convention).
-This is not reconstruction: no new scene geometry is produced, only the caller's prediction
-is masked. Whenever this path runs it must be recorded in result metadata (renderer +
-TSDF backend and versions, voxel size, trajectory fingerprint, and per-scene culled
-fraction), and it is only ever enabled when the protocol's masking explicitly requests it.
-It must never run silently or as a default preprocessing step.
+as an evaluation-time visibility-culling mechanism: rendering a *prediction's*
+depth from the ground-truth camera trajectory and TSDF-trimming the prediction to
+the observed region before scoring (the community ScanNet single-/double-layer
+convention). Whenever this path runs it must be recorded in result metadata
+(renderer + TSDF backend and versions, voxel size, trajectory fingerprint, and
+per-scene culled fraction), and it is only ever enabled when the protocol's
+masking explicitly requests it. It must never run silently or as a default
+preprocessing step.
 
 ## Start-of-session checklist
 

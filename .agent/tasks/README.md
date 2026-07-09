@@ -32,8 +32,9 @@ relevant `.agent/*.md` docs and the actual code — task notes can be stale.
 | 021 | [021-pose-convention-transforms.md](021-pose-convention-transforms.md) | First-class pose/coordinate convention transforms (axis/direction/world-frame) with validation, wired through pose+geometry runners, CLI, API, writer | done |
 | 022 | [022-prediction-adaptation.md](022-prediction-adaptation.md) | Provenance-driven prediction adaptation; 2026-07-08 note supersedes the old protocol envelope design, so adaptation is recorded run metadata rather than protocol-gated comparability state | done |
 | 023 | [023-trajectory-alignment-debug-vis.md](023-trajectory-alignment-debug-vis.md) | Trajectory alignment debug visualization for pose and trajectory-first geometry alignment; per-scene debug artifact layout with run-level indexes | done |
+| 024 | [024-fusion-policy-docs.md](024-fusion-policy-docs.md) | Remove blanket fusion/TSDF/RGB-D prohibitions from design docs; allow required delegated backend support | done |
 
-Tasks 001–023 are done. Remaining work beyond them is the intentionally deferred backlog below (each item
+Tasks 001–024 are done. Remaining work beyond them is the intentionally deferred backlog below (each item
 needs its conventions pinned first — create a numbered task file when one is picked up),
 Neural-RGBD depth/pose (geometry shipped in task 020), and the actual PyPI publish, which
 happens only on explicit user request (see the release checklist in task 017).

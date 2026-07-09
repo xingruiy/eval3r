@@ -71,9 +71,10 @@ culling and honest reconstruction-derived GT labeling.
 
 ## Decisions
 
-- Ground rules amended (CLAUDE.md + `.agent/backends.md` + `.agent/plan.md`): TSDF/render are
-  forbidden **as reconstruction**, but allowed **solely** for evaluation-time visibility culling,
-  always recorded in metadata, never silent. Added `pyrender` dependency (needs EGL).
+- Ground rules amended (CLAUDE.md + `.agent/backends.md` + `.agent/plan.md`): TSDF/render
+  support is allowed when required by explicit evaluation workflows such as visibility
+  culling, delegated to established backends, always recorded in metadata, and never silent.
+  Added `pyrender` dependency (needs EGL).
 - New `visibility` backend kind + `backends/visibility_render.py` `RenderTsdfVisibilityCull`
   (name `render_tsdf`): pyrender EGL depth render → open3d ScalableTSDFVolume → scipy cKDTree trim
   (vectorised, deterministic). Records renderer/TSDF versions, voxel/sdf_trunc, tolerance, pose

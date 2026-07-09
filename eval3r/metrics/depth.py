@@ -24,8 +24,10 @@ delta_3   same at threshold 1.25³ = 1.953125
 naming convention, not a hidden default — a ``delta_*`` spec without a threshold
 fails loudly.
 
-Depth sequences are aggregated over frames (see the depth runner); they are never
-converted into meshes, fused point clouds, or TSDF volumes.
+Depth sequences are aggregated over frames (see the depth runner). If an
+evaluation workflow converts them into meshes, fused point clouds, or TSDF
+volumes, that conversion belongs in an explicit pipeline/backend stage rather
+than hidden metric behavior.
 """
 
 from __future__ import annotations

@@ -7,8 +7,10 @@ metric → per-frame aggregation. A prediction is either one depth file
 (``single_depth``) or a directory of frames (``depth_sequence``) matched to a GT
 directory by filename stem.
 
-Depth sequences are only ever aggregated over frames; they are never integrated
-into meshes, fused point clouds, or TSDF volumes (hard boundary).
+Depth sequences are aggregated over frames by this runner. If an evaluation
+workflow converts them into meshes, fused point clouds, or TSDF volumes, that
+conversion belongs in an explicit pipeline/backend stage rather than hidden
+metric behavior.
 
 Scale alignment granularity:
 

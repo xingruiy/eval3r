@@ -51,15 +51,20 @@ tool fails explicitly rather than producing unofficial numbers.
 
 See [Installation](install.md#external-official-evaluation-tools) for setup.
 
-## The visibility-culling exception
+## Reconstruction and visibility backends
 
-eval3r contains no reconstruction backends (no TSDF integration, RGB-D fusion, or SLAM as
-methods). The one narrow exception: the `visibility` backend may render a *prediction's*
-depth from the GT camera trajectory (pyrender, EGL offscreen) and TSDF-integrate those
-renders (open3d) **solely to trim the prediction to the observed region** before scoring
-— the community ScanNet convention. No new scene geometry is produced; it runs only when
-a protocol's masking requests it; and the renderer, TSDF backend, versions, voxel size,
-trajectory fingerprint, and per-scene culled fraction are recorded in result metadata.
+TSDF integration, RGB-D fusion, volumetric fusion, online mapping, and SLAM-style
+workflows may be supported when an explicit evaluation protocol or dataset workflow
+requires them. Commodity fusion/integration should be delegated to established backends
+such as Open3D, with backend versions, parameters, input fingerprints, and
+result-affecting outputs recorded.
+
+The `visibility` backend may render a *prediction's* depth from the GT camera trajectory
+(pyrender, EGL offscreen) and TSDF-integrate those renders (open3d) to trim the
+prediction to the observed region before scoring — the community ScanNet convention. It
+runs only when a protocol's masking requests it; and the renderer, TSDF backend,
+versions, voxel size, trajectory fingerprint, and per-scene culled fraction are recorded
+in result metadata.
 
 ## Non-dependencies
 

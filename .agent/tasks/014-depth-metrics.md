@@ -17,8 +17,9 @@ first-class scale alignment; `e3r metric depth` runs end-to-end.
   never via free-form parameters.
 - `backends/depth_imageio.py` (+ optional `depth_opencv.py`) for the `depth_io` registry
   kind: PNG/PFM/npy loading with `depth_unit` handling; invalid values passed to masking.
-- Per-frame then per-scene aggregation for depth sequences; depth sequences are never
-  converted into scene reconstructions (hard boundary).
+- Per-frame then per-scene aggregation for depth sequences; any conversion into scene
+  geometry belongs in an explicit pipeline/backend workflow, not hidden depth-metric
+  behavior.
 - `single_depth` built-in protocol executes through the task-007 runner (same stages,
   depth-shaped load/mask/metric).
 - CLI: `e3r metric depth pred.png --gt gt.png --depth-unit 0.001 --align scale_median

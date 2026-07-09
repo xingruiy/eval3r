@@ -56,8 +56,9 @@ per-sequence median scaling — mode and granularity appear in every metric's me
 in report headers, and every estimated scale/shift is written to the run's alignment
 records.
 
-Depth sequences are aggregated per frame and per scene. They are never converted into
-meshes, fused point clouds, or TSDF volumes.
+Depth sequences are aggregated per frame and per scene. If an evaluation workflow
+converts them into meshes, fused point clouds, or TSDF volumes, that conversion is an
+explicit pipeline/backend stage rather than hidden metric behavior.
 
 ## Pose metrics
 

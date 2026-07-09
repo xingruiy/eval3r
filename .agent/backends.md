@@ -602,25 +602,25 @@ DTU backend fixture with ObsMask / Plane behavior
 
 All backends are always installed, so backend tests do not use `pytest.importorskip`. Only the DTU MATLAB external-tool path may skip when MATLAB is absent, and it must skip with an explicit reason.
 
-## Backend non-goals
+## Backend reconstruction policy
 
-Do not add backends that perform these **as reconstruction**:
+TSDF integration, RGB-D fusion, volumetric fusion, online mapping, and
+SLAM-style workflows may be supported when an explicit evaluation protocol or
+dataset workflow requires them. Commodity fusion/integration work should be
+delegated to established backends such as Open3D instead of being reimplemented
+inside eval3r.
 
-```text
-TSDF integration
-RGB-D fusion
-volumetric fusion
-online mapping
-SLAM tracking
-learned reconstruction inference
-```
+Learned reconstruction inference remains out of scope for eval3r backends.
 
-Depth IO is allowed. Depth integration into scene reconstructions is not part of eval3r.
+Depth IO is allowed. Depth integration into scene reconstructions must be an
+explicit workflow, not a hidden metric-side behavior. Any backend that creates or
+trims scene geometry from depth/RGB-D inputs must record backend name and
+version, parameters, input fingerprints, and result-affecting outputs.
 
-**Exception (visibility culling only):** the `visibility` backend kind may render a
-prediction's depth from the GT trajectory (pyrender, EGL offscreen) and TSDF-integrate
-(open3d) those rendered depths *only to trim the prediction to the observed region* before
-scoring — the community ScanNet single-/double-layer convention. This produces no new scene
-geometry. It is enabled only when a protocol's masking requests it, and the renderer + TSDF
-backend, versions, voxel size, trajectory fingerprint, and per-scene culled fraction are
-recorded in result metadata. See CLAUDE.md "Evaluation-time visibility culling exception".
+The `visibility` backend kind may render a prediction's depth from the GT
+trajectory (pyrender, EGL offscreen) and TSDF-integrate (open3d) those rendered
+depths to trim the prediction to the observed region before scoring — the
+community ScanNet single-/double-layer convention. It is enabled only when a
+protocol's masking requests it, and the renderer + TSDF backend, versions, voxel
+size, trajectory fingerprint, and per-scene culled fraction are recorded in
+result metadata. See CLAUDE.md "Evaluation-time visibility culling".

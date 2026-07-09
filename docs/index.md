@@ -13,13 +13,18 @@ libraries; official benchmark behavior is wrapped, never faked.
 packaging minimalism. Every dependency is required and always installed. Silent, terse,
 or lossy output is treated as a defect.
 
-## What eval3r is not
+## Reconstruction and fusion workflows
 
-There is no TSDF integration, RGB-D fusion, volumetric fusion, online mapping, SLAM
-tracking, or learned reconstruction inside eval3r. Depth sequences are evaluated per
-frame; they are never turned into scene reconstructions. (One narrow exception exists:
-protocol-requested visibility culling for the community ScanNet convention, which trims
-the caller's prediction to the observed region and records everything it did.)
+eval3r stays focused on evaluation, not learned reconstruction model inference or
+open-ended geometry processing. TSDF integration, RGB-D fusion, volumetric fusion,
+online mapping, and SLAM-style workflows may be supported when a dataset workflow or
+protocol requires them. Commodity fusion/integration should be delegated to established
+backends such as Open3D, and the resolved backend, parameters, inputs, and
+result-affecting outputs must be recorded.
+
+Depth sequences are evaluated per frame by default. If a protocol-defined workflow turns
+depth or RGB-D sequences into scene geometry, that behavior must be explicit rather than
+hidden inside a metric.
 
 ## Implemented surface
 

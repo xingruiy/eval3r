@@ -2,7 +2,11 @@
 
 Metrics define the numeric quantities reported by `eval3r`. A metric implementation should be small, explicit, and controlled by the active protocol. Metrics must not make hidden choices about alignment, scale, masks, thresholds, sampling, or aggregation.
 
-The library evaluates meshes, point clouds, pointmaps, depth predictions, and trajectories. It does not integrate RGB-D frames, build TSDF volumes, or turn depth sequences into scene reconstructions.
+The library evaluates meshes, point clouds, pointmaps, depth predictions, and
+trajectories. Metrics operate on inputs prepared by explicit pipeline stages; if
+an evaluation workflow requires RGB-D/depth integration or TSDF fusion, that
+work belongs in a protocol- or run-configuration controlled backend stage and
+should be delegated to an established backend such as Open3D.
 
 ## Metric layer boundaries
 
@@ -267,7 +271,9 @@ estimate (identical pooling for a single scene, recorded under the requested
 granularity). Every estimated scale/shift is written to the run's alignment
 records and each metric's metadata.
 
-Depth sequences are aggregated over frames and scenes. They are not converted into meshes, fused point clouds, or TSDF volumes.
+Depth sequences are aggregated over frames and scenes. Any conversion into
+meshes, fused point clouds, or TSDF volumes is a separate explicit evaluation
+workflow, delegated to the configured backend and recorded in metadata.
 
 ## Pose metrics
 

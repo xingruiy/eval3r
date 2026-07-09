@@ -4,7 +4,9 @@
 
 `eval3r` is a plain 3D reconstruction evaluation library. Its job is to make evaluation runs explicit, repeatable, and easy to inspect. It should help users compare reconstruction outputs such as meshes, point clouds, depth predictions, and camera trajectories against dataset-specific references under named protocols.
 
-The library should stay focused. It should not become a geometry-processing framework, a dataset conversion warehouse, a SLAM system, a rendering engine, or a reconstruction method implementation.
+The library should stay focused. It should not become an open-ended
+geometry-processing framework, dataset conversion warehouse, SLAM system,
+rendering engine, or reconstruction method suite.
 
 The central idea is simple:
 
@@ -24,25 +26,33 @@ camera_trajectory
 colmap_reconstruction
 ```
 
-Depth sequences are supported for depth metrics and per-frame aggregation. They are not converted into scene reconstructions by the library.
+Depth sequences are supported for depth metrics and per-frame aggregation. If an
+evaluation workflow requires converting depth or RGB-D sequences into scene
+geometry, that workflow must be explicit and delegated to an established backend
+such as Open3D.
 
-Pointmaps are supported when they can be interpreted as explicit 3D points in a declared coordinate frame. If a method outputs per-frame pointmaps, the protocol must say whether the metric is per-frame, per-view, object-centric, or already scene-frame. The library does not build a scene reconstruction by integrating RGB-D or depth frames.
+Pointmaps are supported when they can be interpreted as explicit 3D points in a
+declared coordinate frame. If a method outputs per-frame pointmaps, the protocol
+must say whether the metric is per-frame, per-view, object-centric, or already
+scene-frame. Any integration of RGB-D, depth frames, or pointmaps into a scene
+reconstruction must be protocol- or run-configuration controlled and recorded.
 
 ## Non-goals
 
 The library does not provide:
 
 ```text
-TSDF integration
-RGB-D fusion
-volumetric fusion
-online mapping
-SLAM tracking
 mesh repair as a default preprocessing step
 learned reconstruction models
 large-scale dataset download management
 full replacement of official benchmark servers
 ```
+
+TSDF integration, RGB-D fusion, volumetric fusion, online mapping, and
+SLAM-style workflows are allowed when they are required to support an explicit
+evaluation protocol or dataset workflow. Commodity fusion/integration should be
+delegated to mature backends such as Open3D, and every such path must record the
+backend versions, parameters, inputs, and result-affecting outputs.
 
 The library may wrap official evaluation scripts where that is the safest way to match a dataset's established protocol. Tanks and Temples is the clearest example.
 
@@ -260,7 +270,10 @@ implementation priority: what should be built first?
 ground-truth honesty: what does the reference actually represent?
 ```
 
-This plan intentionally uses an engineering-driven build order. Because fused reconstruction support is out of scope, the first adapters should exercise geometry metrics, official-like point-cloud evaluation, result metadata, and dataset convention normalization with as little extra machinery as possible.
+This plan intentionally uses an engineering-driven build order. The first
+adapters should exercise geometry metrics, official-like point-cloud evaluation,
+result metadata, and dataset convention normalization with as little extra
+machinery as possible.
 
 ### Core dense geometry implementation targets
 
@@ -615,7 +628,9 @@ per_sequence
 per_scene
 ```
 
-Depth sequences are aggregated per frame and per scene. They are not converted into a scene reconstruction by eval3r.
+Depth sequences are aggregated per frame and per scene. Conversion into scene
+geometry is a separate explicit evaluation workflow, delegated to the configured
+backend and recorded in metadata when present.
 
 ### Pose metrics
 
