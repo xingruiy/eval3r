@@ -150,9 +150,8 @@ ScaleType = Literal[
 ```python
 Fidelity = Literal[
     "official",
-    "official_like",
-    "eval3r_native",
-    "server_only",
+    "native",
+    "server",
 ]
 ```
 

@@ -79,6 +79,6 @@ def test_intermediate_split_refused_server_only(tmp_path: Path) -> None:
     with pytest.raises(BenchmarkError, match="server_only|server"):
         run_benchmark(
             PREDS, dataset="tanks_temples", split="intermediate",
-            protocol="tanks_temples_intermediate_server_only",
+            protocol="tanks_temples_intermediate_server",
             root=ROOT, out_dir=tmp_path / "run", return_run=True,
         )

@@ -35,8 +35,9 @@ relevant `.agent/*.md` docs and the actual code — task notes can be stale.
 | 024 | [024-fusion-policy-docs.md](024-fusion-policy-docs.md) | Remove blanket fusion/TSDF/RGB-D prohibitions from design docs; allow required delegated backend support | done |
 | 025 | [025-ci-prediction-validate-message.md](025-ci-prediction-validate-message.md) | CI fix: keep missing prediction manifest reason stable under Rich wrapping | done |
 | 026 | [026-ci-node-action-upgrade.md](026-ci-node-action-upgrade.md) | CI fix: upgrade first-party actions to Node 24 action versions | done |
+| 027 | [027-fidelity-levels.md](027-fidelity-levels.md) | Collapse fidelity to official/native/server and rename old-fidelity protocol IDs | done |
 
-Tasks 001–026 are done. Remaining work beyond them is the intentionally deferred backlog below (each item
+Tasks 001–027 are done. Remaining work beyond them is the intentionally deferred backlog below (each item
 needs its conventions pinned first — create a numbered task file when one is picked up),
 Neural-RGBD depth/pose (geometry shipped in task 020), and the actual PyPI publish, which
 happens only on explicit user request (see the release checklist in task 017).

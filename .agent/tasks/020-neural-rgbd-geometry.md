@@ -16,7 +16,7 @@ neural-surface / SLAM reconstruction benchmark; the community reports geometry m
 - Protocol-driven **culled vs source** GT-mesh variant selection (never silent).
 - Two auto-discovered built-in protocols:
   `eval3r/protocols/builtin/neural_rgbd_geometry_culled.yaml` and
-  `neural_rgbd_geometry_source.yaml` — both `eval3r_native`, `alignment: none`,
+  `neural_rgbd_geometry_source.yaml` — both `native`, `alignment: none`,
   surface-area sampling `n_points: 200000`, F-score threshold `0.05` (matches the reference
   driver `../3d-eval/scripts/run_da3_nrgbd_eval.py`).
 - Registry wiring (`registry.py` + `datasets/__init__.py`).
@@ -105,7 +105,7 @@ Confirmed from the real dataset at `../3d-eval/datasets` and the reference drive
 - **GT is `synthetic_exact` / `independent`, `independent_gt=True`.** The released scenes are
   synthetic with exact artist meshes. A `_KNOWN_REAL_SCENES` classifier (empty today) keeps
   the synthetic/real distinction for any future real-scene bundle.
-- Protocols are `eval3r_native` community 5cm-F-score conventions (no official Neural-RGBD
+- Protocols are `native` community 5cm-F-score conventions (no official Neural-RGBD
   server/toolbox), so no official-toolbox wrapper and no fake stand-in.
 - `culled_fraction` kept in the culled protocol and recorded as 0 (culling is pre-baked into
   the released mesh, not an eval-time step).

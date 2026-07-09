@@ -1,4 +1,4 @@
-"""Task 010 integration: DTU official-like benchmark through e3r benchmark run."""
+"""Task 010 integration: DTU native benchmark through e3r benchmark run."""
 
 from __future__ import annotations
 
@@ -22,16 +22,16 @@ PREDS = Path(__file__).resolve().parents[1] / "fixtures" / "dtu_tiny" / "preds"
 runner = CliRunner()
 
 
-def test_official_like_run_scores_in_millimetres(tmp_path: Path) -> None:
+def test_native_run_scores_in_millimetres(tmp_path: Path) -> None:
     run = run_benchmark(
-        PREDS, dataset="dtu", split="one", protocol="dtu_official_like_pointcloud",
+        PREDS, dataset="dtu", split="one", protocol="dtu_native_pointcloud",
         root=ROOT, out_dir=tmp_path / "run", return_run=True,
     )
     # scan 1 prediction offset +5 mm; the official path stays in mm (no metre conversion).
     assert run.result.metrics["accuracy"] == pytest.approx(5.0)
     assert run.result.metrics["completeness"] == pytest.approx(5.0)
     assert run.result.metrics["overall"] == pytest.approx(5.0)
-    assert run.result.fidelity == "official_like"
+    assert run.result.fidelity == "native"
 
     acc = next(m for m in run.result.per_scene_metrics if m.name == "accuracy")
     assert acc.unit == "mm"
@@ -50,13 +50,13 @@ def test_missing_plane_scene_fails_not_silently_scored() -> None:
     with pytest.raises(SceneEvaluationError) as exc:
         run_benchmark(
             PREDS, dataset="dtu", split="test",
-            protocol="dtu_official_like_pointcloud", root=ROOT,
+            protocol="dtu_native_pointcloud", root=ROOT,
         )
     assert exc.value.scene_id == "4"
 
 
 def test_missing_plane_partial_coverage_under_skip(tmp_path: Path) -> None:
-    proto = load_protocol("dtu_official_like_pointcloud").model_copy(deep=True)
+    proto = load_protocol("dtu_native_pointcloud").model_copy(deep=True)
     proto.failure_policy = FailurePolicySpec(policy="skip_and_flag")
     run = run_benchmark_geometry(PREDS, DTUAdapter(ROOT), proto, "test")
     assert run.result.n_scenes_evaluated == 1
@@ -65,14 +65,14 @@ def test_missing_plane_partial_coverage_under_skip(tmp_path: Path) -> None:
     assert "plane" in run.result.failed_scenes[0].reason
 
 
-def test_cli_official_like_run(tmp_path: Path) -> None:
+def test_cli_native_run(tmp_path: Path) -> None:
     out = tmp_path / "run"
     result = runner.invoke(
         app,
         [
             "benchmark", "run", str(PREDS),
             "--dataset", "dtu", "--split", "one",
-            "--protocol", "dtu_official_like_pointcloud", "--root", str(ROOT), "--out", str(out),
+            "--protocol", "dtu_native_pointcloud", "--root", str(ROOT), "--out", str(out),
         ],
     )
     assert result.exit_code == 0, result.output

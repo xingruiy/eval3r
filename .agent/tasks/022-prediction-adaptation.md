@@ -158,7 +158,7 @@ recorded, not refused by official-like protocols, and adaptation differences do 
 
 - Implemented `tests/unit/test_adaptation.py`: order-independence, alias parsing,
   unknown/duplicate token errors with vocabulary, relative-scale auto-adaptation under
-  `single_geometry`, refusal under `dtu_official_like_pointcloud`, and pose convention
+  `single_geometry`, refusal under `dtu_native_pointcloud`, and pose convention
   composition via `convention_for`.
 - Re-pinned all 12 built-in protocol hashes after adding explicit envelopes and bumping
   protocol versions. `tests/unit/test_protocols.py::test_builtin_hash_regression` passes.

@@ -104,4 +104,4 @@ backend_preferences:
 
 notes:
   - Per-scene thresholds are resolved by the official backend, not hardcoded as a global value.
-  - Intermediate and advanced splits are server-only and should use a separate server_only protocol stub.
+  - Intermediate and advanced splits are server-only and should use a separate server fidelity protocol stub.

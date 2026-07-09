@@ -1,7 +1,7 @@
 schema_version: 1
 protocol_version: 0.3.0
 name: scannet_double_layer_geometry_5cm
-fidelity: eval3r_native
+fidelity: native
 
 dataset:
   dataset: scannet
@@ -114,7 +114,6 @@ notes:
   - Double-layer mesh convention; otherwise mirrors scannet_single_layer_geometry_5cm.
   - Validation split runs WITHOUT visibility culling; culled_fraction is recorded as 0.
     Visibility culling applies only to the test split.
-  - ScanNet has no official geometry-reconstruction benchmark. This protocol is
-    eval3r_native, not official_like. Results must not be presented as official
-    ScanNet benchmark numbers, and the reference implementation used for any
-    regression fixtures must be named in the task notes.
+  - ScanNet has no official geometry-reconstruction benchmark. This protocol is native.
+    Results must not be presented as official ScanNet benchmark numbers, and the
+    reference implementation used for any regression fixtures must be named in the task notes.

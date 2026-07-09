@@ -1,7 +1,7 @@
 schema_version: 1
 protocol_version: 0.2.0
 name: neural_rgbd_geometry_source
-fidelity: eval3r_native
+fidelity: native
 
 dataset:
   dataset: neural_rgbd
@@ -117,5 +117,5 @@ notes:
     full mesh, so completeness/recall include unobserved regions.
   - The protocol does not force alignment by default; prediction and GT are expected to
     share the dataset world frame. No eval-time culling.
-  - eval3r_native, not official_like. Neural-RGBD has no official evaluation server; results
+  - Native community protocol. Neural-RGBD has no official evaluation server; results
     must not be presented as official Neural-RGBD benchmark numbers.

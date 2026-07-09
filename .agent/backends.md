@@ -550,9 +550,9 @@ normalize units and output
 Rules:
 
 ```text
-official_like fidelity requires regression testing
+native fidelity with official-like evaluator provenance requires regression testing
 record whether the evaluator is an official MATLAB script, a validated Python port, or another backend
-skipping ObsMask / Plane downgrades protocol fidelity
+skipping ObsMask / Plane must be recorded as a protocol or result-affecting fidelity limitation
 ```
 
 ## Backend metadata

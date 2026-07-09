@@ -82,7 +82,7 @@ mechanical build fix matching upstream's stated intent (no scoring source is tou
 ### DTU MATLAB path (optional)
 
 DTU evaluation uses a **validated Python port** of the official MATLAB evaluation by
-default (fidelity `official_like`, regression-tested against the reference code). MATLAB
+default (fidelity `native`, regression-tested against the reference code). MATLAB
 is the only optional external tool: if you want the literal MATLAB official script path,
 eval3r can drive it, and whether MATLAB was used is recorded in result metadata. A
 missing MATLAB fails with an explicit message pointing at the validated port.

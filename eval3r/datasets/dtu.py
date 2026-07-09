@@ -15,7 +15,7 @@ Dataset root layout (SampleSet / MVS Data)::
 
 This slice does **not** run the official-like ObsMask/Plane evaluation — that is
 task 010. Until then ``official_local_eval`` is ``False`` and DTU point-cloud runs
-are labelled eval3r-native, though the GT provenance is honestly ``laser_scan`` /
+are labelled native, though the GT provenance is honestly ``laser_scan`` /
 ``independent``. Missing Plane files are recorded, never silently ignored.
 """
 
@@ -65,7 +65,7 @@ class DTUAdapter:
             notes=[
                 "GT is a laser-scanned point cloud in millimetres (independent, dense surface).",
                 "Official-like ObsMask/Plane evaluation via the validated dtu_eval Python port "
-                "(dtu_official_like_pointcloud); eval3r-native protocols skip ObsMask/Plane.",
+                "(dtu_native_pointcloud); native protocols without ObsMask/Plane skip those files.",
             ],
         )
 
@@ -195,7 +195,7 @@ class DTUAdapter:
         if not obs_path.is_file():
             raise DatasetError(
                 f"DTU ObsMask for scan {scan} is missing: expected {obs_path}. The official-like "
-                f"protocol requires ObsMask; use an eval3r-native protocol if it is unavailable."
+                f"protocol requires ObsMask; use a native protocol without ObsMask if it is unavailable."
             )
         mat = loadmat(str(obs_path))
         for key in ("ObsMask", "BB", "Res"):

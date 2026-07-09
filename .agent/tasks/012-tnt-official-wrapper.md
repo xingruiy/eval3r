@@ -18,7 +18,7 @@ refused as server-only.
 - Capabilities: training → official_local_eval=true, method=official_script_wrapper;
   intermediate/advanced → server_only_eval=true, method=server_only.
 - CLI behavior: running a server-only protocol
-  (`tanks_temples_intermediate_server_only`) fails clearly before any computation, telling
+  (`tanks_temples_intermediate_server`) fails clearly before any computation, telling
   the user to submit to the official server.
 - GT fingerprinting: GT point cloud, crop file, alignment file, backend version.
 - Tiny fixture with fabricated official-script outputs for output-parsing tests
@@ -102,7 +102,7 @@ refused as server-only.
   refuses before any computation); training → supported.
 - Benchmark gained a file-based official branch (`_evaluate_scene_tnt_official`), dispatched by
   the evaluator's `input_mode == "artifacts"` (keeps the DTU point-array branch intact).
-- Protocol YAMLs (`tanks_temples_training_official`, `tanks_temples_intermediate_server_only`)
+- Protocol YAMLs (`tanks_temples_training_official`, `tanks_temples_intermediate_server`)
   were already present and unchanged → pinned hashes unchanged.
 - **No fake toolbox** (a fake official evaluator is forbidden by the "Official code / toolbox
   rule"). The end-to-end wrapper + benchmark tests drive the **real** toolbox and skip cleanly

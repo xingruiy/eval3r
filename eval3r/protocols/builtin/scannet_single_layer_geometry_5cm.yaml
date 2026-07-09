@@ -1,7 +1,7 @@
 schema_version: 1
 protocol_version: 0.3.0
 name: scannet_single_layer_geometry_5cm
-fidelity: eval3r_native
+fidelity: native
 
 dataset:
   dataset: scannet
@@ -117,5 +117,5 @@ notes:
     (scannet_test_single_layer_geometry_5cm).
   - ScanNet has no official geometry-reconstruction benchmark. This protocol follows the
     community single-layer 5cm F-score convention (Atlas/NeuralRecon-style eval_mesh,
-    threshold 0.05, both-direction nearest distances) and is therefore eval3r_native, not
-    official_like. Results must not be presented as official ScanNet benchmark numbers.
+    threshold 0.05, both-direction nearest distances) and is therefore native. Results
+    must not be presented as official ScanNet benchmark numbers.

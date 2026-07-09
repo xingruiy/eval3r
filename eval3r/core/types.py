@@ -105,9 +105,8 @@ AlignmentMode: TypeAlias = Literal[
 
 Fidelity: TypeAlias = Literal[
     "official",
-    "official_like",
-    "eval3r_native",
-    "server_only",
+    "native",
+    "server",
 ]
 
 LocalEvaluationStatus: TypeAlias = Literal[

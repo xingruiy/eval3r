@@ -55,7 +55,7 @@ def test_report_data_full_coverage_has_no_banner(make_run_result) -> None:
 def test_report_header_surfaces_protocol_and_policies(make_run_result) -> None:
     header = dict(build_report_data(make_run_result()).header)
     assert header["protocol hash"] == "sha256:aaa"
-    assert header["fidelity"] == "eval3r_native"
+    assert header["fidelity"] == "native"
     assert "provenance=laser_scan" in header["ground truth"]
     assert "independence=independent" in header["ground truth"]
     assert header["local evaluation"] == "supported"

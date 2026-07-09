@@ -3,7 +3,7 @@
 ## Goal
 
 ETH3D training-split point-cloud evaluation runs locally under
-`eth3d_training_official_like`, with COLMAP text camera parsing via pycolmap, honest
+`eth3d_training_official`, with COLMAP text camera parsing via pycolmap, honest
 non-pinhole handling, and the official-like claim validated against the official
 multi-view-evaluation tool.
 
@@ -33,7 +33,7 @@ multi-view-evaluation tool.
 ## Relevant Files
 
 - `.agent/datasets.md` — "ETH3D" requirements and rules
-- `.agent/protocols.md` — `eth3d_training_official_like` (including the tolerance note)
+- `.agent/protocols.md` — `eth3d_training_official` (including the tolerance note)
 - `.agent/backends.md` — "Camera backend"
 - `CLAUDE.md` — ETH3D cautions
 
@@ -102,10 +102,9 @@ multi-view-evaluation tool.
   the official tool reads) and validates every referenced scan PLY; `gt_fingerprint`
   jointly hashes .mlp + scans. GT: laser_scan / independent / dense_surface, metres.
   `local_evaluation("test")` → server_only (refused in preflight).
-- Protocol **renamed** `eth3d_training_official_like` → `eth3d_training_official`,
-  fidelity `official_like` → **`official`** (the real official tool produces the
-  numbers, exactly like `tanks_temples_training_official`), version 0.1.0 → 0.2.0. Metric
-  list extended to the full official tolerance set as 18 explicit entries
+- Protocol is `eth3d_training_official` with fidelity **`official`** (the real official tool
+  produces the numbers, exactly like `tanks_temples_training_official`), version 0.2.0.
+  Metric list extended to the full official tolerance set as 18 explicit entries
   (`accuracy_1cm` … `fscore_50cm`, thresholds in metres) since aggregation keys by metric
   name. Alignment stays `none` (the tool applies none; predictions must be in the GT
   COLMAP frame). masking.pred_culling documents the tool's own observability exclusion

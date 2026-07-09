@@ -4,7 +4,7 @@ Every protocol and every result carries a **fidelity** label saying how close th
 produced numbers are to a dataset's official evaluation. This matters because "we
 evaluated on dataset X" can mean very different things.
 
-## The four labels
+## The three labels
 
 ### `official`
 
@@ -22,23 +22,18 @@ When an official tool needs a *mechanical* compatibility fix to run at all (a re
 import, a build flag), the exact patch is recorded in result metadata. Anything that
 could change the numbers is never patched — eval3r stops and reports instead.
 
-### `official_like`
+### `native`
 
-The protocol reimplements established dataset semantics locally as a **validated port**,
-regression-tested against the reference implementation. Built-in:
-`dtu_official_like_pointcloud` — a Python port of the official DTU MATLAB evaluation
-(ObsMask + Plane handling included), validated against the reference code on real data.
-Skipping ObsMask/Plane would downgrade this fidelity; eval3r records missing Plane files
-explicitly instead of ignoring them.
+The protocol is evaluated locally by eval3r rather than by an official benchmark tool.
+It may be an eval3r-defined protocol, such as the `single_*` quick-check protocols and
+ScanNet community geometry protocols, or a validated local port of established dataset
+semantics, such as `dtu_native_pointcloud`.
 
-### `eval3r_native`
+Native protocols are explicit, hashed, and repeatable, but they do **not** claim official
+leaderboard comparability. For DTU, ObsMask/Plane handling is still required by the
+protocol; missing files are recorded explicitly rather than ignored.
 
-The protocol is defined by eval3r. It is explicit, hashed, and repeatable, but it does
-**not** claim official leaderboard comparability. Built-ins: the `single_*` protocols
-and the ScanNet geometry protocols (ScanNet has no official reconstruction benchmark;
-they follow the community 5 cm F-score convention).
-
-### `server_only`
+### `server`
 
 The split's ground truth is withheld and only the official benchmark server can score
 it (Tanks and Temples intermediate/advanced, ETH3D test). eval3r **refuses** to run
@@ -47,7 +42,7 @@ would be official-looking but meaningless.
 
 ## Why this is enforced
 
-Comparing an `official` run against an `eval3r_native` run is one of the comparability
+Comparing an `official` run against a `native` run is one of the comparability
 warnings `e3r diff` raises ("backend officialness differs"): the numbers were produced by
 different scoring machinery, so a delta between them may reflect the evaluator rather
 than the method.

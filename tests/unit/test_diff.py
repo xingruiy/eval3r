@@ -147,7 +147,7 @@ def test_none_metric_values_give_none_delta(two_runs) -> None:
                 )
             },
         ),
-        ("backend_officialness", {"fidelity": "official_like"}),
+        ("backend_officialness", {"fidelity": "official"}),
         (
             "backend_officialness",
             {

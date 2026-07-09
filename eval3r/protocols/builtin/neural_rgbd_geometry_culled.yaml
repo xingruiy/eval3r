@@ -1,7 +1,7 @@
 schema_version: 1
 protocol_version: 0.2.0
 name: neural_rgbd_geometry_culled
-fidelity: eval3r_native
+fidelity: native
 
 dataset:
   dataset: neural_rgbd
@@ -119,5 +119,5 @@ notes:
   - No eval-time culling runs; the culling is pre-baked into the released culled mesh, so
     culled_fraction is recorded as 0. The protocol does not force alignment by default;
     prediction and GT are expected to share the dataset world frame.
-  - eval3r_native, not official_like. Neural-RGBD has no official evaluation server; results
+  - Native community protocol. Neural-RGBD has no official evaluation server; results
     must not be presented as official Neural-RGBD benchmark numbers.

@@ -2,7 +2,7 @@
 
 ScanNet's GT meshes are **BundleFusion reconstructions — not independent measurements**.
 eval3r records the GT as `reconstructed` / `reconstruction_derived`, and the geometry
-protocols are `eval3r_native`: ScanNet has no official reconstruction benchmark, so these
+protocols are `native`: ScanNet has no official reconstruction benchmark, so these
 follow the community single-/double-layer 5 cm F-score convention and must never be
 presented as official ScanNet numbers.
 

@@ -15,7 +15,7 @@
   "protocol": "example_single_geometry",
   "protocol_version": "1.0.0",
   "protocol_hash": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
-  "fidelity": "eval3r_native",
+  "fidelity": "native",
   "ground_truth": {
     "modality": "pointcloud",
     "provenance": "laser_scan",

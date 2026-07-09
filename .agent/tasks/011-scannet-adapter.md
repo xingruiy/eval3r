@@ -3,7 +3,7 @@
 ## Goal
 
 ScanNet validation-split geometry evaluation runs through `e3r benchmark run` under the
-`eval3r_native` single-layer and double-layer 5cm protocols, with explicit visibility
+`native` single-layer and double-layer 5cm protocols, with explicit visibility
 culling and honest reconstruction-derived GT labeling.
 
 ## Scope
@@ -31,7 +31,7 @@ culling and honest reconstruction-derived GT labeling.
 ## Relevant Files
 
 - `.agent/datasets.md` — "ScanNet" requirements and rules
-- `.agent/protocols.md` — both ScanNet protocol templates (note: fidelity `eval3r_native`,
+- `.agent/protocols.md` — both ScanNet protocol templates (note: fidelity `native`,
   community TransformerFusion-style convention; name the regression reference in Findings)
 - `.agent/plan.md` — "Built-in adapter implications → ScanNet", milestone
 - `CLAUDE.md` — ScanNet cautions
@@ -97,7 +97,7 @@ culling and honest reconstruction-derived GT labeling.
   (masking all `none`); new `scannet_test_single_layer_geometry_5cm` (test, gt_visibility, tolerance
   0.05, render params). Pinned hashes updated in `test_protocols.py`.
 - Reference named in fixtures/protocol notes: Atlas `eval_mesh` (metric) +
-  NeuralRecon/TransformerFusion (culling). Fidelity stays `eval3r_native`.
+  NeuralRecon/TransformerFusion (culling). Fidelity stays `native`.
 
 ## Verification
 
@@ -115,7 +115,7 @@ val keeps the far box (precision<0.95, culled_fraction 0), test culls it (culled
 precision 1.0). Covered by `tests/unit/test_scannet_adapter.py`,
 `tests/unit/test_visibility_render.py` (skips cleanly without a headless GL context), and
 `tests/integration/test_scannet_benchmark.py`. Report labels GT reconstruction-derived,
-fidelity eval3r_native.
+fidelity native.
 
 ## Status
 

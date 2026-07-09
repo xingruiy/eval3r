@@ -80,7 +80,7 @@ records the resulting adaptation instead of refusing it through the protocol.
 
 - **evo Python API in-process, not the evo CLI.** evo is a required base pip dependency
   (a delegation backend like scipy — the official-toolbox rule does not apply to an
-  eval3r_native protocol), the API returns exact float statistics without stdout parsing,
+  native protocol), the API returns exact float statistics without stdout parsing,
   and the version is recorded via `evo.__version__` (leading "v" stripped) in
   `backend_versions`. No fallback evaluator exists.
 - `backends/trajectory_evo.py`: `EvoTrajectoryBackend` (`trajectory` kind, name `evo`)

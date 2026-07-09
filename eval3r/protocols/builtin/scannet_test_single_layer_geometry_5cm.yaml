@@ -1,7 +1,7 @@
 schema_version: 1
 protocol_version: 0.2.0
 name: scannet_test_single_layer_geometry_5cm
-fidelity: eval3r_native
+fidelity: native
 
 dataset:
   dataset: scannet
@@ -32,7 +32,7 @@ ground_truth:
 
 local_evaluation:
   status: supported
-  reason: test GT mesh + camera trajectory are available locally; eval3r_native geometry.
+  reason: test GT mesh + camera trajectory are available locally; native geometry.
   public_gt_available: true
   external_assets_required: []
   official_server_required: false
@@ -128,5 +128,5 @@ notes:
     the tolerance (metres) of that region are kept. culled_fraction is recorded per scene.
     See CLAUDE.md "Evaluation-time visibility culling exception".
   - Community NeuralRecon/TransformerFusion-style culling; the metric (Atlas eval_mesh,
-    threshold 0.05, both-direction nearest distances) is eval3r_native, not official_like.
-    Results must not be presented as official ScanNet benchmark numbers.
+    threshold 0.05, both-direction nearest distances) is native. Results must not be
+    presented as official ScanNet benchmark numbers.

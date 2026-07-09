@@ -75,8 +75,8 @@ def test_relative_scale_is_recorded_without_auto_alignment() -> None:
     assert run_proto.alignment.mode == "none"
 
 
-def test_relative_scale_is_not_refused_by_official_like_protocol() -> None:
-    proto = load_protocol("dtu_official_like_pointcloud")
+def test_relative_scale_is_not_refused_by_native_protocol() -> None:
+    proto = load_protocol("dtu_native_pointcloud")
     run_proto, record = resolve_adaptation(proto, _manifest(scale="relative"), None)
     assert record.scale == "relative"
     assert record.alignment == proto.alignment.mode

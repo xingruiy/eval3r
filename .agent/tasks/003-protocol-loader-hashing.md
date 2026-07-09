@@ -16,10 +16,10 @@ sha256 hash, and are discoverable through a protocol registry; `e3r protocol sho
   affect metrics) must be **explicit in code and covered by tests**.
 - `protocols/registry.py`: name → protocol lookup over `protocols/builtin/`.
 - Built-in YAML files, matching the templates in `.agent/protocols.md` exactly:
-  `single_geometry`, `single_depth`, `single_pose`, `dtu_official_like_pointcloud`,
+  `single_geometry`, `single_depth`, `single_pose`, `dtu_native_pointcloud`,
   `scannet_single_layer_geometry_5cm`, `scannet_double_layer_geometry_5cm`,
-  `tanks_temples_training_official`, `tanks_temples_intermediate_server_only`,
-  `eth3d_training_official_like`. (ScanNet protocols are `eval3r_native`; `single_depth`
+  `tanks_temples_training_official`, `tanks_temples_intermediate_server`,
+  `eth3d_training_official`. (ScanNet protocols are `native`; `single_depth`
   uses `mode: scale_median`; backend_preferences keys are registry kinds.)
 - CLI: `e3r protocol show <name>` prints protocol, version, hash.
 - Expected-hash regression test for each built-in protocol.
@@ -66,7 +66,7 @@ sha256 hash, and are discoverable through a protocol registry; `e3r protocol sho
      implicitly via protocol load.
   2. DTU template had `version: 2014` (YAML int) but `DatasetVariant.version` is `str | None`;
      quoted it as `"2014"` in the built-in YAML. (The loader's clear error surfaced this.)
-- The `tanks_temples_intermediate_server_only` doc snippet omits the eight required
+- The `tanks_temples_intermediate_server` doc snippet omits the eight required
   execution-policy fields (`alignment`, `confidence`, `masking`, `sampling`, `metrics`,
   `aggregation`, `failure_policy`, `reporting`), so it cannot validate against `EvalProtocol`
   as written. Filled them with explicit "no local evaluation" values (`metrics: []`, culling

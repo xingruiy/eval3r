@@ -94,7 +94,7 @@ def test_gt_is_synthetic_exact_and_independent() -> None:
 def test_capabilities_are_honest() -> None:
     caps = _adapter().capabilities
     assert caps.independent_gt is True  # exact synthetic GT
-    assert caps.official_local_eval is False  # eval3r_native, no official benchmark
+    assert caps.official_local_eval is False  # native, no official benchmark
     assert caps.requires_external_renderer is False  # geometry is mesh-to-mesh
     assert caps.supports_full_scene_geometry is True
 

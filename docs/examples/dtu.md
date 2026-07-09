@@ -15,7 +15,7 @@ internally and records the source unit.
 ```
 
 Missing Plane files are recorded explicitly in scene metadata — never silently ignored,
-and never skipped while claiming official-like fidelity.
+and never skipped while claiming the native DTU protocol was followed.
 
 ## Predictions
 
@@ -35,16 +35,16 @@ in the GT frame; DTU-native millimeter scale is handled by the adapter.
 e3r dataset inspect dtu --root /data/DTU --split test
 
 e3r benchmark validate preds/ --dataset dtu --split test \
-  --protocol dtu_official_like_pointcloud --root /data/DTU
+  --protocol dtu_native_pointcloud --root /data/DTU
 
 e3r benchmark run preds/ --dataset dtu --split test \
-  --protocol dtu_official_like_pointcloud --root /data/DTU \
+  --protocol dtu_native_pointcloud --root /data/DTU \
   --method mvsnet --out runs/dtu_mvsnet
 ```
 
 ## What the protocol does
 
-`dtu_official_like_pointcloud` (fidelity **official_like**) runs a validated Python port
+`dtu_native_pointcloud` (fidelity **native**) runs a validated Python port
 of the official DTU MATLAB evaluation: ObsMask culling for accuracy, Plane +
 observability culling for completeness, and the official downsampling behavior. It
 reports `accuracy` / `completeness` / `overall` (mean distances, in DTU's conventional

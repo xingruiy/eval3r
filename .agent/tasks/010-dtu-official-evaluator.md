@@ -14,7 +14,7 @@ for ObsMask/Plane culling and DTU's point-cloud scoring behavior.
   whether the evaluator is the validated port or the MATLAB script.
 - Update DTU capabilities for the official-like protocol:
   `official_local_eval=true`, `official_local_eval_method=validated_official_port`.
-- The `dtu_official_like_pointcloud` protocol runs through `e3r benchmark run` and records
+- The `dtu_native_pointcloud` protocol runs through `e3r benchmark run` and records
   evaluator method, Plane availability, mask/culling metadata, GT fingerprint, and protocol
   fidelity.
 - Regression target: documented comparison against known official-like outputs, executed
@@ -29,7 +29,7 @@ for ObsMask/Plane culling and DTU's point-cloud scoring behavior.
 ## Relevant Files
 
 - `.agent/datasets.md` — "DTU" adapter requirements and rules, adapter interface
-- `.agent/protocols.md` — `dtu_official_like_pointcloud` template
+- `.agent/protocols.md` — `dtu_native_pointcloud` template
 - `.agent/backends.md` — "DTU evaluation backend"
 - `.agent/plan.md` — "Dataset adapter for DTU" milestone
 - `CLAUDE.md` — DTU cautions
@@ -39,7 +39,7 @@ for ObsMask/Plane culling and DTU's point-cloud scoring behavior.
 1. Implement dtu_eval backend; validate the port against the official MATLAB code's
    published behavior on the fixture (record method + tolerance in Findings).
 2. Wire `e3r benchmark run --dataset dtu --split test --protocol
-   dtu_official_like_pointcloud` through the task-008 benchmark plumbing and task-007
+   dtu_native_pointcloud` through the task-008 benchmark plumbing and task-007
    runner.
 3. Tests: ObsMask/Plane application, missing-Plane official-like behavior, capability
    declaration, evaluator metadata, benchmark integration end-to-end on the fixture.
@@ -54,7 +54,7 @@ for ObsMask/Plane culling and DTU's point-cloud scoring behavior.
   port gives 0.21991 mm — inside the reference's own run-to-run band, and identical across runs.
 - **Full stack on the real 5.17M-point scan 24** (adapter + benchmark + backend, GT `groundtruth/`,
   filename `mvsnet024_l3.ply`, real ObsMask/Plane): accuracy 0.343, completeness 0.248, overall
-  0.295 mm — plausible DTU numbers, fidelity `official_like`, evaluator `validated_official_port`.
+  0.295 mm — plausible DTU numbers, fidelity `native`, evaluator `validated_official_port`.
 - The reference downsample is nondeterministic (random shuffle before radius-dedup). eval3r requires
   determinism, so the port seeds the shuffle (per-scene derived seed). The seeding does not bias the
   result relative to the reference band. This is the documented port-vs-reference tolerance.
@@ -75,7 +75,7 @@ for ObsMask/Plane culling and DTU's point-cloud scoring behavior.
   (ObsMask required, missing Plane → `plane=None` → the scene fails under the official protocol
   rather than being silently scored); capabilities now `official_local_eval=true`,
   `official_local_eval_method=validated_official_port`.
-- `dtu_official_like_pointcloud.yaml` bumped to 0.2.0: `official_eval: dtu`, `pointcloud: plyfile`,
+- `dtu_native_pointcloud.yaml` bumped to 0.2.0: `official_eval: dtu`, `pointcloud: plyfile`,
   notes clarified (mm frame; missing-Plane fails; culling/downsample done in the port). New pinned
   hash `sha256:192ffe1c…`. Fixture regenerated (5 mm offset within the 20 mm cap; ObsMask 4³/Res100;
   keep-all Plane1; no Plane4 for the missing-Plane path).
@@ -90,14 +90,14 @@ mypy eval3r    # Success: no issues found in 88 source files
 pytest -q      # 203 passed (incl. the real-data parity regression on this machine)
 mkdocs build   # OK
 # real-data end-to-end (offline; not committed): full scan 24 ->
-#   accuracy 0.343 / completeness 0.248 / overall 0.295 mm, fidelity official_like
+#   accuracy 0.343 / completeness 0.248 / overall 0.295 mm, fidelity native
 ```
 
-Acceptance met: `dtu_official_like_pointcloud` runs through `e3r benchmark run` with a
+Acceptance met: `dtu_native_pointcloud` runs through `e3r benchmark run` with a
 regression-validated official-like evaluator; results.json records the evaluator method, Plane
 availability, and per-scene cull counts; missing-Plane scenes fail explicitly rather than being
 scored. Covered by `tests/unit/test_dtu_eval.py`,
-`tests/integration/test_dtu_official_like_benchmark.py`, and the offline
+`tests/integration/test_dtu_native_benchmark.py`, and the offline
 `tests/regression/test_dtu_parity.py`.
 
 ## Status

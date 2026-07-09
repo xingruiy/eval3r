@@ -22,7 +22,7 @@ the adapter records the convention the protocol declares (``metadata.layer_conve
 and resolves the GT mesh from the scene directory. Visibility culling is never enabled
 or disabled by the adapter — the protocol's masking decides, and the culling itself runs
 in the ``visibility`` backend (``.agent/backends.md``). ScanNet has no official geometry
-server benchmark; these protocols are ``eval3r_native`` and must not be reported as
+server benchmark; these protocols are ``native`` and must not be reported as
 official ScanNet numbers.
 """
 
@@ -72,7 +72,7 @@ class ScanNetAdapter:
             independent_gt=False,  # BundleFusion-reconstructed mesh, not laser scan
             depth_metric=True,
             pose_metric=True,
-            official_local_eval=False,  # eval3r_native; no official ScanNet geometry benchmark
+            official_local_eval=False,  # native; no official ScanNet geometry benchmark
             official_local_eval_method="none",
             supports_full_scene_geometry=True,
             requires_external_renderer=True,  # only for the test visibility-culling protocols
@@ -81,7 +81,7 @@ class ScanNetAdapter:
                 "Depth is 16-bit millimetres; depth_unit = 0.001. Poses are cam-to-world OpenCV.",
                 "Visibility culling (test single-/double-layer) renders prediction depth from the "
                 "GT trajectory and TSDF-trims it; val needs no renderer.",
-                "eval3r_native geometry protocol — not an official ScanNet benchmark number.",
+                "native geometry protocol — not an official ScanNet benchmark number.",
             ],
         )
 
@@ -305,7 +305,7 @@ class ScanNetAdapter:
             status="supported",
             reason=(
                 "ScanNet GT is a locally-available reconstructed mesh; geometry is evaluable "
-                "with the eval3r_native protocol. Results are not official ScanNet numbers."
+                "with the native protocol. Results are not official ScanNet numbers."
             ),
             public_gt_available=True,
         )

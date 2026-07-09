@@ -72,7 +72,7 @@ def _protocol() -> EvalProtocol:
         schema_version=1,
         protocol_version="1.0.0",
         name="example_single_geometry",
-        fidelity="eval3r_native",
+        fidelity="native",
         dataset=_dataset(),
         prediction_modality="pointcloud",
         ground_truth=_ground_truth(),

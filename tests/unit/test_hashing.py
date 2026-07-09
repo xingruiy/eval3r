@@ -22,7 +22,7 @@ def _base_data() -> dict:
         "schema_version": 1,
         "protocol_version": "0.1.0",
         "name": "hash_fixture",
-        "fidelity": "eval3r_native",
+        "fidelity": "native",
         "dataset": {"dataset": "custom", "variant": "v"},
         "prediction_modality": "pointcloud",
         "ground_truth": {

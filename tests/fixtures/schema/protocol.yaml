@@ -4,7 +4,7 @@
 schema_version: 1
 protocol_version: "1.0.0"
 name: example_single_geometry
-fidelity: eval3r_native
+fidelity: native
 dataset:
   dataset: custom
 prediction_modality: pointcloud

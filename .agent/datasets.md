@@ -330,7 +330,7 @@ the adapter supplies the GT trajectory via load_trajectory (cam-to-world OpenCV 
   depth intrinsics, image size); non-finite (lost-tracking) poses are dropped.
 renderer + TSDF backend, versions, voxel size, trajectory fingerprint, and per-scene
   culled_fraction are recorded (CLAUDE.md evaluation-time visibility-culling exception).
-these protocols are eval3r_native; results are never official ScanNet benchmark numbers.
+these protocols are native; results are never official ScanNet benchmark numbers.
 ```
 
 ### DTU
@@ -495,7 +495,7 @@ released scenes are synthetic with exact artist-mesh GT, so GT is recorded as
 distinction for any future real-scene bundle). Geometry is mesh-to-mesh, so the OpenGL pose
 convention does not affect the score; it is recorded as a note and only matters for the
 **deferred** depth/pose evaluation (`neural_rgbd_depth.yaml`, focal.txt/poses.txt loading).
-The geometry protocols are `eval3r_native` community 5cm-F-score conventions (no official
+The geometry protocols are `native` community 5cm-F-score conventions (no official
 Neural-RGBD server), matching the mesh-to-mesh eval in the reference driver.
 
 ### Replica
@@ -583,7 +583,7 @@ Adapter responsibilities:
 load calibration and pose files
 handle sparse or missing pose entries explicitly
 support pose metrics and sparse-LiDAR comparison protocols
-mark sparse-LiDAR protocols as eval3r_native
+mark sparse-LiDAR protocols as native
 limit minimal-pinhole support to perspective cameras image_00 / image_01 unless a fisheye-capable backend is used
 ```
 

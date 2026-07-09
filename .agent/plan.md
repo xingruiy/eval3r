@@ -171,7 +171,7 @@ eval3r/
       single_pose.yaml
       scannet_single_layer_geometry_5cm.yaml
       scannet_double_layer_geometry_5cm.yaml
-      dtu_official_like_pointcloud.yaml
+      dtu_native_pointcloud.yaml
       tanks_temples_training_official.yaml
       eth3d_training_official.yaml
 
@@ -1285,7 +1285,7 @@ Deliverables:
 
 ```text
 DTUAdapter
-dtu_official_like_pointcloud.yaml
+dtu_native_pointcloud.yaml
 DTU benchmark example
 small DTU fixture
 ```
@@ -1296,7 +1296,7 @@ Acceptance:
 e3r benchmark run preds/ \
   --dataset dtu \
   --split test \
-  --protocol dtu_official_like_pointcloud
+  --protocol dtu_native_pointcloud
 ```
 
 ### Dataset adapter for ScanNet

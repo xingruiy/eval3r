@@ -88,10 +88,10 @@ e3r dataset list
 e3r dataset inspect dtu --root /data/DTU --split test
 
 e3r benchmark validate preds/ --dataset dtu --split test \
-  --protocol dtu_official_like_pointcloud --root /data/DTU
+  --protocol dtu_native_pointcloud --root /data/DTU
 
 e3r benchmark run preds/ --dataset dtu --split test \
-  --protocol dtu_official_like_pointcloud --root /data/DTU
+  --protocol dtu_native_pointcloud --root /data/DTU
 ```
 
 `benchmark validate` checks preflight and per-scene prediction resolution without
@@ -186,7 +186,7 @@ from eval3r import run_benchmark
 result = run_benchmark(
     "preds/",
     dataset="dtu", split="test",
-    protocol="dtu_official_like_pointcloud",
+    protocol="dtu_native_pointcloud",
     root="/data/DTU",              # dataset root the adapter needs (GT files)
     manifest=None,                 # optional manifest YAML; else resolved or inferred
     adapt=None,                    # optional --as/--adapt grammar
@@ -199,7 +199,7 @@ result = run_benchmark(
 ```python
 from eval3r import load_protocol
 
-protocol = load_protocol("dtu_official_like_pointcloud")  # or a YAML path
+protocol = load_protocol("dtu_native_pointcloud")  # or a YAML path
 print(protocol.name, protocol.fidelity)
 ```
 

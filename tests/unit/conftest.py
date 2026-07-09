@@ -49,7 +49,7 @@ def _base_run_result(**overrides: Any) -> RunResult:
         protocol="single_geometry",
         protocol_version="0.1.0",
         protocol_hash="sha256:aaa",
-        fidelity="eval3r_native",
+        fidelity="native",
         ground_truth=GroundTruthSpec(
             modality="pointcloud",
             provenance="laser_scan",

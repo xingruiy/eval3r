@@ -1,7 +1,7 @@
-"""Task 009 DTU integration: eval3r-native benchmark run with mm normalization.
+"""Task 009 DTU integration: native benchmark run with mm normalization.
 
 The run must NOT claim official-like fidelity (that is task 010): it uses the
-eval3r-native ``single_geometry`` protocol and the adapter declares
+native ``single_geometry`` protocol and the adapter declares
 ``official_local_eval = False``.
 """
 
@@ -28,8 +28,8 @@ def test_benchmark_normalizes_mm_to_meters(tmp_path: Path) -> None:
     # scan 1 prediction is offset +5 mm in x; normalized to metres accuracy = 0.005 m.
     acc = run.result.metrics["accuracy"]
     assert acc == pytest.approx(0.005, abs=1e-6)
-    # eval3r-native fidelity: the result does not claim official DTU numbers.
-    assert run.result.fidelity == "eval3r_native"
+    # Native fidelity: the result does not claim official DTU numbers.
+    assert run.result.fidelity == "native"
 
 
 def test_benchmark_full_split_coverage(tmp_path: Path) -> None:

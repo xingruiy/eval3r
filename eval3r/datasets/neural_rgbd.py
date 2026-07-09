@@ -22,7 +22,7 @@ it is recorded as a note and only matters for the deferred depth/pose work.
 
 These scenes are synthetic with exact artist-mesh GT, so the GT is honestly ``independent`` /
 ``synthetic_exact`` (unlike ScanNet's reconstruction-derived mesh). The geometry protocols are
-``eval3r_native`` community conventions (Neural-RGBD has no official evaluation server), so
+``native`` community conventions (Neural-RGBD has no official evaluation server), so
 results must not be presented as official Neural-RGBD numbers.
 """
 
@@ -75,7 +75,7 @@ class NeuralRGBDAdapter:
             independent_gt=True,  # exact synthetic artist-mesh GT (not reconstruction-derived)
             depth_metric=True,  # available in principle; not implemented in this slice
             pose_metric=True,  # available in principle; not implemented in this slice
-            official_local_eval=False,  # eval3r_native; no official Neural-RGBD benchmark
+            official_local_eval=False,  # native; no official Neural-RGBD benchmark
             official_local_eval_method="none",
             supports_full_scene_geometry=True,
             notes=[
@@ -83,7 +83,7 @@ class NeuralRGBDAdapter:
                 "observed region. Culled vs source (uncropped) are distinct protocol variants.",
                 "Geometry is mesh-to-mesh; the native OpenGL pose convention does not affect "
                 "the score and is only relevant to the deferred depth/pose evaluation.",
-                "eval3r_native community F-score convention — not an official Neural-RGBD "
+                "native community F-score convention — not an official Neural-RGBD "
                 "benchmark number.",
             ],
         )
@@ -278,7 +278,7 @@ class NeuralRGBDAdapter:
             status="supported",
             reason=(
                 "Neural-RGBD GT is a locally-available released mesh (culled or source); "
-                "geometry is evaluable with the eval3r_native protocol. Results are not "
+                "geometry is evaluable with the native protocol. Results are not "
                 "official Neural-RGBD numbers."
             ),
             public_gt_available=True,

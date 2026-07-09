@@ -60,6 +60,6 @@ Attempting the withheld splits fails in preflight:
 
 ```bash
 e3r benchmark run preds/ --dataset tanks_temples --split intermediate \
-  --protocol tanks_temples_intermediate_server_only --root /data/tnt
+  --protocol tanks_temples_intermediate_server --root /data/tnt
 # refused: GT for this split is withheld; submit to the official benchmark server.
 ```

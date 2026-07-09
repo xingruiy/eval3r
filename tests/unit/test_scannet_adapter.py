@@ -63,7 +63,7 @@ def test_depth_unit_and_pose_format_recorded() -> None:
 def test_capabilities_are_honest() -> None:
     caps = _adapter().capabilities
     assert caps.independent_gt is False  # reconstruction-derived, not laser scan
-    assert caps.official_local_eval is False  # eval3r_native, no official ScanNet benchmark
+    assert caps.official_local_eval is False  # native, no official ScanNet benchmark
     assert caps.requires_external_renderer is True  # test visibility culling
     assert caps.supports_full_scene_geometry is True
 

@@ -21,12 +21,12 @@ EXPECTED_BUILTINS = {
     "single_geometry",
     "single_depth",
     "single_pose",
-    "dtu_official_like_pointcloud",
+    "dtu_native_pointcloud",
     "scannet_single_layer_geometry_5cm",
     "scannet_double_layer_geometry_5cm",
     "scannet_test_single_layer_geometry_5cm",
     "tanks_temples_training_official",
-    "tanks_temples_intermediate_server_only",
+    "tanks_temples_intermediate_server",
     "eth3d_training_official",
     "neural_rgbd_geometry_culled",
     "neural_rgbd_geometry_source",
@@ -35,17 +35,17 @@ EXPECTED_BUILTINS = {
 # Regression table: name -> canonical protocol hash. Update deliberately (and bump
 # the protocol version) when a protocol's evaluation behavior changes.
 EXPECTED_HASHES = {
-    "dtu_official_like_pointcloud": "sha256:251123ac1c0a674d6309baac50f24f07727fc9b1229d743c703be7c74daecb3f",
+    "dtu_native_pointcloud": "sha256:3e8f93f951c017dfbbc6149f5c80e35de46535680e967e2e9fe3e2afce0baaad",
     "eth3d_training_official": "sha256:de47a1b7d31b9d31757be0540612d9ba030adaf605637182fc19d2811fff76b3",
-    "scannet_double_layer_geometry_5cm": "sha256:ebede3780da161a3771e4c47cf4786d6b3d8ee39e7e99b231310f8d6886f14ce",
-    "scannet_single_layer_geometry_5cm": "sha256:39befa72ba1eeb40e98295077a7d0ee098596e5df12357aaea758dffb12b3c18",
-    "scannet_test_single_layer_geometry_5cm": "sha256:4cdd952ba7cfbd24b9e81b5f2ea68bad4c330b3b0e9c5a5cbb1f301c9c8fbf88",
-    "neural_rgbd_geometry_culled": "sha256:7abc708264d033f081e3d7e86f2d4398e6eaf84d77cb155d30c81c5d0cb85910",
-    "neural_rgbd_geometry_source": "sha256:e955be6c7bb99b45128b441dec82b9aca11bc7c28d20700fdb215c6b4f5a0f11",
-    "single_depth": "sha256:1ceffc7e9cd1f77ef071619b7ce0c058a41707ceecce6e520522c29c9eeb056e",
-    "single_geometry": "sha256:ac14364fc693fef0e4bdd50cf7e6ad80fc219569f0efb6f93a6b7f4d4a61c942",
-    "single_pose": "sha256:36570e9b2a113191a3b7afd64ca90bf573042500dc21e27a2bd40adccfb2f568",
-    "tanks_temples_intermediate_server_only": "sha256:223c263c11d8b251846e779185425caab42b2cf87a42b104b16b21b4efa49048",
+    "scannet_double_layer_geometry_5cm": "sha256:3298b78a23584d6a7c49d1341708559cf81d4add16f2295051bdcc2e113ffff6",
+    "scannet_single_layer_geometry_5cm": "sha256:dc03fe863debdbdfd6d60fb0c541679652224418c3ea791bdf1aee43e2c18f7d",
+    "scannet_test_single_layer_geometry_5cm": "sha256:a36c8acf23d9b4f03a0100698ddedbc286f9fd7fbb29e1d15f8f9686e7f87037",
+    "neural_rgbd_geometry_culled": "sha256:d0f02285af30d856169587df8db866749955e461332957ed3676fca710671dc0",
+    "neural_rgbd_geometry_source": "sha256:9389e5ef6004ca044b325b7931b81bef7dbc14c75b1962455669e5deb275ac7d",
+    "single_depth": "sha256:74ada6a72e74ff4171277c8eec732844d2322ad3cebfca1d3b7d937d27b9aea7",
+    "single_geometry": "sha256:a4a36e043762436ce117e0a94755e613feca4e5610ebdf4bf72d36b25dfcc1f6",
+    "single_pose": "sha256:c36bfd6e367d4604252c99dbaff551555652c946c93472a067b9a90af048b266",
+    "tanks_temples_intermediate_server": "sha256:8b6d39fa9bc8da8ac826fd4ba0cf65b6ebd131a47ad785387675a18689a97485",
     "tanks_temples_training_official": "sha256:cfb79c04616c6083ef6bbe05a90fbba8973f3f871ce051fb4e944205eb591e82",
 }
 
@@ -67,8 +67,8 @@ def test_builtin_hash_regression(name: str) -> None:
 
 
 def test_server_only_protocol_declares_no_local_metrics() -> None:
-    proto = load_protocol("tanks_temples_intermediate_server_only")
-    assert proto.fidelity == "server_only"
+    proto = load_protocol("tanks_temples_intermediate_server")
+    assert proto.fidelity == "server"
     assert proto.local_evaluation.status == "server_only"
     assert proto.metrics == []
 

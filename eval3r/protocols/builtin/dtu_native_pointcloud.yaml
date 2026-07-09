@@ -1,7 +1,7 @@
 schema_version: 1
 protocol_version: 0.3.0
-name: dtu_official_like_pointcloud
-fidelity: official_like
+name: dtu_native_pointcloud
+fidelity: native
 
 dataset:
   dataset: dtu

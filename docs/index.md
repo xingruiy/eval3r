@@ -66,7 +66,7 @@ will be stabilized once more built-in adapters have proven the interface.
 - [Quickstart](quickstart.md) — CLI and Python API
 - [Prediction format](prediction_format.md) — manifests, conventions, file layouts
 - [Protocols](protocols.md) — what a protocol pins, built-ins, hashing
-- [Fidelity](fidelity.md) — official / official_like / eval3r_native / server_only
+- [Fidelity](fidelity.md) — official / native / server
 - [Datasets](datasets.md) — adapters, capabilities, ground-truth honesty
 - [Metrics](metrics.md) — geometry, depth, and pose metric definitions
 - [Backends](backends.md) — delegation policy and version recording

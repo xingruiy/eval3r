@@ -39,7 +39,7 @@ def test_val_split_runs_without_culling(tmp_path: Path) -> None:
     )
     r = run.result
     assert r.n_scenes_evaluated == 1 and not r.failed_scenes
-    assert r.fidelity == "eval3r_native"
+    assert r.fidelity == "native"
     # val does NOT cull; culled_fraction is recorded as 0.
     assert r.metrics["culled_fraction"] == 0.0
     # the far, unobserved box in the prediction is NOT removed, so it hurts precision.

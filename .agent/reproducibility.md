@@ -128,7 +128,7 @@ Recommended structure:
     "name": "scannet_single_layer_geometry_5cm",
     "version": "0.1.0",
     "hash": "sha256:...",
-    "fidelity": "official_like"
+    "fidelity": "native"
   },
   "ground_truth": {
     "modality": "mesh",

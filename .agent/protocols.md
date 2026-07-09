@@ -39,13 +39,10 @@ Protocols must not define adaptation allowlists, scale-resolution gates, or any 
 official
   The protocol delegates to an official script or benchmark tool and records the official backend version.
 
-official_like
-  The protocol reimplements established dataset semantics locally and should be regression-tested against known numbers.
+native
+  The protocol is defined by eval3r or uses a validated local port of established dataset semantics. It may be useful and repeatable, but it does not claim official leaderboard comparability.
 
-eval3r_native
-  The protocol is defined by eval3r. It may be useful and repeatable, but it does not claim official leaderboard comparability.
-
-server_only
+server
   The split cannot be locally evaluated because GT is withheld or the official server is required.
 ```
 
@@ -57,7 +54,7 @@ Initial built-ins:
 single_geometry.yaml
 single_depth.yaml
 single_pose.yaml
-dtu_official_like_pointcloud.yaml
+dtu_native_pointcloud.yaml
 scannet_single_layer_geometry_5cm.yaml
 scannet_double_layer_geometry_5cm.yaml
 tanks_temples_training_official.yaml
@@ -74,7 +71,7 @@ seven_scenes_depth.yaml
 seven_scenes_pose.yaml
 neural_rgbd_depth.yaml   (deferred; geometry protocols above shipped first, task 020)
 replica_variant_geometry.yaml
-co3d_pose_eval3r_native.yaml
+co3d_pose_native.yaml
 kitti360_pose.yaml
 blendedmvs_depth.yaml
 ```
@@ -87,7 +84,7 @@ This is a simple protocol for comparing two files. It is useful for debugging an
 schema_version: 1
 protocol_version: 0.1.0
 name: single_geometry
-fidelity: eval3r_native
+fidelity: native
 
 dataset:
   dataset: custom
@@ -205,8 +202,8 @@ DTU's reference is a laser-scanned point cloud. Evaluation is point-cloud based 
 ```yaml
 schema_version: 1
 protocol_version: 0.1.0
-name: dtu_official_like_pointcloud
-fidelity: official_like
+name: dtu_native_pointcloud
+fidelity: native
 
 dataset:
   dataset: dtu
@@ -327,7 +324,7 @@ This protocol evaluates geometry against the selected ScanNet GT mesh convention
 schema_version: 1
 protocol_version: 0.1.0
 name: scannet_single_layer_geometry_5cm
-fidelity: eval3r_native
+fidelity: native
 
 dataset:
   dataset: scannet
@@ -443,9 +440,9 @@ notes:
   - Visibility culling is part of this protocol and should be recorded per scene.
   - ScanNet has no official geometry-reconstruction benchmark. This protocol follows the
     community single-layer 5cm F-score convention (TransformerFusion-style evaluation)
-    and is therefore eval3r_native, not official_like. Results must not be presented as
-    official ScanNet benchmark numbers, and the reference implementation used for any
-    regression fixtures must be named in the task notes.
+    and is therefore native. Results must not be presented as official ScanNet benchmark
+    numbers, and the reference implementation used for any regression fixtures must be
+    named in the task notes.
 ```
 
 ## ScanNet double-layer geometry protocol
@@ -456,7 +453,7 @@ This follows the same structure as the single-layer protocol but changes the dat
 schema_version: 1
 protocol_version: 0.1.0
 name: scannet_double_layer_geometry_5cm
-fidelity: eval3r_native
+fidelity: native
 
 dataset:
   dataset: scannet
@@ -583,7 +580,7 @@ backend_preferences:
 
 notes:
   - Per-scene thresholds are resolved by the official backend, not hardcoded as a global value.
-  - Intermediate and advanced splits are server-only and should use a separate server_only protocol stub.
+  - Intermediate and advanced splits are server-only and should use a separate server fidelity protocol stub.
 ```
 
 ## Tanks and Temples server-only protocol stub
@@ -591,8 +588,8 @@ notes:
 ```yaml
 schema_version: 1
 protocol_version: 0.1.0
-name: tanks_temples_intermediate_server_only
-fidelity: server_only
+name: tanks_temples_intermediate_server
+fidelity: server
 
 dataset:
   dataset: tanks_temples
@@ -819,7 +816,7 @@ run's alignment records (task 014; protocol_version 0.2.0).
 schema_version: 1
 protocol_version: 0.2.0
 name: single_depth
-fidelity: eval3r_native
+fidelity: native
 
 dataset:
   dataset: custom
@@ -923,7 +920,7 @@ never be enabled silently (task 015; protocol_version 0.2.0).
 schema_version: 1
 protocol_version: 0.2.0
 name: single_pose
-fidelity: eval3r_native
+fidelity: native
 
 dataset:
   dataset: custom
@@ -1045,7 +1042,7 @@ Examples:
 ```text
 scannet_single_layer_geometry_5cm
 scannet_double_layer_geometry_5cm
-dtu_official_like_pointcloud
+dtu_native_pointcloud
 tanks_temples_training_official
 eth3d_training_official
 hypersim_depth
@@ -1068,8 +1065,8 @@ Rules:
 
 ```text
 official protocols should generally disallow overrides
-official_like protocols should disallow overrides unless the changed field is explicitly experimental
-eval3r_native protocols may allow overrides
+strict native protocols should disallow overrides unless the changed field is explicitly experimental
+exploratory native protocols may allow overrides
 all overrides are written into config.yaml and results.json
 ```
 
@@ -1092,5 +1089,5 @@ failure policy is explicit
 backend preferences are explicit
 expected result files are documented
 tiny fixture exists
-regression target exists if official_like or official
+regression target exists if native or official
 ```

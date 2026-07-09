@@ -8,7 +8,7 @@ A minimal, honest adapter for a user-supplied dataset root laid out as::
 Predictions live under a separate ``pred_root`` and are resolved from a manifest
 when present, else inferred as ``<pred_root>/<scene_id>.ply``. Ground truth is
 user-supplied, so provenance/independence/density are recorded as ``unknown`` and
-the fidelity is eval3r-native — the adapter does not pretend the GT is an
+the fidelity is native — the adapter does not pretend the GT is an
 independent measurement (``.agent/datasets.md`` common-mistakes rules).
 """
 
@@ -46,7 +46,7 @@ class CustomAdapter:
             supports_full_scene_geometry=True,
             official_local_eval=False,
             official_local_eval_method="none",
-            notes=["User-supplied geometry; GT provenance is unknown / eval3r-native."],
+            notes=["User-supplied geometry; GT provenance is unknown / native."],
         )
 
     @classmethod

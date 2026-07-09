@@ -1,7 +1,7 @@
 schema_version: 1
 protocol_version: 0.2.0
-name: tanks_temples_intermediate_server_only
-fidelity: server_only
+name: tanks_temples_intermediate_server
+fidelity: server
 
 dataset:
   dataset: tanks_temples

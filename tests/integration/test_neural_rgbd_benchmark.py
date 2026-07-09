@@ -25,7 +25,7 @@ def test_culled_geometry_benchmark(tmp_path: Path) -> None:
     )
     r = run.result
     assert r.n_scenes_evaluated == 2 and not r.failed_scenes
-    assert r.fidelity == "eval3r_native"
+    assert r.fidelity == "native"
     for metric in ("accuracy", "completeness", "chamfer", "precision", "recall", "fscore"):
         assert metric in r.metrics
     # prediction matches the culled/observed region -> near-perfect F-score.

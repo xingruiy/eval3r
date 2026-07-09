@@ -51,7 +51,7 @@ official-looking numbers.
   scans; results are labeled accordingly. Depth is 16-bit millimeters (`depth_unit`
   0.001); exported poses are camera-to-world, OpenCV-style.
 - **Protocols**: community single-/double-layer 5 cm F-score conventions
-  (`eval3r_native`; ScanNet has no official reconstruction benchmark). The val protocol
+  (`native`; ScanNet has no official reconstruction benchmark). The val protocol
   runs without visibility culling; the test protocol applies protocol-defined visibility
   culling (prediction depth rendered from the GT trajectory, TSDF-trimmed to the observed
   region) — the renderer, TSDF backend, versions, voxel size, trajectory fingerprint, and
@@ -97,7 +97,7 @@ Both use mesh-to-mesh scoring whose protocol default does not force alignment
 (prediction and GT are expected to share the world frame), surface-area sampling of
 200k points, and the community 5 cm F-score convention
 (accuracy/completeness/chamfer + precision/recall/F-score). GT is exact synthetic geometry, so
-it is recorded as `synthetic_exact` / `independent`. These are `eval3r_native` numbers, not an
+it is recorded as `synthetic_exact` / `independent`. These are `native` numbers, not an
 official Neural-RGBD benchmark. Because geometry is mesh-to-mesh, the dataset's native OpenGL
 camera-pose convention does not affect the score (it matters only for the deferred depth/pose
 work).
