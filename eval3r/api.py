@@ -478,6 +478,7 @@ def run_benchmark(
     registry: BackendRegistry | None = None,
     command: str | None = None,
     return_run: bool = False,
+    base_seed: int | None = None,
 ) -> RunResult | BenchmarkRunOutput:
     """Evaluate a method's predictions across a dataset split under a named protocol.
 
@@ -485,16 +486,23 @@ def run_benchmark(
     needs (e.g. GT files). The run is refused before computation if the split is not
     locally evaluable. When ``out_dir`` is given a full run directory (including the
     resolved-or-inferred ``manifest.yaml``) is written there.
+
+    ``base_seed`` is a run-configuration override for protocols whose sampling seed is
+    ``derive``: per-scene seeds derive from it, so repeating the run with different
+    values quantifies sampling sensitivity. ``None`` keeps the documented default.
+    The value used is recorded in the run config and result metadata.
     """
     proto = load_protocol(protocol)
     dataset_registry = dataset_registry or default_dataset_registry()
     adapter = dataset_registry.create(dataset, Path(root) if root is not None else None)
     environment = capture_environment(command=command)
 
+    seed_kwargs = {} if base_seed is None else {"base_seed": base_seed}
     run = run_benchmark_geometry(
         pred_root, adapter, proto, split,
         manifest_path=manifest, registry=registry,
         command=command, environment=environment, method=method, adapt=adapt,
+        **seed_kwargs,
     )
 
     if out_dir is not None:

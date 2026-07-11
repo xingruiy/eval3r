@@ -451,6 +451,7 @@ def _evaluate_scene_visibility_culled(
     """
     from eval3r.core.errors import CullingError, Eval3rError, MetricError
     from eval3r.metrics.diagnostics import build_diagnostic_metrics, partition_specs
+    from eval3r.metrics.geometry import compute_directional_distances
     from eval3r.pipeline.stages.load import LoadedGeometry, load_geometry
     from eval3r.pipeline.stages.metric import compute_scene_metrics
     from eval3r.pipeline.stages.normalize import normalize_to_meters, normalize_world_frame
@@ -527,10 +528,20 @@ def _evaluate_scene_visibility_culled(
 
         stage = "metric"
         geometry_specs, diagnostic_specs = partition_specs(protocol.metrics)
+        # Debug outputs (error-colored cloud / histogram) need per-point distances,
+        # exactly as on the native runner path; the culled path must honor the
+        # protocol's reporting spec too (found in task 028: it silently didn't).
+        reporting = protocol.reporting
+        capture_debug = reporting.save_colored_errors or reporting.save_distance_histogram
+        distances = (
+            compute_directional_distances(pred_points, gt_points, nn_backend)
+            if capture_debug
+            else None
+        )
         metrics = compute_scene_metrics(
             pred_points, gt_points, geometry_specs,
             protocol=protocol.name, protocol_hash=protocol_hash,
-            nn_backend=nn_backend, scene_id=scene_id,
+            nn_backend=nn_backend, scene_id=scene_id, distances=distances,
         )
         valid_fraction = metrics[0].valid_fraction if metrics else 1.0
         metrics = metrics + build_diagnostic_metrics(
@@ -544,7 +555,7 @@ def _evaluate_scene_visibility_culled(
             scene_id=scene_id,
             failure=SceneFailure(scene_id=scene_id, stage=stage, reason=str(exc)),
         )
-    return SceneOutcome(scene_id=scene_id, metrics=metrics)
+    return SceneOutcome(scene_id=scene_id, metrics=metrics, debug=distances)
 
 
 def _evaluate_scene(
@@ -557,6 +568,7 @@ def _evaluate_scene(
     registry: BackendRegistry,
     pred_unit_override: str | None = None,
     pred_world_frame_override: WorldAxes | None = None,
+    base_seed: int = DEFAULT_BASE_SEED,
 ) -> SceneOutcome:
     """Resolve prediction + GT, then run the task-007 geometry stages for one scene."""
     try:
@@ -594,6 +606,7 @@ def _evaluate_scene(
         input_type=pred_kind, gt_type=gt_kind, registry=registry,  # type: ignore[arg-type]
         pred_unit=pred_unit, gt_unit=gt_unit, pred_world_frame=pred_world_frame,
         pred_trajectory=pred_trajectory, gt_trajectory=gt_trajectory,
+        base_seed=base_seed,
     )
 
 
@@ -617,8 +630,16 @@ def run_benchmark_geometry(
     method: str | None = None,
     adapt: str | None = None,
     progress: Any | None = None,
+    base_seed: int = DEFAULT_BASE_SEED,
 ) -> BenchmarkRunOutput:
-    """Evaluate every scene in ``split`` and assemble a benchmark ``RunResult``."""
+    """Evaluate every scene in ``split`` and assemble a benchmark ``RunResult``.
+
+    ``base_seed`` is run configuration (not protocol state): protocols with
+    ``seed: derive`` derive each scene's sampling seed from this base, so overriding
+    it quantifies sampling sensitivity across repeated runs. The value used is
+    recorded in the run config and result metadata. Protocols pinning an explicit
+    integer seed ignore it.
+    """
     registry = registry or default_registry()
     pred_root = Path(pred_root)
 
@@ -711,12 +732,12 @@ def run_benchmark_geometry(
         elif official_name:
             outcome = _evaluate_scene_official(
                 adapter, pred_root, resolve_manifest, scene_id, run_protocol, phash,
-                registry, official_name, DEFAULT_BASE_SEED,
+                registry, official_name, base_seed,
             )
         elif visibility_culling:
             outcome = _evaluate_scene_visibility_culled(
                 adapter, pred_root, resolve_manifest, scene_id, run_protocol, phash,
-                registry, DEFAULT_BASE_SEED,
+                registry, base_seed,
                 pred_unit_override=pred_unit_override,
                 pred_world_frame_override=pred_world_frame_override,
             )
@@ -725,6 +746,7 @@ def run_benchmark_geometry(
                 adapter, pred_root, resolve_manifest, scene_id, run_protocol, phash, registry,
                 pred_unit_override=pred_unit_override,
                 pred_world_frame_override=pred_world_frame_override,
+                base_seed=base_seed,
             )
         if progress is not None:
             progress(scene_id, outcome)
@@ -804,7 +826,7 @@ def run_benchmark_geometry(
         command=command,
         manifest_path=Path(manifest_path) if manifest_path else None,
         timestamp=_now_utc_iso(),
-        metadata={"manifest_inferred": inferred},
+        metadata={"manifest_inferred": inferred, "base_seed": base_seed},
     )
 
     config = {
@@ -816,6 +838,7 @@ def run_benchmark_geometry(
         "manifest_inferred": inferred,
         "n_scenes": len(scenes),
         "adaptation": adaptation.model_dump(mode="json"),
+        "base_seed": base_seed,
     }
 
     return BenchmarkRunOutput(

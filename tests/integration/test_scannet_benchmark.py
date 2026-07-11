@@ -74,6 +74,16 @@ def test_test_split_visibility_culls_prediction(tmp_path: Path) -> None:
     assert "pyrender" in cf.metadata["renderer"]
     assert cf.metadata["trajectory_fingerprint"] is not None
 
+    # the culled path must honor the protocol's reporting spec (save_colored_errors /
+    # save_distance_histogram) exactly like the native path (task 028 finding).
+    assert run.debug_scenes, "visibility-culled path captured no debug distances"
+    debug_root = tmp_path / "run" / "debug" / "scenes"
+    assert debug_root.is_dir()
+    scene_dirs = list(debug_root.iterdir())
+    assert scene_dirs and any(
+        (d / "error.ply").exists() or (d / "histogram.png").exists() for d in scene_dirs
+    )
+
 
 @pytest.mark.skipif(not _GL_OK, reason=_GL_REASON)
 def test_culling_changes_precision_vs_val(tmp_path: Path) -> None:

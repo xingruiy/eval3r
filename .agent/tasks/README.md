@@ -36,8 +36,10 @@ relevant `.agent/*.md` docs and the actual code — task notes can be stale.
 | 025 | [025-ci-prediction-validate-message.md](025-ci-prediction-validate-message.md) | CI fix: keep missing prediction manifest reason stable under Rich wrapping | done |
 | 026 | [026-ci-node-action-upgrade.md](026-ci-node-action-upgrade.md) | CI fix: upgrade first-party actions to Node 24 action versions | done |
 | 027 | [027-fidelity-levels.md](027-fidelity-levels.md) | Collapse fidelity to official/native/server and rename old-fidelity protocol IDs | done |
+| 028 | [028-known-good-benchmarks.md](028-known-good-benchmarks.md) | Known-good benchmark validation and external reproducibility corpus for datasets, predictions, references, tools, and run records | done |
+| 029 | [029-multithreaded-benchmarks.md](029-multithreaded-benchmarks.md) | Opt-in scene-level multithreading across native, visibility-culling, and official benchmark paths | todo |
 
-Tasks 001–027 are done. Remaining work beyond them is the intentionally deferred backlog below (each item
+Tasks 001–028 are done. Task 029 is the next active slice. Remaining work beyond them is the intentionally deferred backlog below (each item
 needs its conventions pinned first — create a numbered task file when one is picked up),
 Neural-RGBD depth/pose (geometry shipped in task 020), and the actual PyPI publish, which
 happens only on explicit user request (see the release checklist in task 017).

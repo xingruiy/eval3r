@@ -97,6 +97,11 @@ e3r benchmark run preds/ --dataset dtu --split test \
 `benchmark validate` checks preflight and per-scene prediction resolution without
 evaluating. Runs are refused before any computation when the split is not locally
 evaluable (e.g. Tanks and Temples intermediate, ETH3D test — those are server-only).
+
+`--seed N` overrides the run's sampling base seed for protocols whose sampling seed is
+`derive`: repeated runs with the same seed are deterministic, and repeating with
+different seeds measures sampling sensitivity (report mean ± spread, not a single
+draw). The seed used is recorded in `config.yaml` and `results.json` metadata.
 See the worked examples: [DTU](examples/dtu.md), [ScanNet](examples/scannet.md),
 [Tanks and Temples](examples/tanks_temples.md), [ETH3D](examples/eth3d.md).
 Prediction adaptation is chosen by the manifest and explicit CLI/API overrides, then

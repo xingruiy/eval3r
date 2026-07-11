@@ -126,8 +126,14 @@ Recommended default behavior:
 ```text
 sample method: surface_area
 sample count: protocol-specific, commonly 200000 for scene-level protocols
-seed: derive per scene from protocol base seed and scene_id
+seed: derive per scene from a base seed and scene_id
 ```
+
+The base seed is run configuration, not protocol state: it defaults to 0 and can be
+overridden per run (`e3r benchmark run --seed N` / `run_benchmark(base_seed=N)`) to
+quantify sampling sensitivity across repeated runs. The value used is always recorded
+in the run config and result metadata (`base_seed`). Protocols that pin an explicit
+integer seed are unaffected by the override.
 
 Do not perform mesh repair, hole filling, watertight conversion, smoothing, or decimation unless a protocol explicitly declares that preprocessing step.
 

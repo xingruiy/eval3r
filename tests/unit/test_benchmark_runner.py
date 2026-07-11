@@ -142,3 +142,40 @@ def test_score_worst_injects_worst_values() -> None:
     assert run.result.metrics["accuracy"] == pytest.approx(5.0 / 3.0)
     worst = [m for m in run.result.per_scene_metrics if m.scene_id == "scene_missing"]
     assert all(m.metadata.get("scored_worst") for m in worst)
+
+
+def test_base_seed_is_run_config_recorded_and_threads_to_sampling(tmp_path: Path) -> None:
+    """--seed / base_seed varies 'derive' sampling and is recorded, default is stable."""
+    from eval3r.core.schema import SamplingSideSpec, SamplingSpec
+
+    root = tmp_path / "dataset"
+    preds = tmp_path / "preds"
+    (root / "splits").mkdir(parents=True)
+    (root / "splits" / "pair.txt").write_text("scene_a\n", encoding="utf-8")
+
+    rng = np.random.default_rng(7)
+    gt_pts = rng.normal(size=(2000, 3))
+    pred_pts = gt_pts + rng.normal(scale=0.01, size=gt_pts.shape)
+    writer = PlyfilePointCloudBackend()
+    writer.save_pointcloud(gt_pts, root / "gt" / "scene_a.ply")
+    writer.save_pointcloud(pred_pts, preds / "scene_a.ply")
+
+    proto = _proto()
+    side = SamplingSideSpec(method="random_points", n_points=200, seed="derive")
+    proto.sampling = SamplingSpec(pred=side, gt=side.model_copy())
+
+    default_a = run_benchmark_geometry(preds, CustomAdapter(root), proto, "pair")
+    default_b = run_benchmark_geometry(preds, CustomAdapter(root), proto, "pair")
+    reseeded = run_benchmark_geometry(
+        preds, CustomAdapter(root), proto, "pair", base_seed=123
+    )
+
+    # same-seed repeats are bit-identical; a different base seed samples differently.
+    assert default_a.result.metrics["chamfer"] == default_b.result.metrics["chamfer"]
+    assert reseeded.result.metrics["chamfer"] != default_a.result.metrics["chamfer"]
+
+    # the seed used is run configuration and must be recorded in both records.
+    assert default_a.result.metadata["base_seed"] == 0
+    assert default_a.config["base_seed"] == 0
+    assert reseeded.result.metadata["base_seed"] == 123
+    assert reseeded.config["base_seed"] == 123

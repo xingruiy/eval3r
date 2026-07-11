@@ -110,6 +110,11 @@ git_commit when available
 timestamp
 ```
 
+Run-configuration values that change evaluation output but are not protocol state must
+also be recorded: the sampling base seed (`--seed` / `base_seed`, used by protocols with
+`seed: derive`) is written to `results.json` `metadata.base_seed` and to `config.yaml`
+`base_seed` for every benchmark run, so seed-repetition studies can attribute each run.
+
 Recommended structure:
 
 ```json

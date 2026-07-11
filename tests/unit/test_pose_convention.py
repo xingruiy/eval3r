@@ -191,6 +191,33 @@ def test_convert_rejects_invalid_input(edit, needle: str) -> None:
     assert needle.lower() in str(exc.value).lower()
 
 
+def test_convert_accepts_text_precision_rotation_noise() -> None:
+    """Real exported poses (ScanNet SensReader text, float32) carry ~1e-6..1e-5
+    orthonormality error; the acceptance gate (ORTHO_TOL=1e-4) must pass them
+    while still rejecting genuinely corrupt rotations (task 028 real-data run)."""
+    rng = np.random.default_rng(28)
+    m = np.eye(4)
+    # perturb the rotation block at just above the old 1e-6 gate
+    m[:3, :3] += rng.normal(scale=2e-6, size=(3, 3))
+    T = PoseConventionTransform()
+    out = T.convert(
+        m,
+        PoseConvention("opencv", "cam_to_world"),
+        PoseConvention("opengl", "cam_to_world"),
+    )
+    assert out.shape == (4, 4)
+
+    corrupt = np.eye(4)
+    corrupt[0, 1] = 5e-3  # shear well past ORTHO_TOL: not a rotation
+    with pytest.raises(PoseConventionError) as exc:
+        T.convert(
+            corrupt,
+            PoseConvention("opencv", "cam_to_world"),
+            PoseConvention("opengl", "cam_to_world"),
+        )
+    assert "orthonormal" in str(exc.value).lower()
+
+
 # --- source-format mapping -----------------------------------------------------
 
 

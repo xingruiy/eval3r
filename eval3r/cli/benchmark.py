@@ -144,6 +144,15 @@ def benchmark_run(
         None, "--as", "--adapt", help="Prediction adaptation override, e.g. opengl@sim3."
     ),
     out: Path | None = typer.Option(None, "--out", help="Run directory to write."),
+    seed: int | None = typer.Option(
+        None,
+        "--seed",
+        help=(
+            "Run-config base seed for protocols with 'derive' sampling seeds; repeat a "
+            "run with different values to measure sampling sensitivity. Recorded in the "
+            "run config and result metadata. Default keeps the documented base seed."
+        ),
+    ),
 ) -> None:
     """Run a dataset benchmark under a named protocol."""
     command = "e3r " + shlex.join(sys.argv[1:]) if len(sys.argv) > 1 else "e3r benchmark run"
@@ -151,12 +160,14 @@ def benchmark_run(
     try:
         proto = load_protocol(protocol)
         adapter = default_dataset_registry().create(dataset, root)
+        seed_kwargs = {} if seed is None else {"base_seed": seed}
         run = run_benchmark_geometry(
             pred_root, adapter, proto, split,
             manifest_path=manifest, command=command,
             environment=capture_environment(command=command), method=method,
             adapt=adapt,
             progress=_print_scene,
+            **seed_kwargs,
         )
     except Eval3rError as exc:
         err_console.print(Panel(str(exc), title="benchmark failed", style="red", expand=False))

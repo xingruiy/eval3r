@@ -60,10 +60,16 @@ INTERNAL_WORLD_AXES: WorldAxes = "opencv"
 #: OpenCV<->OpenGL axis flip: proper 180 degree rotation about X (involutive).
 F = np.diag([1.0, -1.0, -1.0, 1.0])
 
-# Truthfulness tolerances. atol governs absolute residuals (orthonormality, homogeneous
-# row, round-trip); rtol scales the determinant/trace checks that are already O(1).
+# Truthfulness tolerances. atol governs absolute residuals (homogeneous row,
+# round-trip); rtol scales the determinant/trace checks that are already O(1).
 ATOL = 1e-8
 RTOL = 1e-6
+# Rotation-block acceptance gate (RᵀR and det). Real exported poses carry text/float32
+# precision error: ScanNet SensReader text poses deviate by ~1e-6, float32 storage by
+# up to ~1e-5. Genuine corruption (reflections, garbage) deviates by >= 1e-2, so 1e-4
+# accepts legitimate real-world pose files while still rejecting invalid rotations.
+# Poses are used as-is downstream; this gate only controls acceptance (task 028).
+ORTHO_TOL = 1e-4
 #: Above this many poses, round-trip validation is checked on a fixed-seed subsample.
 _ROUND_TRIP_SUBSAMPLE = 512
 
@@ -119,14 +125,14 @@ def assert_orthonormal(matrices: np.ndarray, *, context: str) -> None:
     for i, m in enumerate(matrices):
         r = m[:3, :3]
         ortho = float(np.abs(r.T @ r - np.eye(3)).max())
-        if ortho > 1e-6:
+        if ortho > ORTHO_TOL:
             raise PoseConventionError(
                 f"{context}: pose {i} rotation block is not orthonormal "
-                f"(||RᵀR - I||_max = {ortho:.3e} > 1e-6); a valid camera pose has an "
-                f"orthonormal rotation."
+                f"(||RᵀR - I||_max = {ortho:.3e} > {ORTHO_TOL:.1e}); a valid camera pose "
+                f"has an orthonormal rotation."
             )
         det = float(np.linalg.det(r))
-        if abs(det - 1.0) > 1e-6:
+        if abs(det - 1.0) > ORTHO_TOL:
             raise PoseConventionError(
                 f"{context}: pose {i} rotation determinant is {det:.6f}, expected +1 "
                 f"(a determinant near -1 is a reflection, not a rotation — the "
