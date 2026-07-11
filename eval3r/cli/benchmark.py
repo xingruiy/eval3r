@@ -31,6 +31,7 @@ from eval3r.pipeline.benchmark import (
     run_benchmark_geometry,
 )
 from eval3r.pipeline.runner import SceneOutcome
+from eval3r.pipeline.stages.sample import DEFAULT_BASE_SEED
 from eval3r.protocols import load_protocol
 from eval3r.reports.alignment_vis import (
     write_alignment_vis_outputs,
@@ -160,14 +161,13 @@ def benchmark_run(
     try:
         proto = load_protocol(protocol)
         adapter = default_dataset_registry().create(dataset, root)
-        seed_kwargs = {} if seed is None else {"base_seed": seed}
         run = run_benchmark_geometry(
             pred_root, adapter, proto, split,
             manifest_path=manifest, command=command,
             environment=capture_environment(command=command), method=method,
             adapt=adapt,
             progress=_print_scene,
-            **seed_kwargs,
+            base_seed=DEFAULT_BASE_SEED if seed is None else seed,
         )
     except Eval3rError as exc:
         err_console.print(Panel(str(exc), title="benchmark failed", style="red", expand=False))
